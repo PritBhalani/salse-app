@@ -1,7 +1,7 @@
 import axios from 'axios';
 
 // Replace with local Wi-Fi IP (e.g. 192.168.1.X) when testing on physical Android device
-export const BASE_URL = 'http://localhost:5000/api';
+export const BASE_URL = 'https://salse-app.onrender.com/';
 
 export const mobileAPI = axios.create({
   baseURL: BASE_URL,
