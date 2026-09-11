@@ -4,7 +4,8 @@
   "description": "Wholesale Plumbing & Bathware CRM/ERP, Warehouse Dispatch & Field Sales Platform",
   "main": "backend/src/server.js",
   "scripts": {
-    "build": "npm install --prefix backend && npm install --prefix admin-client && npm run build --prefix admin-client",
+    "postinstall": "cd backend && npm install && cd ../admin-client && npm install && npm run build",
+    "build": "cd backend && npm install && cd ../admin-client && npm install && npm run build",
     "start": "node backend/src/server.js"
   },
   "engines": {
