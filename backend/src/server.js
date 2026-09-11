@@ -1,0 +1,114 @@
+import express from 'express';
+import http from 'http';
+import { Server as SocketIOServer } from 'socket.io';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import { connectDB } from './config/db.js';
+
+// Route imports
+import authRoutes from './routes/authRoutes.js';
+import shopRoutes from './routes/shopRoutes.js';
+import routeRoutes from './routes/routeRoutes.js';
+import productRoutes from './routes/productRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import visitRoutes from './routes/visitRoutes.js';
+import callingSheetRoutes from './routes/callingSheetRoutes.js';
+import miracleRoutes from './routes/miracleRoutes.js';
+
+dotenv.config();
+
+const app = express();
+const server = http.createServer(app);
+
+// Socket.io for Real-Time Warehouse Alerts
+const io = new SocketIOServer(server, {
+  cors: {
+    origin: '*',
+    methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+  },
+});
+
+app.set('io', io);
+
+// Middleware
+app.use(cors());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const CLIENT_DIST = path.join(__dirname, '../../admin-client/dist');
+
+// Serve compiled Admin CRM & Warehouse web portal
+app.use(express.static(CLIENT_DIST));
+
+
+// Mount Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/shops', shopRoutes);
+app.use('/api/routes', routeRoutes);
+app.use('/api/products', productRoutes);
+app.use('/api/orders', orderRoutes);
+app.use('/api/payments', paymentRoutes);
+app.use('/api/visits', visitRoutes);
+app.use('/api/calling-sheet', callingSheetRoutes);
+app.use('/api/miracle', miracleRoutes);
+
+// Socket.io connection logic
+io.on('connection', (socket) => {
+  console.log(`🔌 Client connected to Socket.io: ${socket.id}`);
+
+  socket.on('join:warehouse', () => {
+    socket.join('warehouse');
+    console.log(`📦 Socket ${socket.id} joined warehouse room`);
+  });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ Client disconnected: ${socket.id}`);
+  });
+});
+
+// Health check
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    app: 'Wholesale Plumbing & Bathware CRM/ERP API',
+    time: new Date(),
+    version: '1.0.0',
+  });
+});
+
+// Single Page Application Fallback
+app.get('*', (req, res, next) => {
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
+  }
+  res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+});
+
+
+// Global Error Handler
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || 'Internal Server Error',
+  });
+});
+
+const PORT = process.env.PORT || 5000;
+
+// Initialize Database & Start Server
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`\n======================================================`);
+    console.log(`🚀 Wholesale Plumbing & Bathware Server Running!`);
+    console.log(`🌐 URL: http://localhost:${PORT}`);
+    console.log(`📡 Real-time Socket.io active`);
+    console.log(`======================================================\n`);
+  });
+});
