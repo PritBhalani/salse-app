@@ -3,6 +3,7 @@
     "name": "Salase Wholesale",
     "slug": "salase-wholesale",
     "version": "1.0.0",
+    "sdkVersion": "51.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -12,11 +13,11 @@
       "backgroundColor": "#0284c7"
     },
     "android": {
+      "package": "com.salase.wholesale",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0284c7"
       },
-      "package": "com.salase.wholesale",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
@@ -26,6 +27,11 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "582d3ffe-4e90-46af-8b76-fe87d919d6ac"
+      }
     }
   }
 }
