@@ -13,6 +13,7 @@ import {
   ChevronRight,
   UserPlus,
   Key,
+  Edit2,
 } from 'lucide-react';
 import { shopsAPI, routesAPI } from '../services/api';
 
@@ -25,6 +26,7 @@ export const ShopsLedgerPage = () => {
   const [shopDetailData, setShopDetailData] = useState(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState(null);
+  const [editShopData, setEditShopData] = useState(null);
 
   const [formData, setFormData] = useState({
     shopName: '',
@@ -40,6 +42,41 @@ export const ShopsLedgerPage = () => {
     creditLimit: 150000,
     ownerPassword: '',
   });
+
+  const handleEditShopClick = (shop) => {
+    setEditShopData({
+      _id: shop._id,
+      shopName: shop.shopName,
+      ownerName: shop.ownerName,
+      phone: shop.phone,
+      altPhone: shop.altPhone || '',
+      city: shop.city,
+      address: shop.address,
+      routeId: shop.routeId?._id || shop.routeId || '',
+      gstNumber: shop.gstNumber || '',
+      creditLimit: shop.creditLimit || 150000,
+    });
+  };
+
+  const handleSaveShopEdit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...editShopData,
+        routeId: editShopData.routeId || null,
+        creditLimit: parseFloat(editShopData.creditLimit) || 150000,
+      };
+      const res = await shopsAPI.update(editShopData._id, payload);
+      if (res.data.success) {
+        setEditShopData(null);
+        await fetchShops();
+        alert('✅ Shop details & Beat assignment updated successfully!');
+      }
+    } catch (err) {
+      console.error('Error updating shop:', err);
+      alert(err.response?.data?.message || 'Failed to update shop details.');
+    }
+  };
 
   const fetchShops = async () => {
     setLoading(true);
@@ -160,9 +197,35 @@ export const ShopsLedgerPage = () => {
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">Prop: {shop.ownerName}</p>
                   </div>
-                  <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-300 text-[11px] font-semibold">
-                    {shop.city}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="px-2 py-0.5 rounded bg-slate-800 text-sky-300 text-[11px] font-semibold">
+                      {shop.city}
+                    </span>
+                    <button
+                      onClick={() => handleEditShopClick(shop)}
+                      className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                      title="Change Beat or Shop Details"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Assigned Beat Badge */}
+                <div className="mb-3">
+                  {(() => {
+                    const assignedRoute = shop.routeId
+                      ? (typeof shop.routeId === 'object' ? shop.routeId : routes.find(r => r._id === shop.routeId))
+                      : routes.find(r => r.cities?.some(c => c.toLowerCase() === shop.city?.toLowerCase()));
+                    return (
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/10 border border-sky-500/20 text-[11px]">
+                        <span className="text-sky-400 font-semibold">📍 Beat:</span>
+                        <span className="text-white font-bold">
+                          {assignedRoute?.name || `${shop.city} General Beat`}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="space-y-1 text-xs text-slate-400 mb-4">
@@ -216,14 +279,21 @@ export const ShopsLedgerPage = () => {
                 </div>
               </div>
 
-              {/* Action Button */}
-              <div className="mt-4 pt-3 border-t border-slate-800">
+              {/* Action Buttons */}
+              <div className="mt-4 pt-3 border-t border-slate-800 flex items-center gap-2">
                 <button
                   onClick={() => handleOpenLedger(shop)}
-                  className="w-full py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
+                  className="flex-1 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  <span>View Full Dual Ledger Statement</span>
+                  <span>Ledger Statement</span>
+                </button>
+                <button
+                  onClick={() => handleEditShopClick(shop)}
+                  className="px-3 py-2 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-sky-500/30 transition-colors"
+                >
+                  <Edit2 className="w-3.5 h-3.5" />
+                  <span>Change Beat</span>
                 </button>
               </div>
             </div>
@@ -529,6 +599,161 @@ export const ShopsLedgerPage = () => {
                 </div>
               </form>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Edit Shop & Change Beat Assignment Modal */}
+      {editShopData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Edit2 className="w-4 h-4 text-sky-400" />
+                <span>Edit Shop & Beat Assignment</span>
+              </h3>
+              <button
+                onClick={() => setEditShopData(null)}
+                className="text-slate-400 hover:text-white text-xs font-bold px-2 py-1 rounded-lg bg-slate-800"
+              >
+                ✕
+              </button>
+            </div>
+            <p className="text-xs text-slate-400 mb-4">
+              Reassign this shop to a new beat/route, update city, owner contact, or credit limits.
+            </p>
+
+            <form onSubmit={handleSaveShopEdit} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Shop Name:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editShopData.shopName}
+                    onChange={(e) => setEditShopData({ ...editShopData, shopName: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Owner Name:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editShopData.ownerName}
+                    onChange={(e) => setEditShopData({ ...editShopData, ownerName: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none focus:border-sky-500"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Phone:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editShopData.phone}
+                    onChange={(e) => setEditShopData({ ...editShopData, phone: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Alt Phone:</label>
+                  <input
+                    type="text"
+                    value={editShopData.altPhone}
+                    onChange={(e) => setEditShopData({ ...editShopData, altPhone: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              {/* Beat and City Assignment */}
+              <div className="grid grid-cols-2 gap-3 p-3 rounded-xl bg-slate-950 border border-slate-800">
+                <div>
+                  <label className="block text-sky-300 font-bold mb-1">Assigned Beat / Route:</label>
+                  <select
+                    value={editShopData.routeId}
+                    onChange={(e) => setEditShopData({ ...editShopData, routeId: e.target.value })}
+                    className="w-full bg-slate-900 border border-sky-600/50 text-white rounded-xl p-2.5 focus:outline-none font-medium"
+                  >
+                    <option value="">-- Match by City --</option>
+                    {routes.map((r) => (
+                      <option key={r._id} value={r._id}>
+                        {r.name} ({r.cities.join(', ')})
+                      </option>
+                    ))}
+                  </select>
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    Salesman: {routes.find(r => r._id === editShopData.routeId)?.assignedSalesman?.name || 'Auto'}
+                  </span>
+                </div>
+
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">City / Region:</label>
+                  <input
+                    type="text"
+                    required
+                    value={editShopData.city}
+                    onChange={(e) => setEditShopData({ ...editShopData, city: e.target.value })}
+                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
+                  />
+                  <span className="text-[10px] text-slate-400 mt-1 block">
+                    e.g. Morbi, Wankaner, Rajkot
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Shop Address:</label>
+                <textarea
+                  rows="2"
+                  required
+                  value={editShopData.address}
+                  onChange={(e) => setEditShopData({ ...editShopData, address: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">GSTIN Number (Optional):</label>
+                  <input
+                    type="text"
+                    placeholder="24AAAAA0000A1Z5"
+                    value={editShopData.gstNumber}
+                    onChange={(e) => setEditShopData({ ...editShopData, gstNumber: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 font-semibold mb-1">Credit Limit (₹):</label>
+                  <input
+                    type="number"
+                    value={editShopData.creditLimit}
+                    onChange={(e) => setEditShopData({ ...editShopData, creditLimit: e.target.value })}
+                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono text-emerald-400 font-bold"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditShopData(null)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
+                >
+                  Save & Update Beat
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

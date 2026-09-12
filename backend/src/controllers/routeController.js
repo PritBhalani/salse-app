@@ -12,7 +12,10 @@ export const getRoutes = async (req, res) => {
     const routesWithShopCount = await Promise.all(
       routes.map(async (route) => {
         const shopCount = await Shop.countDocuments({
-          city: { $in: route.cities },
+          $or: [
+            { routeId: route._id },
+            { city: { $in: route.cities } }
+          ],
           isActive: true,
         });
         const routeObj = route.toObject();
@@ -37,7 +40,10 @@ export const getRouteById = async (req, res) => {
     }
 
     const shops = await Shop.find({
-      city: { $in: route.cities },
+      $or: [
+        { routeId: route._id },
+        { city: { $in: route.cities } }
+      ],
       isActive: true,
     }).sort({ shopName: 1 });
 
@@ -82,7 +88,10 @@ export const getMyRoute = async (req, res) => {
     const allCities = [...new Set(routes.flatMap((r) => r.cities || []))];
 
     const shops = await Shop.find({
-      city: { $in: todaysRoute.cities },
+      $or: [
+        { routeId: todaysRoute._id },
+        { city: { $in: todaysRoute.cities } }
+      ],
       isActive: true,
     });
 
