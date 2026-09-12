@@ -12,7 +12,9 @@ import {
 import { mobileAPI } from '../config/api';
 
 export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogout }) => {
+  const [allRoutes, setAllRoutes] = useState([]);
   const [routeData, setRouteData] = useState(null);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
   const [checkInLoading, setCheckInLoading] = useState(null);
@@ -28,7 +30,11 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
     try {
       const res = await mobileAPI.get('/routes/my-route');
       if (res.data.success) {
+        setAllRoutes(res.data.routes || []);
         setRouteData(res.data.route);
+        if (res.data.route && !selectedRouteId) {
+          setSelectedRouteId(res.data.route._id);
+        }
         // Also fetch shops with distance calculated
         const shopRes = await mobileAPI.get(
           `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
@@ -47,6 +53,17 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
   useEffect(() => {
     fetchRouteAndShops();
   }, []);
+
+  const handleSwitchBeat = (r) => {
+    setRouteData(r);
+    setSelectedRouteId(r ? r._id : 'ALL');
+  };
+
+  // Filter shops based on selected route cities
+  const activeRoute = allRoutes.find((r) => r._id === selectedRouteId) || routeData;
+  const filteredShops = activeRoute && selectedRouteId !== 'ALL'
+    ? shops.filter((s) => activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase()))
+    : shops;
 
   const handleOpenMap = (shop) => {
     const lat = shop.location?.latitude;
@@ -110,37 +127,63 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Today's Route Card */}
+        {/* Multi-Beat Selector (If salesman is assigned 2+ beats) */}
+        {allRoutes.length > 1 && (
+          <View style={styles.beatSwitcherContainer}>
+            <Text style={styles.beatSwitcherLabel}>Switch Assigned Beat:</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.beatSwitcherScroll}>
+              {allRoutes.map((r) => {
+                const isSelected = selectedRouteId === r._id;
+                return (
+                  <TouchableOpacity
+                    key={r._id}
+                    style={[styles.beatPill, isSelected && styles.beatPillActive]}
+                    onPress={() => handleSwitchBeat(r)}
+                  >
+                    <Text style={[styles.beatPillText, isSelected && styles.beatPillTextActive]}>
+                      📍 {r.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+              <TouchableOpacity
+                style={[styles.beatPill, selectedRouteId === 'ALL' && styles.beatPillActive]}
+                onPress={() => handleSwitchBeat(null)}
+              >
+                <Text style={[styles.beatPillText, selectedRouteId === 'ALL' && styles.beatPillTextActive]}>
+                  🌐 All Beats ({shops.length})
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        )}
+
+        {/* Route / Beat Info Card */}
         <View style={styles.routeCard}>
           <View style={styles.routeHeader}>
             <Text style={styles.routeTitle}>
-              {routeData?.name || 'Assigned Multi-City Beat'}
+              {activeRoute?.name || 'Assigned Multi-City Beat'}
             </Text>
             <View style={styles.cityBadge}>
               <Text style={styles.cityBadgeText}>
-                {routeData?.cities?.join(' + ') || 'Morbi + Wankaner'}
+                {activeRoute?.cities?.join(' + ') || 'All Cities'}
               </Text>
             </View>
           </View>
           <Text style={styles.routeSubtitle}>
-            {routeData?.description || 'Plumbing, brassware & sanitaryware retail distribution'}
+            {activeRoute?.description || 'Plumbing, brassware & sanitaryware retail distribution'}
           </Text>
           <View style={styles.routeFooter}>
-            <Text style={styles.routeMeta}>Total Shops: {shops.length}</Text>
+            <Text style={styles.routeMeta}>Shops on this Beat: {filteredShops.length}</Text>
             <Text style={styles.routeMeta}>
-              Date:{' '}
-              {routeData?.nextVisitDate
-                ? new Date(routeData.nextVisitDate).toLocaleDateString('en-IN', {
-                    day: 'numeric',
-                    month: 'short',
-                  })
-                : 'Today'}
+              Days: {activeRoute?.scheduleDays?.join(', ') || 'Flexible'}
             </Text>
           </View>
         </View>
 
         {/* Section Header */}
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Shops on Today's Beat</Text>
+          <Text style={styles.sectionTitle}>Shops on Beat ({filteredShops.length})</Text>
           <Text style={styles.sectionSubtitle}>Sorted by proximity to your GPS</Text>
         </View>
 
@@ -148,7 +191,7 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
         {loading ? (
           <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
         ) : (
-          shops.map((shop) => {
+          filteredShops.map((shop) => {
             const isNear = (shop.distanceMeters ?? 9999) <= 150;
             const totalDue = (shop.gstBalance || 0) + (shop.nonGstBalance || 0);
 
@@ -525,5 +568,39 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '800',
+  },
+  beatSwitcherContainer: {
+    marginBottom: 12,
+  },
+  beatSwitcherLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 'bold',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  beatSwitcherScroll: {
+    gap: 8,
+  },
+  beatPill: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  beatPillActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  beatPillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  beatPillTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
   },
 });

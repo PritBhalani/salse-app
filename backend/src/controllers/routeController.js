@@ -47,23 +47,23 @@ export const getRouteById = async (req, res) => {
   }
 };
 
-// @desc    Get salesman's assigned route for today / upcoming
+// @desc    Get salesman's assigned routes for today / upcoming (Supports multiple beats)
 // @route   GET /api/routes/my-route
 export const getMyRoute = async (req, res) => {
   try {
     const salesmanId = req.user._id;
-    // Find route assigned to this salesman
-    const route = await Route.findOne({
+    // Find all routes assigned to this salesman
+    const routes = await Route.find({
       assignedSalesman: salesmanId,
       isActive: true,
-    });
+    }).sort({ name: 1 });
 
-    if (!route) {
-      // Return shops in salesman's activeCities as fallback
+    if (!routes || routes.length === 0) {
       const cities = req.user.activeCities || [];
       const shops = await Shop.find({ city: { $in: cities }, isActive: true });
       return res.json({
         success: true,
+        routes: [],
         route: null,
         cities,
         shops,
@@ -71,12 +71,29 @@ export const getMyRoute = async (req, res) => {
       });
     }
 
+    // Determine today's day of week (e.g. Monday, Tuesday)
+    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const todayName = days[new Date().getDay()];
+
+    // Pick today's scheduled route if matched, or the first assigned route
+    const todaysRoute =
+      routes.find((r) => r.scheduleDays && r.scheduleDays.includes(todayName)) || routes[0];
+
+    const allCities = [...new Set(routes.flatMap((r) => r.cities || []))];
+
     const shops = await Shop.find({
-      city: { $in: route.cities },
+      city: { $in: todaysRoute.cities },
       isActive: true,
     });
 
-    res.json({ success: true, route, cities: route.cities, shops });
+    res.json({
+      success: true,
+      routes,
+      route: todaysRoute,
+      cities: todaysRoute.cities,
+      allAssignedCities: allCities,
+      shops,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

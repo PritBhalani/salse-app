@@ -293,7 +293,7 @@
   "routes": [
     {
       "_id": "6a93ff3832402891932dd989",
-      "name": "Morbi - Wankaner Ceramic Beat",
+      "name": "Updated Test Beat",
       "cities": [
         "Morbi",
         "Wankaner"
@@ -304,8 +304,9 @@
         "Thursday"
       ],
       "nextVisitDate": "2026-09-01T10:00:25.384Z",
-      "description": "Major hardware, sanitary and ceramic distributor strip along NH-8A",
-      "isActive": true
+      "description": "Tested populate",
+      "isActive": true,
+      "updatedAt": "2026-09-12T02:42:52.931Z"
     },
     {
       "_id": "6a93ff3832402891932dd98a",

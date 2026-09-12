@@ -40,7 +40,9 @@ export const MobileSimulatorPage = () => {
   // Data
   const [shops, setShops] = useState([]);
   const [products, setProducts] = useState([]);
+  const [allRoutes, setAllRoutes] = useState([]);
   const [myRoute, setMyRoute] = useState(null);
+  const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [loading, setLoading] = useState(true);
 
   // Cart for ordering
@@ -91,7 +93,11 @@ export const MobileSimulatorPage = () => {
       }
       if (pRes.data.success) setProducts(pRes.data.products || []);
       if (rRes.data.success && rRes.data.routes?.length > 0) {
-        setMyRoute(rRes.data.routes[0]);
+        setAllRoutes(rRes.data.routes);
+        if (!selectedRouteId) {
+          setMyRoute(rRes.data.routes[0]);
+          setSelectedRouteId(rRes.data.routes[0]._id);
+        }
       }
     } catch (err) {
       console.error('Simulator load error:', err);
@@ -375,42 +381,91 @@ export const MobileSimulatorPage = () => {
             )}
 
             {/* SCREEN 1: TODAY'S BEAT (Salesman Home) */}
-            {screen === 'TODAY_BEAT' && deviceRole === 'SALESMAN' && (
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {/* Beat Header Card */}
-                <div className="p-3.5 rounded-2xl bg-gradient-to-br from-sky-950/60 to-slate-900 border border-sky-900/40">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-extrabold text-white">
-                      {myRoute?.name || 'Morbi - Wankaner Ceramic Beat'}
-                    </span>
-                    <span className="text-[10px] bg-sky-600 text-white font-bold px-2 py-0.5 rounded-full">
-                      Today's Beat
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-slate-400">
-                    Cities: <b className="text-slate-200">{myRoute?.cities?.join(', ') || 'Morbi, Wankaner'}</b>
-                  </p>
-                  <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
-                    <span className="text-slate-400">Target Shops: {shops.length}</span>
-                    <span className="text-emerald-400 font-bold">Cash in Hand: ₹15,000</span>
-                  </div>
-                </div>
+            {screen === 'TODAY_BEAT' && deviceRole === 'SALESMAN' && (() => {
+              const activeRoute = allRoutes.find((r) => r._id === selectedRouteId) || myRoute;
+              const filteredShops = activeRoute && selectedRouteId !== 'ALL'
+                ? shops.filter((s) => activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase()))
+                : shops;
 
-                <div className="flex items-center justify-between pt-1">
-                  <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                    Shops on Route (Nearest First)
-                  </span>
-                  <button
-                    onClick={() => setScreen('REGISTER_SHOP')}
-                    className="text-[11px] font-bold text-sky-400 hover:underline flex items-center gap-1"
-                  >
-                    + Enrol Shop
-                  </button>
-                </div>
+              return (
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {/* Multi-Beat Selector (If salesman is assigned 2+ beats) */}
+                  {allRoutes.length > 1 && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                        Switch Assigned Beat:
+                      </span>
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                        {allRoutes.map((r) => {
+                          const isSelected = selectedRouteId === r._id;
+                          return (
+                            <button
+                              key={r._id}
+                              onClick={() => {
+                                setSelectedRouteId(r._id);
+                                setMyRoute(r);
+                              }}
+                              className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap border transition-all ${
+                                isSelected
+                                  ? 'bg-sky-600 border-sky-400 text-white shadow'
+                                  : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                              }`}
+                            >
+                              📍 {r.name.split(' ')[0]} ({r.cities.slice(0, 2).join('+')})
+                            </button>
+                          );
+                        })}
+                        <button
+                          onClick={() => {
+                            setSelectedRouteId('ALL');
+                            setMyRoute(null);
+                          }}
+                          className={`px-2.5 py-1 rounded-xl text-[11px] font-bold whitespace-nowrap border transition-all ${
+                            selectedRouteId === 'ALL'
+                              ? 'bg-sky-600 border-sky-400 text-white shadow'
+                              : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          🌐 All Beats ({shops.length})
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
-                {/* Shop Cards List */}
-                <div className="space-y-2.5">
-                  {shops.map((shop) => {
+                  {/* Beat Header Card */}
+                  <div className="p-3.5 rounded-2xl bg-gradient-to-br from-sky-950/60 to-slate-900 border border-sky-900/40">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-extrabold text-white">
+                        {activeRoute?.name || 'Assigned Multi-City Beat'}
+                      </span>
+                      <span className="text-[10px] bg-sky-600 text-white font-bold px-2 py-0.5 rounded-full">
+                        Today's Beat
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      Cities: <b className="text-slate-200">{activeRoute?.cities?.join(', ') || 'Morbi, Wankaner, Rajkot, Gondal'}</b>
+                    </p>
+                    <div className="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
+                      <span className="text-slate-400">Target Shops: {filteredShops.length}</span>
+                      <span className="text-emerald-400 font-bold">Cash in Hand: ₹15,000</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                      Shops on Beat ({filteredShops.length})
+                    </span>
+                    <button
+                      onClick={() => setScreen('REGISTER_SHOP')}
+                      className="text-[11px] font-bold text-sky-400 hover:underline flex items-center gap-1"
+                    >
+                      + Enrol Shop
+                    </button>
+                  </div>
+
+                  {/* Shop Cards List */}
+                  <div className="space-y-2.5">
+                    {filteredShops.map((shop) => {
                     const isNear = (shop.distanceMeters ?? 50) <= 150;
                     const totalDue = (shop.gstBalance || 0) + (shop.nonGstBalance || 0);
 
@@ -502,7 +557,8 @@ export const MobileSimulatorPage = () => {
                   })}
                 </div>
               </div>
-            )}
+            );
+          })()}
 
             {/* SCREEN 2: SHOP DETAIL & DUAL LEDGER */}
             {screen === 'SHOP_DETAIL' && selectedShop && (
