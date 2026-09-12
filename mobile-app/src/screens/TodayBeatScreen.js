@@ -18,7 +18,8 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [checkInLoading, setCheckInLoading] = useState(null);\n  const [searchQuery, setSearchQuery] = useState('');
+  const [checkInLoading, setCheckInLoading] = useState(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Simulated salesman current coordinates (Morbi main market: 22.8125, 70.8355)
   const currentSalesmanCoords = {
