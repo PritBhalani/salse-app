@@ -17,11 +17,15 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0284c7"
       },
+      "usesCleartextTraffic": true,
       "permissions": [
+        "INTERNET",
+        "ACCESS_NETWORK_STATE",
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "CAMERA",
-        "READ_EXTERNAL_STORAGE"
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
       ]
     },
     "web": {

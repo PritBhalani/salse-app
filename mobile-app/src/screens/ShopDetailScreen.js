@@ -8,6 +8,7 @@ import {
   Modal,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
   Linking,
   Alert,
 } from 'react-native';
@@ -16,6 +17,7 @@ import { mobileAPI } from '../config/api';
 export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment }) => {
   const [shopData, setShopData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState('ORDERS'); // 'ORDERS' or 'PAYMENTS'
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
@@ -33,20 +35,26 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
   });
 
   const fetchShopDetails = async () => {
-    setLoading(true);
     try {
       const res = await mobileAPI.get(`/shops/${shop._id}`);
       if (res.data.success) {
         setShopData(res.data);
       }
     } catch (err) {
-      console.error('Error fetching shop details:', err);
+      console.warn('Error fetching shop details:', err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchShopDetails();
+  };
+
   useEffect(() => {
+    setLoading(true);
     fetchShopDetails();
   }, [shop._id]);
 
@@ -141,7 +149,17 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0284c7']}
+            tintColor="#38bdf8"
+          />
+        }
+      >
         {/* Shop Info Card */}
         <View style={styles.infoCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>

@@ -8,6 +8,7 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
   Alert,
   Linking,
 } from 'react-native';
@@ -16,6 +17,7 @@ import { mobileAPI } from '../config/api';
 export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [billType, setBillType] = useState('NON_GST');
   const [cart, setCart] = useState({});
@@ -24,20 +26,26 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   const fetchProducts = async () => {
-    setLoading(true);
     try {
       const res = await mobileAPI.get('/products');
       if (res.data.success) {
         setProducts(res.data.products || []);
       }
     } catch (err) {
-      console.error('Error loading catalog:', err);
+      console.warn('Error loading catalog:', err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchProducts();
+  };
+
   useEffect(() => {
+    setLoading(true);
     fetchProducts();
   }, []);
 
@@ -157,7 +165,17 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0284c7']}
+            tintColor="#38bdf8"
+          />
+        }
+      >
         {/* Bill Type Selector */}
         <View style={styles.billTypeContainer}>
           <Text style={styles.sectionLabel}>Select Billing Mode:</Text>

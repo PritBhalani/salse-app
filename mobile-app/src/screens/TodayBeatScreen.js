@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Image,
   StyleSheet,
   ActivityIndicator,
+  RefreshControl,
   Linking,
   Alert,
 } from 'react-native';
@@ -31,11 +32,13 @@ export const TodayBeatScreen = ({
   const [products, setProducts] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [checkInLoading, setCheckInLoading] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [phoneSearchQuery, setPhoneSearchQuery] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [fetchError, setFetchError] = useState(null);
 
   // Cart state for standalone Catalog tab
   const [cart, setCart] = useState({});
@@ -48,35 +51,66 @@ export const TodayBeatScreen = ({
 
   const fetchAllData = async () => {
     setLoading(true);
-    try {
-      const [routeRes, shopRes, prodRes, payRes] = await Promise.all([
-        mobileAPI.get('/routes/my-route'),
-        mobileAPI.get(
-          `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
-        ),
-        mobileAPI.get('/products'),
-        mobileAPI.get('/payments'),
-      ]);
+    setFetchError(null);
 
-      if (routeRes.data.success) {
+    // 1. Fetch Route
+    try {
+      const routeRes = await mobileAPI.get('/routes/my-route');
+      if (routeRes.data?.success) {
         setAllRoutes(routeRes.data.routes || []);
         setRouteData(routeRes.data.route);
         if (routeRes.data.route && !selectedRouteId) {
           setSelectedRouteId(routeRes.data.route._id);
         }
       }
-      if (shopRes.data.success) setShops(shopRes.data.shops || []);
-      if (prodRes.data.success) setProducts(prodRes.data.products || []);
-      if (payRes.data.success) setPayments(payRes.data.payments || []);
-    } catch (err) {
-      console.error('Error fetching salesman data:', err);
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.warn('Could not fetch routes:', e.message);
     }
+
+    // 2. Fetch Shops
+    try {
+      const shopRes = await mobileAPI.get(
+        `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
+      );
+      if (shopRes.data?.success) {
+        setShops(shopRes.data.shops || []);
+      }
+    } catch (e) {
+      console.warn('Could not fetch shops:', e.message);
+      setFetchError(e.message || 'Network error connecting to cloud backend');
+    }
+
+    // 3. Fetch Products Catalog
+    try {
+      const prodRes = await mobileAPI.get('/products');
+      if (prodRes.data?.success) {
+        setProducts(prodRes.data.products || []);
+      }
+    } catch (e) {
+      console.warn('Could not fetch products:', e.message);
+    }
+
+    // 4. Fetch Payments
+    try {
+      const payRes = await mobileAPI.get('/payments');
+      if (payRes.data?.success) {
+        setPayments(payRes.data.payments || []);
+      }
+    } catch (e) {
+      console.warn('Could not fetch payments:', e.message);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchAllData();
+  }, []);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchAllData();
+    setRefreshing(false);
   }, []);
 
   const handleSwitchBeat = (r) => {
@@ -225,13 +259,21 @@ export const TodayBeatScreen = ({
           </View>
         </View>
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-          <Text style={styles.logoutText}>Log Out</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+          <TouchableOpacity style={styles.refreshIconBtn} onPress={onRefresh}>
+            <Text style={styles.refreshIconText}>🔄</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+            <Text style={styles.logoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Main Content Area Based on Active Bottom Tab */}
-      <ScrollView contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && activeTab === 'CATALOG' && { paddingBottom: 120 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && activeTab === 'CATALOG' && { paddingBottom: 120 }]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#38bdf8" />}
+      >
         {/* ========================================================================= */}
         {/* TAB 1: TODAY BEAT ROUTE & SHOPS */}
         {/* ========================================================================= */}
@@ -308,12 +350,22 @@ export const TodayBeatScreen = ({
               {searchQuery ? `Search Results (${filteredShops.length})` : 'Shops on Route:'}
             </Text>
 
-            {loading ? (
-              <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 30 }} />
+            {loading && !refreshing ? (
+              <View style={{ alignItems: 'center', paddingVertical: 40 }}>
+                <ActivityIndicator color="#0284c7" size="large" />
+                <Text style={{ color: '#94a3b8', fontSize: 12, marginTop: 10 }}>
+                  Connecting to Morbi wholesale server...
+                </Text>
+              </View>
             ) : filteredShops.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyEmoji}>🏪</Text>
-                <Text style={styles.emptyText}>No retail shops found matching your search.</Text>
+                <Text style={styles.emptyText}>
+                  {fetchError ? `${fetchError}\nSwipe down to retry.` : 'No retail shops found.'}
+                </Text>
+                <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
+                  <Text style={styles.retryBtnText}>🔄 Tap to Reload Shops</Text>
+                </TouchableOpacity>
               </View>
             ) : (
               filteredShops.map((s, index) => {
@@ -845,9 +897,19 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#34d399',
   },
+  refreshIconBtn: {
+    padding: 8,
+    backgroundColor: '#1e293b',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  refreshIconText: {
+    fontSize: 13,
+  },
   logoutBtn: {
     paddingVertical: 6,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     backgroundColor: '#1f2937',
     borderRadius: 8,
     borderWidth: 1,
@@ -969,8 +1031,21 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptyText: {
-    color: '#64748b',
+    color: '#94a3b8',
     fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  retryBtn: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+  },
+  retryBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   shopCard: {
     backgroundColor: '#1e293b',

@@ -9,6 +9,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 
@@ -23,32 +24,64 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [cart, setCart] = useState({});
   const [submittingOrder, setSubmittingOrder] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
+    setFetchError(null);
+
+    // 1. Fetch Products Catalog
     try {
-      const [ordersRes, paymentsRes, productsRes] = await Promise.all([
-        mobileAPI.get('/orders'),
-        mobileAPI.get('/payments'),
-        mobileAPI.get('/products'),
-      ]);
-
-      if (ordersRes.data.success) setOrders(ordersRes.data.orders || []);
-      if (paymentsRes.data.success) setPayments(paymentsRes.data.payments || []);
-      if (productsRes.data.success) setCatalog(productsRes.data.products || []);
-
-      if (user?.shopId) {
-        const shopId = typeof user.shopId === 'object' ? user.shopId._id : user.shopId;
-        const sRes = await mobileAPI.get(`/shops/${shopId}`);
-        if (sRes.data.success) {
-          setShop(sRes.data.shop);
-        }
+      const productsRes = await mobileAPI.get('/products');
+      if (productsRes.data?.success) {
+        setCatalog(productsRes.data.products || []);
       }
     } catch (err) {
-      console.error('Error fetching shop owner portal:', err);
-    } finally {
-      setLoading(false);
+      console.warn('Could not fetch catalog products:', err.message);
+      setFetchError(err.message || 'Connecting to backend...');
     }
+
+    // 2. Fetch Orders
+    try {
+      const ordersRes = await mobileAPI.get('/orders');
+      if (ordersRes.data?.success) {
+        setOrders(ordersRes.data.orders || []);
+      }
+    } catch (err) {
+      console.warn('Could not fetch orders:', err.message);
+    }
+
+    // 3. Fetch Payments
+    try {
+      const paymentsRes = await mobileAPI.get('/payments');
+      if (paymentsRes.data?.success) {
+        setPayments(paymentsRes.data.payments || []);
+      }
+    } catch (err) {
+      console.warn('Could not fetch payments:', err.message);
+    }
+
+    // 4. Fetch Shop Details if shopId exists
+    if (user?.shopId) {
+      try {
+        const shopId = typeof user.shopId === 'object' ? user.shopId._id : user.shopId;
+        const sRes = await mobileAPI.get(`/shops/${shopId}`);
+        if (sRes.data?.success) {
+          setShop(sRes.data.shop);
+        }
+      } catch (err) {
+        console.warn('Could not fetch shop profile:', err.message);
+      }
+    }
+
+    setLoading(false);
+  };
+
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchData();
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -160,7 +193,17 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && activeTab === 'CATALOG' && { paddingBottom: 120 }]}>
+      <ScrollView
+        contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && activeTab === 'CATALOG' && { paddingBottom: 120 }]}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={['#0284c7']}
+            tintColor="#38bdf8"
+          />
+        }
+      >
         {/* ========================================================================= */}
         {/* TAB 1: WHOLESALE CATALOG (BLINKIT STYLE) */}
         {/* ========================================================================= */}
