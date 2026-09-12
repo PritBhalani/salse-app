@@ -3,7 +3,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
-import { MiracleExportModal } from './components/MiracleExportModal';
+import { LoginPage } from './pages/LoginPage';
 
 // Pages
 import { DashboardPage } from './pages/DashboardPage';
@@ -28,9 +28,24 @@ import {
 } from 'lucide-react';
 
 const MainLayout = () => {
+  const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [isMiracleModalOpen, setIsMiracleModalOpen] = useState(false);
   const { alerts, dismissAlert } = useSocket();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
+        <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center animate-pulse mb-3">
+          <Building2 className="w-6 h-6 text-sky-400" />
+        </div>
+        <div className="text-sm font-bold text-slate-300">Loading Salase Wholesale CRM...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginPage />;
+  }
 
   const handleNavigateToCallSheet = (routeId) => {
     setActiveTab('calling-sheet');
@@ -39,14 +54,13 @@ const MainLayout = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top Navbar */}
-      <Navbar onOpenMiracleModal={() => setIsMiracleModalOpen(true)} />
+      <Navbar />
 
       {/* Main Body with Sidebar */}
       <div className="flex-1 flex overflow-hidden">
         <Sidebar
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          onOpenMiracleModal={() => setIsMiracleModalOpen(true)}
         />
 
         {/* Content Area */}
@@ -153,12 +167,6 @@ const MainLayout = () => {
           ))}
         </div>
       )}
-
-      {/* Miracle Accounting Export Modal */}
-      <MiracleExportModal
-        isOpen={isMiracleModalOpen}
-        onClose={() => setIsMiracleModalOpen(false)}
-      />
     </div>
   );
 };

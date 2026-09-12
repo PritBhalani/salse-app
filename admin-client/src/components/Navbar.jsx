@@ -12,7 +12,7 @@ import {
   LogOut,
 } from 'lucide-react';
 
-export const Navbar = ({ onOpenMiracleModal }) => {
+export const Navbar = () => {
   const { user, loginAs, logout } = useAuth();
   const { isConnected } = useSocket();
 
@@ -50,15 +50,6 @@ export const Navbar = ({ onOpenMiracleModal }) => {
             <span>{isConnected ? 'LIVE SYNC' : 'OFFLINE'}</span>
           </div>
 
-          {/* Miracle Accounting Export Button */}
-          <button
-            onClick={onOpenMiracleModal}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-xs font-semibold transition-colors shadow-sm"
-          >
-            <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
-            <span>Miracle Export</span>
-          </button>
-
           {/* Quick Role Switcher (Admin vs Warehouse) */}
           <div className="flex items-center bg-slate-800 p-1 rounded-lg border border-slate-700 text-xs">
             <button
@@ -69,7 +60,7 @@ export const Navbar = ({ onOpenMiracleModal }) => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              👑 Uncle (Boss)
+              👑 Boss
             </button>
             <button
               onClick={() => loginAs('WAREHOUSE')}
@@ -79,12 +70,12 @@ export const Navbar = ({ onOpenMiracleModal }) => {
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              📦 Warehouse In-Charge
+              📦 Warehouse
             </button>
           </div>
 
-          {/* Active User Badge */}
-          <div className="flex items-center space-x-2 pl-2 border-l border-slate-800">
+          {/* Active User Badge & Logout */}
+          <div className="flex items-center space-x-3 pl-2 border-l border-slate-800">
             <div className="w-8 h-8 rounded-full bg-slate-700 border border-slate-600 flex items-center justify-center font-bold text-xs text-sky-400">
               {user?.name?.slice(0, 2).toUpperCase() || 'SA'}
             </div>
@@ -92,6 +83,17 @@ export const Navbar = ({ onOpenMiracleModal }) => {
               <div className="text-slate-200 font-semibold truncate max-w-[140px]">{user?.name}</div>
               <div className="text-slate-400 capitalize">{user?.role} Mode</div>
             </div>
+            <button
+              onClick={() => {
+                if (window.confirm('Log out from Salase Wholesale CRM?')) {
+                  logout();
+                }
+              }}
+              className="p-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 transition-colors"
+              title="Sign Out"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
         </div>
       </div>

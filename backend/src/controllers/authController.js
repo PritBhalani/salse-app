@@ -141,3 +141,43 @@ export const resetDevice = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// @desc    Update user / salesman credentials (Admin only)
+// @route   PUT /api/auth/users/:id
+export const updateUser = async (req, res) => {
+  try {
+    const { name, phone, password, role, activeCities, isActive } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    if (name) user.name = name;
+    if (phone) user.phone = phone;
+    if (role) user.role = role;
+    if (activeCities) user.activeCities = activeCities;
+    if (isActive !== undefined) user.isActive = isActive;
+    if (password) {
+      user.password = password; // Pre-save / wrapDoc hashes if changed
+    }
+
+    await user.save();
+    res.json({ success: true, message: 'User updated successfully', user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Deactivate user / salesman (Admin only)
+// @route   DELETE /api/auth/users/:id
+export const deleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, message: 'User deactivated successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

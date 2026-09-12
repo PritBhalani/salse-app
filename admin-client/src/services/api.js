@@ -16,6 +16,9 @@ export const authAPI = {
   login: (phone, password) => api.post('/auth/login', { phone, password }),
   getMe: () => api.get('/auth/me'),
   getUsers: (role) => api.get(`/auth/users${role ? `?role=${role}` : ''}`),
+  createUser: (data) => api.post('/auth/users', data),
+  updateUser: (id, data) => api.put(`/auth/users/${id}`, data),
+  deleteUser: (id) => api.delete(`/auth/users/${id}`),
   resetDevice: (userId) => api.put(`/auth/users/${userId}/reset-device`),
 };
 
@@ -62,11 +65,6 @@ export const callingSheetAPI = {
 
 export const visitsAPI = {
   getAll: (params) => api.get('/visits', { params }),
-};
-
-export const miracleAPI = {
-  downloadSalesExcelUrl: (billType) => `/api/miracle/export-sales${billType ? `?billType=${billType}` : ''}`,
-  downloadReceiptsExcelUrl: (billType) => `/api/miracle/export-receipts${billType ? `?billType=${billType}` : ''}`,
 };
 
 export default api;

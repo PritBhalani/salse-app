@@ -6,13 +6,13 @@ import {
   Boxes,
   MapPin,
   Building2,
-  ShieldCheck,
-  FileSpreadsheet,
+  Users,
   Smartphone,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
-export const Sidebar = ({ activeTab, onTabChange, onOpenMiracleModal }) => {
+export const Sidebar = ({ activeTab, onTabChange }) => {
   const { user } = useAuth();
 
   const navItems = [
@@ -24,7 +24,7 @@ export const Sidebar = ({ activeTab, onTabChange, onOpenMiracleModal }) => {
     },
     {
       id: 'calling-sheet',
-      label: 'Pre-Visit Call Sheet (2-3 Days)',
+      label: 'Pre-Visit Call Sheet',
       icon: PhoneCall,
       roles: ['ADMIN', 'WAREHOUSE'],
       badge: 'Priority',
@@ -58,9 +58,11 @@ export const Sidebar = ({ activeTab, onTabChange, onOpenMiracleModal }) => {
     },
     {
       id: 'tracking',
-      label: 'GPS Audit & Cash Drawer',
-      icon: ShieldCheck,
+      label: 'Salesmen & Staff IDs',
+      icon: Users,
       roles: ['ADMIN', 'WAREHOUSE'],
+      badge: 'Security',
+      badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
     },
     {
       id: 'simulator',
@@ -110,21 +112,15 @@ export const Sidebar = ({ activeTab, onTabChange, onOpenMiracleModal }) => {
         })}
       </div>
 
-      {/* Miracle Accounting Quick Launcher Card */}
-      <div className="p-3.5 rounded-2xl bg-gradient-to-b from-slate-800/70 to-slate-800/40 border border-slate-700/60 text-xs">
-        <div className="flex items-center gap-2 text-emerald-400 font-bold mb-1">
-          <FileSpreadsheet className="w-4 h-4" />
-          <span>Miracle Sync Ready</span>
+      {/* System Status Summary */}
+      <div className="p-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-xs space-y-1">
+        <div className="flex items-center gap-2 text-sky-400 font-bold">
+          <ShieldCheck className="w-4 h-4" />
+          <span>Wholesale ERP Engine</span>
         </div>
-        <p className="text-[11px] text-slate-400 mb-3">
-          1-Click export to Miracle Accounting for automatic GST & rough ledger sync.
+        <p className="text-[11px] text-slate-400">
+          Dual-Book GST & Rough Ledger isolation active.
         </p>
-        <button
-          onClick={onOpenMiracleModal}
-          className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-[11px] font-bold shadow transition-all"
-        >
-          Open Miracle Exporter
-        </button>
       </div>
     </aside>
   );

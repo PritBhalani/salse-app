@@ -14,7 +14,6 @@ import orderRoutes from './routes/orderRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import visitRoutes from './routes/visitRoutes.js';
 import callingSheetRoutes from './routes/callingSheetRoutes.js';
-import miracleRoutes from './routes/miracleRoutes.js';
 
 dotenv.config();
 
@@ -56,7 +55,6 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/calling-sheet', callingSheetRoutes);
-app.use('/api/miracle', miracleRoutes);
 
 // Socket.io connection logic
 io.on('connection', (socket) => {

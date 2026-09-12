@@ -10,6 +10,10 @@ import {
   Clock,
   UserCheck,
   RefreshCw,
+  UserPlus,
+  Edit2,
+  Key,
+  Plus,
 } from 'lucide-react';
 import { visitsAPI, authAPI, paymentsAPI } from '../services/api';
 
@@ -19,6 +23,18 @@ export const SalesmanTrackingPage = () => {
   const [loading, setLoading] = useState(true);
   const [settleModalSalesman, setSettleModalSalesman] = useState(null);
   const [settleAmount, setSettleAmount] = useState('');
+
+  // User management modals
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [newUserData, setNewUserData] = useState({
+    name: '',
+    phone: '',
+    password: '',
+    role: 'SALESMAN',
+    activeCities: 'Morbi, Wankaner',
+  });
+
+  const [editUserData, setEditUserData] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -40,6 +56,59 @@ export const SalesmanTrackingPage = () => {
     fetchData();
   }, []);
 
+  const handleCreateSalesman = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...newUserData,
+        activeCities: typeof newUserData.activeCities === 'string'
+          ? newUserData.activeCities.split(',').map((c) => c.trim()).filter(Boolean)
+          : newUserData.activeCities,
+      };
+      const res = await authAPI.createUser(payload);
+      if (res.data.success) {
+        setIsAddModalOpen(false);
+        setNewUserData({
+          name: '',
+          phone: '',
+          password: '',
+          role: 'SALESMAN',
+          activeCities: 'Morbi, Wankaner',
+        });
+        await fetchData();
+        alert('✅ Salesman created successfully! They can now log in via the mobile app.');
+      }
+    } catch (err) {
+      console.error('Error creating user:', err);
+      alert(err.response?.data?.message || 'Failed to create user. Check if phone number already exists.');
+    }
+  };
+
+  const handleUpdateSalesman = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        name: editUserData.name,
+        phone: editUserData.phone,
+        activeCities: typeof editUserData.activeCities === 'string'
+          ? editUserData.activeCities.split(',').map((c) => c.trim()).filter(Boolean)
+          : editUserData.activeCities,
+      };
+      if (editUserData.password) {
+        payload.password = editUserData.password;
+      }
+      const res = await authAPI.updateUser(editUserData._id, payload);
+      if (res.data.success) {
+        setEditUserData(null);
+        await fetchData();
+        alert('✅ Salesman credentials updated successfully!');
+      }
+    } catch (err) {
+      console.error('Error updating salesman:', err);
+      alert(err.response?.data?.message || 'Failed to update credentials.');
+    }
+  };
+
   const handleSettleCash = async (salesmanId) => {
     try {
       await paymentsAPI.settleCash(salesmanId, settleAmount ? parseFloat(settleAmount) : undefined);
@@ -57,6 +126,7 @@ export const SalesmanTrackingPage = () => {
       try {
         await authAPI.resetDevice(userId);
         await fetchData();
+        alert('✅ Device binding cleared. Salesman can now log in on a new phone.');
       } catch (err) {
         console.error('Error resetting device binding:', err);
       }
@@ -71,21 +141,30 @@ export const SalesmanTrackingPage = () => {
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-6 h-6 text-emerald-400" />
             <h1 className="text-xl font-bold text-white tracking-tight">
-              Salesman Audit, GPS Verification & Cash Settlement
+              Salesmen ID & Staff Management
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Triple-layer visit verification (geofence proximity &lt; 150m, mock GPS detection), device security, and day-end cash drawer clearance.
+            Create salesman accounts, reset mobile passwords, manage device locks, and settle daily cash drawers.
           </p>
         </div>
 
-        <button
-          onClick={fetchData}
-          className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors self-start sm:self-auto"
-          title="Refresh logs"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-        </button>
+        <div className="flex items-center gap-2.5 self-start sm:self-auto">
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-900/30 transition-all active:scale-95"
+          >
+            <UserPlus className="w-4 h-4" />
+            <span>+ Create Salesman ID</span>
+          </button>
+          <button
+            onClick={fetchData}
+            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+            title="Refresh list"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
+        </div>
       </div>
 
       {/* Sales Team Cash Drawer Cards */}
@@ -159,10 +238,25 @@ export const SalesmanTrackingPage = () => {
               >
                 Accept Cash Handover
               </button>
+              <button
+                onClick={() =>
+                  setEditUserData({
+                    _id: salesman._id,
+                    name: salesman.name,
+                    phone: salesman.phone,
+                    password: '',
+                    activeCities: salesman.activeCities?.join(', ') || 'Morbi, Wankaner',
+                  })
+                }
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-sky-400 hover:text-white transition-colors"
+                title="Change Password / Details"
+              >
+                <Key className="w-4 h-4" />
+              </button>
               {salesman.deviceId && (
                 <button
                   onClick={() => handleResetDevice(salesman._id)}
-                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors"
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-white transition-colors"
                   title="Reset device binding (phone changed)"
                 >
                   <Smartphone className="w-4 h-4" />
@@ -263,6 +357,174 @@ export const SalesmanTrackingPage = () => {
           </table>
         </div>
       </div>
+
+      {/* Create Salesman Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <UserPlus className="w-5 h-5 text-sky-400" />
+              <span>Create New Salesman User</span>
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Set up credentials for field executive to log into the mobile app.
+            </p>
+
+            <form onSubmit={handleCreateSalesman} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Full Name:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Ramesh Patel"
+                  value={newUserData.name}
+                  onChange={(e) => setNewUserData({ ...newUserData, name: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none focus:border-sky-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Mobile Number (Login ID):
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. 9898033333"
+                  value={newUserData.phone}
+                  onChange={(e) => setNewUserData({ ...newUserData, phone: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Login Password:</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. sales123"
+                  value={newUserData.password}
+                  onChange={(e) => setNewUserData({ ...newUserData, password: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Active Cities (Comma separated):
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="Morbi, Wankaner, Rajkot"
+                  value={newUserData.activeCities}
+                  onChange={(e) => setNewUserData({ ...newUserData, activeCities: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-medium text-sky-300"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsAddModalOpen(false)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
+                >
+                  Create Account
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Salesman Modal */}
+      {editUserData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl">
+            <h3 className="text-base font-bold text-white mb-1 flex items-center gap-2">
+              <Key className="w-5 h-5 text-sky-400" />
+              <span>Update Credentials ({editUserData.name})</span>
+            </h3>
+            <p className="text-xs text-slate-400 mb-4">
+              Update password or assigned cities for this salesman.
+            </p>
+
+            <form onSubmit={handleUpdateSalesman} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Full Name:</label>
+                <input
+                  type="text"
+                  required
+                  value={editUserData.name}
+                  onChange={(e) => setEditUserData({ ...editUserData, name: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Mobile Number (Login ID):
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editUserData.phone}
+                  onChange={(e) => setEditUserData({ ...editUserData, phone: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  New Password (leave blank to keep current):
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter new password"
+                  value={editUserData.password}
+                  onChange={(e) => setEditUserData({ ...editUserData, password: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-mono"
+                />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">
+                  Active Cities (Comma separated):
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={editUserData.activeCities}
+                  onChange={(e) => setEditUserData({ ...editUserData, activeCities: e.target.value })}
+                  className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-medium text-sky-300"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setEditUserData(null)}
+                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
+                >
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Cash Handover Confirmation Modal */}
       {settleModalSalesman && (
