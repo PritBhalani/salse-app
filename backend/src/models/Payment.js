@@ -14,6 +14,12 @@ const paymentSchema = new mongoose.Schema({
   chequePhotoUrl: { type: String },
   upiTransactionId: { type: String },
   notes: { type: String },
+  collectionChannel: {
+    type: String,
+    enum: ['IN_PERSON_BEAT', 'PHONE_COLLECTION', 'BANK_TRANSFER'],
+    default: 'IN_PERSON_BEAT',
+  },
+  isWithoutVisit: { type: Boolean, default: false },
   isSettledWithWarehouse: { type: Boolean, default: false },
   settledAt: { type: Date },
   settledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

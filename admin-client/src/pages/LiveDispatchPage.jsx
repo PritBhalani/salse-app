@@ -155,6 +155,15 @@ export const LiveDispatchPage = () => {
                         >
                           {order.billType === 'GST' ? 'GST INVOICE' : 'WITHOUT GST (ROUGH)'}
                         </span>
+                        {order.isWithoutVisit || order.orderChannel === 'PHONE_ORDER' ? (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            📞 Phone Order (Without Visit)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                            📍 Beat Visit
+                          </span>
+                        )}
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
                             order.status === 'PENDING'

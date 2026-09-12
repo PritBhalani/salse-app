@@ -378,15 +378,22 @@ export const ShopsLedgerPage = () => {
                             {new Date(o.createdAt).toLocaleDateString('en-IN')}
                           </td>
                           <td className="py-2 px-3">
-                            <span
-                              className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                o.billType === 'GST'
-                                  ? 'bg-emerald-500/20 text-emerald-300'
-                                  : 'bg-amber-500/20 text-amber-300'
-                              }`}
-                            >
-                              {o.billType}
-                            </span>
+                            <div className="flex items-center gap-1">
+                              <span
+                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                  o.billType === 'GST'
+                                    ? 'bg-emerald-500/20 text-emerald-300'
+                                    : 'bg-amber-500/20 text-amber-300'
+                                }`}
+                              >
+                                {o.billType}
+                              </span>
+                              {o.isWithoutVisit || o.orderChannel === 'PHONE_ORDER' ? (
+                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                                  📞 Phone
+                                </span>
+                              ) : null}
+                            </div>
                           </td>
                           <td className="py-2 px-3 text-[11px]">{o.status}</td>
                           <td className="py-2 px-3 text-right font-bold text-white">
@@ -430,7 +437,12 @@ export const ShopsLedgerPage = () => {
                               <span className="text-[10px] text-slate-500 block">Chq #{p.chequeNumber}</span>
                             )}
                           </td>
-                          <td className="py-2 px-3 text-[11px]">{p.billType}</td>
+                          <td className="py-2 px-3 text-[11px]">
+                            <div>{p.billType}</div>
+                            {p.isWithoutVisit || p.collectionChannel === 'PHONE_COLLECTION' ? (
+                              <span className="text-[9px] font-bold text-purple-400 block">📞 Remote (No Visit)</span>
+                            ) : null}
+                          </td>
                           <td className="py-2 px-3 text-right font-bold text-emerald-400">
                             ₹{p.amount.toLocaleString()}
                           </td>

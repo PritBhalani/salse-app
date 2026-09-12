@@ -13,7 +13,7 @@ const generateOrderNumber = async () => {
 // @route   POST /api/orders
 export const createOrder = async (req, res) => {
   try {
-    const { shopId, billType, items, dispatchNotes } = req.body;
+    const { shopId, billType, items, dispatchNotes, orderChannel, isWithoutVisit } = req.body;
     const salesmanId = req.user._id;
 
     if (!shopId || !items || items.length === 0) {
@@ -72,6 +72,9 @@ export const createOrder = async (req, res) => {
     const totalAmount = subtotal + gstTotal;
     const orderNumber = await generateOrderNumber();
 
+    const channel = orderChannel || (isWithoutVisit ? 'PHONE_ORDER' : 'IN_PERSON_BEAT');
+    const remoteFlag = isWithoutVisit || channel === 'PHONE_ORDER';
+
     const order = await Order.create({
       orderNumber,
       shop: shop._id,
@@ -82,6 +85,8 @@ export const createOrder = async (req, res) => {
       gstTotal,
       totalAmount,
       dispatchNotes: dispatchNotes || '',
+      orderChannel: channel,
+      isWithoutVisit: remoteFlag,
       status: 'PENDING',
     });
 

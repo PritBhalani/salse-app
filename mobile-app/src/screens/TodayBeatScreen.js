@@ -4,6 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
   ActivityIndicator,
   Linking,
@@ -17,7 +18,7 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [shops, setShops] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [checkInLoading, setCheckInLoading] = useState(null);
+  const [checkInLoading, setCheckInLoading] = useState(null);\n  const [searchQuery, setSearchQuery] = useState('');
 
   // Simulated salesman current coordinates (Morbi main market: 22.8125, 70.8355)
   const currentSalesmanCoords = {
@@ -61,9 +62,18 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
 
   // Filter shops based on selected route cities
   const activeRoute = allRoutes.find((r) => r._id === selectedRouteId) || routeData;
-  const filteredShops = activeRoute && selectedRouteId !== 'ALL'
+  const baseShops = activeRoute && selectedRouteId !== 'ALL' && !searchQuery
     ? shops.filter((s) => activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase()))
     : shops;
+
+  const filteredShops = searchQuery
+    ? shops.filter((s) =>
+        s.shopName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.ownerName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.phone?.includes(searchQuery) ||
+        s.city?.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+    : baseShops;
 
   const handleOpenMap = (shop) => {
     const lat = shop.location?.latitude;
@@ -181,6 +191,22 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
           </View>
         </View>
 
+        {/* Fast Shop Search Bar (For Phone Call Orders outside today's beat) */}
+        <View style={{ marginBottom: 14 }}>
+          <TextInput
+            style={styles.searchBar}
+            placeholder="🔍 Search any assigned shop for phone order..."
+            placeholderTextColor="#64748b"
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery ? (
+            <Text style={{ fontSize: 11, color: '#c084fc', fontWeight: 'bold', marginTop: 4, marginLeft: 2 }}>
+              📞 Searching all assigned shops (Off-Beat / Phone Orders)
+            </Text>
+          ) : null}
+        </View>
+
         {/* Section Header */}
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Shops on Beat ({filteredShops.length})</Text>
@@ -296,6 +322,16 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
 };
 
 const styles = StyleSheet.create({
+  searchBar: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#f8fafc',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#475569',
+  },
   container: {
     flex: 1,
     backgroundColor: '#090d16',

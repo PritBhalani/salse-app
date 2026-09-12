@@ -27,6 +27,12 @@ const orderSchema = new mongoose.Schema({
     default: 'PENDING',
   },
   dispatchNotes: { type: String, default: '' },
+  orderChannel: {
+    type: String,
+    enum: ['IN_PERSON_BEAT', 'PHONE_ORDER', 'DIRECT_REORDER'],
+    default: 'IN_PERSON_BEAT',
+  },
+  isWithoutVisit: { type: Boolean, default: false },
   dispatchedAt: { type: Date },
   deliveredAt: { type: Date },
 }, { timestamps: true });

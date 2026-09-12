@@ -35,6 +35,8 @@ import {
   ShieldCheck,
   Calendar,
   Percent,
+  PhoneCall,
+  Radio,
 } from 'lucide-react';
 import {
   shopsAPI,
@@ -50,7 +52,7 @@ import { useSocket } from '../context/SocketContext';
 export const MobileSimulatorPage = () => {
   // Simulator Role & Screen Navigation
   const [deviceRole, setDeviceRole] = useState('SALESMAN'); // 'SALESMAN' or 'SHOP_OWNER'
-  const [salesmanTab, setSalesmanTab] = useState('BEAT'); // 'BEAT', 'CATALOG', 'COLLECTIONS', 'KPIS'
+  const [salesmanTab, setSalesmanTab] = useState('BEAT'); // 'BEAT', 'PHONE_SEARCH', 'CATALOG', 'COLLECTIONS', 'KPIS'
   const [shopOwnerTab, setShopOwnerTab] = useState('DASHBOARD'); // 'DASHBOARD', 'ORDERS', 'LEDGER', 'REORDER'
   const [screen, setScreen] = useState('MAIN'); // 'MAIN', 'SHOP_DETAIL', 'TAKE_ORDER', 'COLLECT_PAYMENT', 'REGISTER_SHOP', 'EDIT_SHOP_GPS', 'WHATSAPP_SHARE'
   
@@ -65,16 +67,19 @@ export const MobileSimulatorPage = () => {
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [shopSearch, setShopSearch] = useState('');
 
   // Cart for ordering
   const [cart, setCart] = useState({});
   const [billType, setBillType] = useState('NON_GST');
+  const [orderChannel, setOrderChannel] = useState('IN_PERSON_BEAT'); // 'IN_PERSON_BEAT' or 'PHONE_ORDER'
   const [orderNotes, setOrderNotes] = useState('');
 
   // Payment form
   const [payAmount, setPayAmount] = useState('');
   const [payMode, setPayMode] = useState('CASH');
   const [payBillType, setPayBillType] = useState('NON_GST');
+  const [collectionChannel, setCollectionChannel] = useState('IN_PERSON_BEAT'); // 'IN_PERSON_BEAT' or 'PHONE_COLLECTION'
   const [chequeNo, setChequeNo] = useState('');
   const [chequeBank, setChequeBank] = useState('');
 
@@ -210,16 +215,20 @@ export const MobileSimulatorPage = () => {
       };
     });
 
+    const isRemote = orderChannel === 'PHONE_ORDER';
+
     try {
       const res = await ordersAPI.create({
         shopId: selectedShop._id,
         billType,
         items,
-        dispatchNotes: orderNotes || 'Urgent wholesale delivery',
+        orderChannel,
+        isWithoutVisit: isRemote,
+        dispatchNotes: orderNotes || (isRemote ? '📞 Phone Order received from retailer (Without Visit)' : 'In-person beat order'),
       });
 
       if (res.data.success) {
-        showSimToast(`🚀 Order ${res.data.order.orderNumber} sent to Warehouse!`, 'success');
+        showSimToast(`🚀 ${isRemote ? 'Phone Order' : 'Order'} ${res.data.order.orderNumber} sent to Warehouse!`, 'success');
         
         // Prepare WhatsApp message
         setWhatsAppData({
@@ -229,6 +238,7 @@ export const MobileSimulatorPage = () => {
           billType,
           totalAmount,
           itemCount: Object.keys(cart).length,
+          orderChannel,
         });
 
         setCart({});
@@ -249,14 +259,19 @@ export const MobileSimulatorPage = () => {
       return;
     }
 
+    const isRemote = collectionChannel === 'PHONE_COLLECTION';
+
     try {
       const res = await paymentsAPI.record({
         shopId: selectedShop._id,
         billType: payBillType,
         amount: amt,
         mode: payMode,
+        collectionChannel,
+        isWithoutVisit: isRemote,
         chequeNumber: payMode === 'CHEQUE' ? chequeNo : undefined,
         chequeBank: payMode === 'CHEQUE' ? chequeBank : undefined,
+        notes: isRemote ? '📞 Phone / Remote payment received' : 'In-person collection',
       });
 
       if (res.data.success) {
@@ -269,6 +284,7 @@ export const MobileSimulatorPage = () => {
           billType: payBillType,
           amount: amt,
           mode: payMode,
+          collectionChannel,
         });
 
         setPayAmount('');
@@ -366,9 +382,11 @@ export const MobileSimulatorPage = () => {
     const recipient = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
 
     if (whatsAppData.type === 'ORDER') {
-      msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n📄 *Order No:* ${whatsAppData.orderNumber}\n📑 *Bill Type:* ${whatsAppData.billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📦 *Total Items:* ${whatsAppData.itemCount}\n💰 *Total Amount:* ₹${whatsAppData.totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your business!`;
+      const isPhone = whatsAppData.orderChannel === 'PHONE_ORDER';
+      msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n📄 *Order No:* ${whatsAppData.orderNumber}\n📑 *Bill Type:* ${whatsAppData.billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📞 *Channel:* ${isPhone ? 'Phone Call Order (Without Visit)' : 'In-Person Beat Visit'}\n📦 *Total Items:* ${whatsAppData.itemCount}\n💰 *Total Amount:* ₹${whatsAppData.totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your business!`;
     } else {
-      msg = `*SHIVAM MARKETING - PAYMENT RECEIPT*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n🧾 *Receipt No:* ${whatsAppData.receiptNumber}\n📑 *Book:* ${whatsAppData.billType === 'GST' ? 'GST Official Ledger' : 'Rough Cash Ledger'}\n💵 *Amount Received:* ₹${whatsAppData.amount.toLocaleString()}\n💳 *Mode:* ${whatsAppData.mode}\n✅ *Status:* RECEIVED & CREDITED\n------------------------------\nThank you for the prompt payment!`;
+      const isRemote = whatsAppData.collectionChannel === 'PHONE_COLLECTION';
+      msg = `*SHIVAM MARKETING - PAYMENT RECEIPT*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n🧾 *Receipt No:* ${whatsAppData.receiptNumber}\n📑 *Book:* ${whatsAppData.billType === 'GST' ? 'GST Official Ledger' : 'Rough Cash Ledger'}\n📞 *Type:* ${isRemote ? 'Remote Payment (Online/UPI)' : 'In-Person Cash Collection'}\n💵 *Amount Received:* ₹${whatsAppData.amount.toLocaleString()}\n💳 *Mode:* ${whatsAppData.mode}\n✅ *Status:* RECEIVED & CREDITED\n------------------------------\nThank you for the prompt payment!`;
     }
 
     return `https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`;
@@ -386,7 +404,7 @@ export const MobileSimulatorPage = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Test the complete Salesman Android App & Shop Owner portal with GPS verification, 1-tap WhatsApp digital bills, and dispatch tracking.
+            Test Salesman beat visits, phone orders for off-beat shops, GPS verification, 1-tap WhatsApp digital bills, and dispatch tracking.
           </p>
         </div>
 
@@ -538,7 +556,7 @@ export const MobileSimulatorPage = () => {
 
                       return (
                         <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-                          {/* Multi-Beat Selector (If salesman covers 2+ beats) */}
+                          {/* Multi-Beat Selector */}
                           {allRoutes.length > 1 && (
                             <div className="space-y-1">
                               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -597,7 +615,7 @@ export const MobileSimulatorPage = () => {
                             </p>
                             <div className="mt-2.5 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px]">
                               <span className="text-slate-400">Visits Done: <b className="text-white">4 / {filteredShops.length}</b></span>
-                              <span className="text-emerald-400 font-bold">Collected Today: ₹35,000</span>
+                              <span className="text-emerald-400 font-bold">Collected: ₹35,000</span>
                             </div>
                           </div>
 
@@ -697,6 +715,8 @@ export const MobileSimulatorPage = () => {
                                     <button
                                       onClick={() => {
                                         setSelectedShop(shop);
+                                        setOrderChannel('IN_PERSON_BEAT');
+                                        setCollectionChannel('IN_PERSON_BEAT');
                                         setScreen('SHOP_DETAIL');
                                       }}
                                       className="flex-1 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold shadow flex items-center justify-center gap-1"
@@ -713,7 +733,83 @@ export const MobileSimulatorPage = () => {
                       );
                     })()}
 
-                    {/* TAB 2: PRODUCT CATALOG */}
+                    {/* TAB 2: PHONE CALL ORDER / SEARCH ALL SHOPS (Without Physical Visit) */}
+                    {salesmanTab === 'PHONE_SEARCH' && (
+                      <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
+                        <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-950/70 to-slate-900 border border-purple-800/40 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <PhoneCall className="w-4 h-4 text-purple-400" />
+                            <span className="font-bold text-white text-xs">Phone Call Order Desk</span>
+                          </div>
+                          <p className="text-[10px] text-slate-400">
+                            Search any assigned shop to punch orders or record remote payments without physically visiting the shop.
+                          </p>
+                        </div>
+
+                        <div className="relative">
+                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                          <input
+                            type="text"
+                            placeholder="Search shop, owner, mobile, or city..."
+                            value={shopSearch}
+                            onChange={(e) => setShopSearch(e.target.value)}
+                            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-purple-500"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          {shops
+                            .filter((s) =>
+                              s.shopName?.toLowerCase().includes(shopSearch.toLowerCase()) ||
+                              s.ownerName?.toLowerCase().includes(shopSearch.toLowerCase()) ||
+                              s.phone?.includes(shopSearch) ||
+                              s.city?.toLowerCase().includes(shopSearch.toLowerCase())
+                            )
+                            .map((shop) => (
+                              <div key={shop._id} className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2 text-xs">
+                                <div className="flex items-start justify-between">
+                                  <div>
+                                    <div className="font-bold text-white">{shop.shopName}</div>
+                                    <div className="text-[10px] text-slate-400">{shop.ownerName} • {shop.phone} • {shop.city}</div>
+                                  </div>
+                                  <span className="text-[10px] px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 font-bold border border-purple-500/30">
+                                    Off-Beat
+                                  </span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5 pt-1">
+                                  <button
+                                    onClick={() => {
+                                      setSelectedShop(shop);
+                                      setOrderChannel('PHONE_ORDER');
+                                      setCart({});
+                                      setScreen('TAKE_ORDER');
+                                    }}
+                                    className="flex-1 py-1.5 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] flex items-center justify-center gap-1"
+                                  >
+                                    <PhoneCall className="w-3 h-3" />
+                                    <span>Punch Phone Order</span>
+                                  </button>
+                                  <button
+                                    onClick={() => {
+                                      setSelectedShop(shop);
+                                      setCollectionChannel('PHONE_COLLECTION');
+                                      setPayAmount('');
+                                      setScreen('COLLECT_PAYMENT');
+                                    }}
+                                    className="flex-1 py-1.5 rounded-lg bg-emerald-600/30 hover:bg-emerald-600/40 text-emerald-300 border border-emerald-500/40 font-bold text-[10px] flex items-center justify-center gap-1"
+                                  >
+                                    <CreditCard className="w-3 h-3" />
+                                    <span>Remote Payment</span>
+                                  </button>
+                                </div>
+                              </div>
+                            ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* TAB 3: PRODUCT CATALOG */}
                     {salesmanTab === 'CATALOG' && (
                       <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
                         <div className="relative">
@@ -746,7 +842,7 @@ export const MobileSimulatorPage = () => {
                       </div>
                     )}
 
-                    {/* TAB 3: COLLECTIONS SUMMARY */}
+                    {/* TAB 4: COLLECTIONS SUMMARY */}
                     {salesmanTab === 'COLLECTIONS' && (
                       <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
                         <div className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-950/60 to-slate-900 border border-emerald-800/40 space-y-2">
@@ -763,14 +859,14 @@ export const MobileSimulatorPage = () => {
                           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
                             <div>
                               <div className="font-bold text-white">Somnath Sanitary</div>
-                              <div className="text-[10px] text-slate-400">RCP-2026-0001 • Cash</div>
+                              <div className="text-[10px] text-slate-400">RCP-2026-0001 • Cash (Beat Visit)</div>
                             </div>
                             <span className="font-extrabold text-emerald-400">₹20,000</span>
                           </div>
                           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
                             <div>
                               <div className="font-bold text-white">Shreeji Traders</div>
-                              <div className="text-[10px] text-slate-400">RCP-2026-0002 • UPI (GST)</div>
+                              <div className="text-[10px] text-purple-300 font-semibold">RCP-2026-0002 • UPI 📞 (Remote No Visit)</div>
                             </div>
                             <span className="font-extrabold text-emerald-400">₹15,000</span>
                           </div>
@@ -778,7 +874,7 @@ export const MobileSimulatorPage = () => {
                       </div>
                     )}
 
-                    {/* TAB 4: KPIS & TARGETS */}
+                    {/* TAB 5: KPIS & TARGETS */}
                     {salesmanTab === 'KPIS' && (
                       <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
                         <div className="p-3.5 rounded-2xl bg-gradient-to-br from-purple-950/60 to-slate-900 border border-purple-800/40 space-y-2.5">
@@ -808,19 +904,19 @@ export const MobileSimulatorPage = () => {
 
                         <div className="grid grid-cols-2 gap-2 text-center">
                           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                            <span className="text-slate-400 text-[10px] block">New Shops Onboarded</span>
-                            <span className="font-bold text-white text-base mt-1 block">3 this week</span>
+                            <span className="text-slate-400 text-[10px] block">Phone Orders Taken</span>
+                            <span className="font-bold text-purple-400 text-base mt-1 block">2 Remote</span>
                           </div>
                           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-                            <span className="text-slate-400 text-[10px] block">Pending Orders Value</span>
-                            <span className="font-bold text-white text-base mt-1 block">₹84,200</span>
+                            <span className="text-slate-400 text-[10px] block">New Shops Onboarded</span>
+                            <span className="font-bold text-white text-base mt-1 block">3 this week</span>
                           </div>
                         </div>
                       </div>
                     )}
 
                     {/* Salesman Bottom Navigation Bar */}
-                    <div className="bg-slate-900 border-t border-slate-800 px-2 py-2 flex items-center justify-around text-[10px]">
+                    <div className="bg-slate-900 border-t border-slate-800 px-1 py-2 flex items-center justify-around text-[9px]">
                       <button
                         onClick={() => setSalesmanTab('BEAT')}
                         className={`flex flex-col items-center gap-1 ${
@@ -829,6 +925,15 @@ export const MobileSimulatorPage = () => {
                       >
                         <Navigation className="w-4 h-4" />
                         <span>Today Beat</span>
+                      </button>
+                      <button
+                        onClick={() => setSalesmanTab('PHONE_SEARCH')}
+                        className={`flex flex-col items-center gap-1 ${
+                          salesmanTab === 'PHONE_SEARCH' ? 'text-purple-400 font-bold' : 'text-slate-400'
+                        }`}
+                      >
+                        <PhoneCall className="w-4 h-4" />
+                        <span>Phone Order</span>
                       </button>
                       <button
                         onClick={() => setSalesmanTab('CATALOG')}
@@ -855,7 +960,7 @@ export const MobileSimulatorPage = () => {
                         }`}
                       >
                         <Award className="w-4 h-4" />
-                        <span>My KPIs</span>
+                        <span>KPIs</span>
                       </button>
                     </div>
                   </div>
@@ -873,7 +978,6 @@ export const MobileSimulatorPage = () => {
                           </p>
                           <p className="text-[11px] text-slate-500">📍 {selectedShop.address}, {selectedShop.city}</p>
                         </div>
-                        {/* Salesman Edit Shop & Re-Pin GPS Button */}
                         <button
                           onClick={() => handleOpenEditShop(selectedShop)}
                           className="px-2 py-1 rounded-lg bg-sky-600/20 text-sky-300 border border-sky-500/30 text-[10px] font-bold flex items-center gap-1"
@@ -910,6 +1014,7 @@ export const MobileSimulatorPage = () => {
                       <button
                         onClick={() => {
                           setCart({});
+                          setOrderChannel('IN_PERSON_BEAT');
                           setScreen('TAKE_ORDER');
                         }}
                         className="py-3 rounded-2xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-extrabold shadow flex items-center justify-center gap-1.5"
@@ -921,6 +1026,7 @@ export const MobileSimulatorPage = () => {
                       <button
                         onClick={() => {
                           setPayAmount('');
+                          setCollectionChannel('IN_PERSON_BEAT');
                           setScreen('COLLECT_PAYMENT');
                         }}
                         className="py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow flex items-center justify-center gap-1.5"
@@ -930,24 +1036,30 @@ export const MobileSimulatorPage = () => {
                       </button>
                     </div>
 
-                    {/* Quick Call & WhatsApp Action Buttons */}
+                    {/* Quick Call & Phone Order Action Bar */}
                     <div className="grid grid-cols-2 gap-2">
-                      <a
-                        href={`tel:${selectedShop.phone}`}
-                        className="py-2 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-slate-300 text-[11px] font-bold flex items-center justify-center gap-1.5"
+                      <button
+                        onClick={() => {
+                          setCart({});
+                          setOrderChannel('PHONE_ORDER');
+                          setScreen('TAKE_ORDER');
+                        }}
+                        className="py-2.5 rounded-xl bg-purple-950/60 border border-purple-800/50 hover:border-purple-500 text-purple-300 text-[11px] font-bold flex items-center justify-center gap-1.5"
                       >
-                        <Phone className="w-3.5 h-3.5 text-sky-400" />
-                        <span>Call Owner</span>
-                      </a>
-                      <a
-                        href={`https://wa.me/91${selectedShop.phone?.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hello ${selectedShop.ownerName}, regarding your account balance of ₹${((selectedShop.gstBalance || 0) + (selectedShop.nonGstBalance || 0)).toLocaleString()} at Shivam Marketing.`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="py-2 rounded-xl bg-emerald-950/40 border border-emerald-800/40 hover:border-emerald-600 text-emerald-300 text-[11px] font-bold flex items-center justify-center gap-1.5"
+                        <PhoneCall className="w-3.5 h-3.5 text-purple-400" />
+                        <span>📞 Phone Order (No Visit)</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setPayAmount('');
+                          setCollectionChannel('PHONE_COLLECTION');
+                          setScreen('COLLECT_PAYMENT');
+                        }}
+                        className="py-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/40 hover:border-emerald-600 text-emerald-300 text-[11px] font-bold flex items-center justify-center gap-1.5"
                       >
-                        <Send className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>WhatsApp</span>
-                      </a>
+                        <CreditCard className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Remote Payment</span>
+                      </button>
                     </div>
 
                     {/* Bill History Mini Summary */}
@@ -973,6 +1085,33 @@ export const MobileSimulatorPage = () => {
                 {screen === 'TAKE_ORDER' && selectedShop && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3 flex flex-col justify-between">
                     <div className="space-y-2.5">
+                      {/* Channel Indicator / Switcher */}
+                      <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Order Mode:</span>
+                        <div className="flex gap-1">
+                          <button
+                            onClick={() => setOrderChannel('IN_PERSON_BEAT')}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                              orderChannel === 'IN_PERSON_BEAT'
+                                ? 'bg-sky-600 border-sky-500 text-white'
+                                : 'bg-slate-800 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            📍 In-Person Beat
+                          </button>
+                          <button
+                            onClick={() => setOrderChannel('PHONE_ORDER')}
+                            className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                              orderChannel === 'PHONE_ORDER'
+                                ? 'bg-purple-600 border-purple-500 text-white shadow'
+                                : 'bg-slate-800 border-slate-700 text-slate-400'
+                            }`}
+                          >
+                            📞 Phone Call (No Visit)
+                          </button>
+                        </div>
+                      </div>
+
                       {/* Bill Type Selector */}
                       <div className="p-2.5 rounded-2xl bg-slate-900 border border-slate-800">
                         <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1.5">
@@ -1003,7 +1142,7 @@ export const MobileSimulatorPage = () => {
                       </div>
 
                       {/* Product Catalog Items */}
-                      <div className="space-y-2 max-h-[260px] overflow-y-auto pr-1">
+                      <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
                         {products.slice(0, 6).map((prod) => {
                           const qty = cart[prod._id] || 0;
                           const isOutOfStock = prod.isOutOfStock;
@@ -1090,9 +1229,10 @@ export const MobileSimulatorPage = () => {
 
                       <button
                         onClick={handlePunchOrder}
-                        className="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-900/30 active:scale-95"
+                        className="px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-900/30 active:scale-95 flex items-center gap-1.5"
                       >
-                        Punch Order &rarr;
+                        {orderChannel === 'PHONE_ORDER' && <PhoneCall className="w-3.5 h-3.5" />}
+                        <span>Punch {orderChannel === 'PHONE_ORDER' ? 'Phone Order' : 'Order'} &rarr;</span>
                       </button>
                     </div>
                   </div>
@@ -1101,6 +1241,33 @@ export const MobileSimulatorPage = () => {
                 {/* 4. SALESMAN COLLECT PAYMENT SCREEN */}
                 {screen === 'COLLECT_PAYMENT' && selectedShop && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
+                    {/* Collection Channel Selector */}
+                    <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                      <span className="text-slate-400 text-[10px] font-bold uppercase">Collection:</span>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setCollectionChannel('IN_PERSON_BEAT')}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                            collectionChannel === 'IN_PERSON_BEAT'
+                              ? 'bg-emerald-600 border-emerald-500 text-white'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                        >
+                          📍 In-Person Cash
+                        </button>
+                        <button
+                          onClick={() => setCollectionChannel('PHONE_COLLECTION')}
+                          className={`px-2 py-0.5 rounded-lg text-[10px] font-bold border ${
+                            collectionChannel === 'PHONE_COLLECTION'
+                              ? 'bg-purple-600 border-purple-500 text-white shadow'
+                              : 'bg-slate-800 border-slate-700 text-slate-400'
+                          }`}
+                        >
+                          📞 Remote (No Visit)
+                        </button>
+                      </div>
+                    </div>
+
                     <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800">
                       <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
                         Select Target Ledger Book:
@@ -1187,7 +1354,7 @@ export const MobileSimulatorPage = () => {
                       onClick={handleRecordPayment}
                       className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/30 active:scale-95 mt-2"
                     >
-                      Record Collection & Generate Receipt &rarr;
+                      Record {collectionChannel === 'PHONE_COLLECTION' ? 'Remote' : ''} Payment & Generate Receipt &rarr;
                     </button>
                   </div>
                 )}
@@ -1416,11 +1583,13 @@ export const MobileSimulatorPage = () => {
                         {whatsAppData.type === 'ORDER' ? (
                           <>
                             <div><b>Order No:</b> {whatsAppData.orderNumber}</div>
+                            <div><b>Type:</b> {whatsAppData.orderChannel === 'PHONE_ORDER' ? '📞 Phone Order (Without Visit)' : '📍 Beat Visit Order'}</div>
                             <div><b>Amount:</b> ₹{whatsAppData.totalAmount.toLocaleString()}</div>
                           </>
                         ) : (
                           <>
                             <div><b>Receipt No:</b> {whatsAppData.receiptNumber}</div>
+                            <div><b>Type:</b> {whatsAppData.collectionChannel === 'PHONE_COLLECTION' ? '📞 Remote (No Visit)' : '📍 In-Person Cash'}</div>
                             <div><b>Amount Received:</b> ₹{whatsAppData.amount.toLocaleString()} ({whatsAppData.mode})</div>
                           </>
                         )}
@@ -1455,7 +1624,6 @@ export const MobileSimulatorPage = () => {
                 {/* 1. SHOP OWNER DASHBOARD */}
                 {shopOwnerTab === 'DASHBOARD' && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
-                    {/* Header Shop Card */}
                     <div className="p-3.5 rounded-2xl bg-gradient-to-br from-indigo-950/70 via-slate-900 to-slate-900 border border-indigo-800/40 space-y-2">
                       <div className="flex items-center justify-between">
                         <span className="font-extrabold text-sm text-white">Shri Krishna Hardware</span>
@@ -1465,7 +1633,6 @@ export const MobileSimulatorPage = () => {
                       </div>
                       <p className="text-[11px] text-slate-400">Proprietor: Jayeshbhai Shah • Morbi</p>
 
-                      {/* Credit Limit Health Gauge */}
                       <div className="p-2.5 rounded-xl bg-slate-950 border border-slate-800 space-y-1.5">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="text-slate-400">Credit Limit: <b className="text-slate-200">₹1,50,000</b></span>
@@ -1476,7 +1643,6 @@ export const MobileSimulatorPage = () => {
                         </div>
                       </div>
 
-                      {/* Dual Account Balance Matrix */}
                       <div className="grid grid-cols-2 gap-2 p-2 rounded-xl bg-slate-950 border border-slate-800 text-center">
                         <div>
                           <span className="text-slate-500 text-[10px] block">GST Tax Due</span>
@@ -1489,7 +1655,6 @@ export const MobileSimulatorPage = () => {
                       </div>
                     </div>
 
-                    {/* Live Order Dispatch Timeline Widget */}
                     <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white text-xs flex items-center gap-1.5">
@@ -1499,7 +1664,6 @@ export const MobileSimulatorPage = () => {
                         <span className="text-[10px] font-mono text-sky-400 font-bold">ORD-2026-0001</span>
                       </div>
 
-                      {/* 4-Step Dispatch Visual Timeline */}
                       <div className="grid grid-cols-4 gap-1 text-center text-[9px] pt-1">
                         <div className="space-y-1">
                           <div className="w-6 h-6 rounded-full bg-emerald-600 text-white flex items-center justify-center mx-auto font-bold">✓</div>
@@ -1524,7 +1688,6 @@ export const MobileSimulatorPage = () => {
                       </div>
                     </div>
 
-                    {/* Quick 1-Tap Re-Order Card */}
                     <div className="p-3 rounded-2xl bg-gradient-to-r from-sky-950/60 to-indigo-950/60 border border-sky-800/40 flex items-center justify-between">
                       <div>
                         <div className="font-bold text-white text-xs">Need Quick Restock?</div>
@@ -1561,20 +1724,6 @@ export const MobileSimulatorPage = () => {
                         <span className="font-extrabold text-white">₹29,642</span>
                       </div>
                     </div>
-
-                    <div className="p-3 rounded-2xl bg-slate-900 border border-slate-800 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-bold text-white">ORD-2026-0000</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">
-                          DELIVERED
-                        </span>
-                      </div>
-                      <p className="text-[11px] text-slate-400">• PVC Conduit Pipe &times; 100 pcs (5 Boxes)</p>
-                      <div className="flex items-center justify-between pt-1 border-t border-slate-800 text-[11px]">
-                        <span className="text-slate-500">Rough Bill</span>
-                        <span className="font-extrabold text-white">₹18,500</span>
-                      </div>
-                    </div>
                   </div>
                 )}
 
@@ -1593,17 +1742,6 @@ export const MobileSimulatorPage = () => {
                       <div className="flex items-center justify-between text-[11px] text-slate-400">
                         <span>RCP-2026-0001 (Cash)</span>
                         <span>Yesterday</span>
-                      </div>
-                    </div>
-
-                    <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white">Tax Invoice Debited</span>
-                        <span className="font-bold text-rose-400">+₹29,642</span>
-                      </div>
-                      <div className="flex items-center justify-between text-[11px] text-slate-400">
-                        <span>ORD-2026-0001 (GST 18%)</span>
-                        <span>2 days ago</span>
                       </div>
                     </div>
                   </div>

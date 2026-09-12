@@ -23,6 +23,8 @@ export const recordPayment = async (req, res) => {
       chequePhotoUrl,
       upiTransactionId,
       notes,
+      collectionChannel,
+      isWithoutVisit,
     } = req.body;
 
     const salesmanId = req.user._id;
@@ -39,6 +41,9 @@ export const recordPayment = async (req, res) => {
     const parsedAmount = parseFloat(amount);
     const receiptNumber = await generateReceiptNumber();
 
+    const channel = collectionChannel || (isWithoutVisit ? 'PHONE_COLLECTION' : 'IN_PERSON_BEAT');
+    const remoteFlag = isWithoutVisit || channel === 'PHONE_COLLECTION' || channel === 'BANK_TRANSFER';
+
     const payment = await Payment.create({
       receiptNumber,
       shop: shop._id,
@@ -52,6 +57,8 @@ export const recordPayment = async (req, res) => {
       chequePhotoUrl: chequePhotoUrl || '',
       upiTransactionId,
       notes,
+      collectionChannel: channel,
+      isWithoutVisit: remoteFlag,
       collectedAt: new Date(),
     });
 
