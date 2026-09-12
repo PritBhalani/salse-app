@@ -58,6 +58,13 @@ export const paymentsAPI = {
   settleCash: (salesmanId, amount) => api.post('/payments/settle-cash', { salesmanId, amount }),
 };
 
+export const uploadAPI = {
+  uploadPhoto: (formData) =>
+    api.post('/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
+};
+
 export const callingSheetAPI = {
   get: (params) => api.get('/calling-sheet', { params }),
   logCall: (data) => api.post('/calling-sheet/log-call', data),

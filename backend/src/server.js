@@ -14,6 +14,7 @@ import orderRoutes from './routes/orderRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import visitRoutes from './routes/visitRoutes.js';
 import callingSheetRoutes from './routes/callingSheetRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
 
 dotenv.config();
 
@@ -41,10 +42,13 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const CLIENT_DIST = path.join(__dirname, '../../admin-client/dist');
+const UPLOADS_DIR = path.join(__dirname, '../../uploads');
+
+// Serve uploaded product and receipt photos
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Serve compiled Admin CRM & Warehouse web portal
 app.use(express.static(CLIENT_DIST));
-
 
 // Mount Routes
 app.use('/api/auth', authRoutes);
@@ -55,6 +59,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/calling-sheet', callingSheetRoutes);
+app.use('/api/upload', uploadRoutes);
 
 // Socket.io connection logic
 io.on('connection', (socket) => {
