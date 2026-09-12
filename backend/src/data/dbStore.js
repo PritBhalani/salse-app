@@ -290,11 +290,11 @@ export function createModelAdapter(collectionName) {
       return item;
     },
 
-    findByIdAndUpdate: async (id, update, options = {}) => {
-      if (!id) return null;
+    findByIdAndUpdate: (id, update, options = {}) => {
+      if (!id) return new QueryBuilder(null, dbStore, collectionName);
       const strId = id.toString();
       const idx = getCol().findIndex((i) => i._id.toString() === strId);
-      if (idx === -1) return null;
+      if (idx === -1) return new QueryBuilder(null, dbStore, collectionName);
 
       const current = getCol()[idx];
       const updated = { ...current, ...update, updatedAt: new Date() };
@@ -315,14 +315,21 @@ export function createModelAdapter(collectionName) {
       return new QueryBuilder(dbStore._wrapDoc(updated, collectionName), dbStore, collectionName);
     },
 
-    findByIdAndDelete: async (id) => {
-      if (!id) return null;
+    findOneAndUpdate: (filter = {}, update = {}, options = {}) => {
+      const items = filterData(getCol(), filter);
+      if (items.length === 0) return new QueryBuilder(null, dbStore, collectionName);
+      const strId = items[0]._id.toString();
+      return createModelAdapter(collectionName).findByIdAndUpdate(strId, update, options);
+    },
+
+    findByIdAndDelete: (id) => {
+      if (!id) return new QueryBuilder(null, dbStore, collectionName);
       const strId = id.toString();
       const idx = getCol().findIndex((i) => i._id.toString() === strId);
-      if (idx === -1) return null;
+      if (idx === -1) return new QueryBuilder(null, dbStore, collectionName);
       const [removed] = dbStore.collections[collectionName].splice(idx, 1);
       dbStore.saveToFile();
-      return dbStore._wrapDoc(removed, collectionName);
+      return new QueryBuilder(dbStore._wrapDoc(removed, collectionName), dbStore, collectionName);
     },
 
     countDocuments: async (filter = {}) => {
