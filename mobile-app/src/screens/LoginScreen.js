@@ -29,7 +29,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
   const handleLogin = async () => {
     if (!phone || !password) {
-      Alert.alert('Error', 'Please enter your registered mobile number and password');
+      Alert.alert('Required Fields', 'Please enter your registered phone number and password');
       return;
     }
 
@@ -46,7 +46,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed. Please check credentials.';
+      const msg = err.response?.data?.message || 'Login failed. Please verify credentials.';
       Alert.alert('Authentication Failed', msg);
     } finally {
       setLoading(false);
@@ -59,8 +59,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         <View style={styles.logoBadge}>
           <Text style={styles.logoIcon}>🚿</Text>
         </View>
-        <Text style={styles.title}>SALASE WHOLESALE</Text>
-        <Text style={styles.subtitle}>Plumbing & Bathware Field App</Text>
+        <Text style={styles.title}>SHIVAM WHOLESALE</Text>
+        <Text style={styles.subtitle}>Plumbing & Bathware ERP Field App</Text>
 
         {/* Quick Role Fill Tabs */}
         <View style={styles.tabContainer}>
@@ -68,10 +68,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             style={[styles.tabButton, selectedRole === 'SALESMAN' && styles.tabButtonActive]}
             onPress={() => handleQuickFill('SALESMAN')}
           >
-            <Text
-              style={[styles.tabText, selectedRole === 'SALESMAN' && styles.tabTextActive]}
-            >
-              Salesman Login
+            <Text style={[styles.tabText, selectedRole === 'SALESMAN' && styles.tabTextActive]}>
+              Salesman
             </Text>
           </TouchableOpacity>
 
@@ -79,15 +77,13 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             style={[styles.tabButton, selectedRole === 'SHOP_OWNER' && styles.tabButtonActive]}
             onPress={() => handleQuickFill('SHOP_OWNER')}
           >
-            <Text
-              style={[styles.tabText, selectedRole === 'SHOP_OWNER' && styles.tabTextActive]}
-            >
-              Shop Owner Login
+            <Text style={[styles.tabText, selectedRole === 'SHOP_OWNER' && styles.tabTextActive]}>
+              Shop Owner
             </Text>
           </TouchableOpacity>
         </View>
 
-        {/* Form */}
+        {/* Form Inputs */}
         <View style={styles.inputGroup}>
           <Text style={styles.label}>Registered Phone Number</Text>
           <TextInput
@@ -96,7 +92,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             value={phone}
             onChangeText={setPhone}
             placeholder="10-digit mobile"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#64748b"
           />
         </View>
 
@@ -108,25 +104,31 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             value={password}
             onChangeText={setPassword}
             placeholder="Enter password"
-            placeholderTextColor="#94a3b8"
+            placeholderTextColor="#64748b"
           />
         </View>
 
         <TouchableOpacity
-          style={styles.loginButton}
+          style={[styles.loginButton, loading && styles.loginButtonDisabled]}
           onPress={handleLogin}
           disabled={loading}
         >
           {loading ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color="#ffffff" size="small" />
           ) : (
-            <Text style={styles.loginButtonText}>Sign In to Account</Text>
+            <Text style={styles.loginButtonText}>
+              Sign In as {selectedRole === 'SALESMAN' ? 'Salesman' : 'Shop Owner'} &rarr;
+            </Text>
           )}
         </TouchableOpacity>
 
-        {selectedRole === 'SHOP_OWNER' && (
+        {selectedRole === 'SHOP_OWNER' ? (
           <Text style={styles.helperNote}>
-            * Shop owners receive their login ID & password from their visiting salesman during registration.
+            * Shop owners receive their User ID & Password directly from their visiting salesman during onboard registration.
+          </Text>
+        ) : (
+          <Text style={styles.helperNote}>
+            * Salesman credentials are created and managed by the Admin from the CRM portal.
           </Text>
         )}
       </View>
@@ -137,7 +139,7 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#090d16',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
@@ -145,104 +147,108 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 420,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#111827',
     borderRadius: 24,
-    padding: 28,
+    padding: 24,
     borderWidth: 1,
-    borderColor: '#334155',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.3,
-    shadowRadius: 20,
-    elevation: 8,
+    borderColor: '#1f2937',
+    alignItems: 'center',
   },
   logoBadge: {
-    width: 60,
-    height: 60,
-    borderRadius: 18,
-    backgroundColor: '#0284c7',
-    alignSelf: 'center',
-    justifyContent: 'center',
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    backgroundColor: '#0c4a6e',
     alignItems: 'center',
-    marginBottom: 16,
+    justifyContent: 'center',
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#0284c7',
   },
   logoIcon: {
-    fontSize: 28,
+    fontSize: 32,
   },
   title: {
-    fontSize: 22,
-    fontWeight: '800',
+    fontSize: 20,
+    fontWeight: 'bold',
     color: '#ffffff',
-    textAlign: 'center',
-    letterSpacing: 0.5,
+    letterSpacing: 1,
   },
   subtitle: {
-    fontSize: 13,
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: 4,
+    fontSize: 12,
+    color: '#38bdf8',
     marginBottom: 20,
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 4,
     marginBottom: 20,
+    width: '100%',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   tabButton: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 10,
+    borderRadius: 8,
   },
   tabButtonActive: {
     backgroundColor: '#0284c7',
   },
   tabText: {
     fontSize: 12,
-    fontWeight: '600',
     color: '#94a3b8',
+    fontWeight: '600',
   },
   tabTextActive: {
     color: '#ffffff',
+    fontWeight: 'bold',
   },
   inputGroup: {
-    marginBottom: 16,
+    width: '100%',
+    marginBottom: 14,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#cbd5e1',
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 'bold',
     marginBottom: 6,
+    textTransform: 'uppercase',
   },
   input: {
-    backgroundColor: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#334155',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    fontSize: 14,
     color: '#ffffff',
+    fontSize: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   loginButton: {
+    width: '100%',
     backgroundColor: '#0284c7',
     borderRadius: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 6,
+  },
+  loginButtonDisabled: {
+    opacity: 0.6,
   },
   loginButtonText: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: 'bold',
   },
   helperNote: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#64748b',
     textAlign: 'center',
-    marginTop: 14,
-    lineHeight: 16,
+    marginTop: 16,
+    lineHeight: 14,
   },
 });

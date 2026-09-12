@@ -16,14 +16,16 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
   const [shopName, setShopName] = useState('');
   const [ownerName, setOwnerName] = useState('');
   const [phone, setPhone] = useState('');
+  const [altPhone, setAltPhone] = useState('');
   const [city, setCity] = useState('Morbi');
   const [address, setAddress] = useState('');
   const [gstNumber, setGstNumber] = useState('');
-  const [ownerPassword, setOwnerPassword] = useState('');
+  const [creditLimit, setCreditLimit] = useState('150000');
+  const [ownerPassword, setOwnerPassword] = useState('shop123');
   const [submitting, setSubmitting] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState(null);
 
-  // Pinned location
+  // Simulated GPS Coordinates
   const currentCoords = {
     latitude: 22.8130,
     longitude: 70.8360,
@@ -41,16 +43,23 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
         shopName,
         ownerName,
         phone,
+        altPhone: altPhone || undefined,
         city,
         address,
         latitude: currentCoords.latitude,
         longitude: currentCoords.longitude,
-        gstNumber,
-        ownerPassword: ownerPassword || undefined,
+        gstNumber: gstNumber || undefined,
+        creditLimit: parseFloat(creditLimit) || 150000,
+        ownerPassword: ownerPassword || 'shop123',
       });
 
       if (res.data.success) {
-        setCreatedCredentials(res.data.credentials);
+        setCreatedCredentials(res.data.credentials || {
+          phone,
+          password: ownerPassword || 'shop123',
+          shopName,
+          ownerName,
+        });
         Alert.alert(
           'Shop Enrolled! 🎉',
           `Shop registered. Credentials created for ${ownerName}.`
@@ -65,10 +74,10 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
 
   const handleShareWhatsApp = () => {
     if (!createdCredentials) return;
-    const text = encodeURIComponent(
-      `*Salase Plumbing & Bathware Wholesale*\n\nNamaste ${ownerName} ji,\nYour shop *${shopName}* is now registered on our digital portal.\n\n*Your App Login Credentials:*\n📱 *User ID (Phone):* ${createdCredentials.phone}\n🔑 *Password:* ${createdCredentials.password}\n\nYou can log in to view pending bills, live delivery dispatch status, and browse bathware fittings.`
-    );
-    Linking.openURL(`https://wa.me/91${phone}?text=${text}`);
+    const cleanPhone = phone.replace(/[^0-9]/g, '');
+    const recipient = cleanPhone.length === 10 ? '91' + cleanPhone : cleanPhone;
+    const msg = `*SHIVAM MARKETING - DIGITAL PORTAL ONBOARDING*\n------------------------------\nNamaste ${ownerName} ji,\nYour retail firm *${shopName}* is now registered on the Shivam Wholesale digital portal.\n\n📱 *Your Mobile Login User ID:* ${createdCredentials.phone}\n🔑 *Your Mobile Login Password:* ${createdCredentials.password}\n\n*App Features Available for You:*\n✓ 🛍️ Browse full visual catalog & 1-click restock\n✓ 🚚 Live delivery dispatch tracking\n✓ 📑 Statement & GST tax ledgers\n------------------------------\nWelcome aboard!`;
+    Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
   };
 
   return (
@@ -78,31 +87,38 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
           <Text style={styles.backBtnText}>&larr; Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Onboard New Retail Shop</Text>
+        <View style={{ flex: 1, marginHorizontal: 10 }}>
+          <Text style={styles.headerTitle}>Onboard New Retail Shop</Text>
+          <Text style={styles.headerSubtitle}>Field Geofence & B2B Account Setup</Text>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {createdCredentials ? (
           <View style={styles.successCard}>
-            <Text style={styles.successBadge}>✅ Registration Complete</Text>
-            <Text style={styles.successTitle}>Share Login Credentials with Owner</Text>
+            <View style={styles.successBadge}>
+              <Text style={styles.successBadgeText}>✓ Registration Complete</Text>
+            </View>
+
+            <Text style={styles.successTitle}>Share Mobile Login ID with Retailer</Text>
             <Text style={styles.successSubtitle}>
-              The shop owner cannot register themselves. Give them these login credentials:
+              The shop owner cannot self-register. Hand over or WhatsApp these generated credentials:
             </Text>
 
             <View style={styles.credentialsBox}>
-              <Text style={styles.credRow}>
-                <Text style={styles.credLabel}>User Phone ID: </Text>
+              <View style={styles.credRow}>
+                <Text style={styles.credLabel}>User Phone ID:</Text>
                 <Text style={styles.credValue}>{createdCredentials.phone}</Text>
-              </Text>
-              <Text style={styles.credRow}>
-                <Text style={styles.credLabel}>Login Password: </Text>
+              </View>
+              <View style={styles.credDivider} />
+              <View style={styles.credRow}>
+                <Text style={styles.credLabel}>Login Password:</Text>
                 <Text style={styles.credValue}>{createdCredentials.password}</Text>
-              </Text>
+              </View>
             </View>
 
             <TouchableOpacity style={styles.whatsappBtn} onPress={handleShareWhatsApp}>
-              <Text style={styles.whatsappBtnText}>📲 Share Credentials via WhatsApp</Text>
+              <Text style={styles.whatsappBtnText}>📲 Share Credentials on WhatsApp</Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.doneBtn} onPress={onRegisterSuccess}>
@@ -111,13 +127,13 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
           </View>
         ) : (
           <>
-            {/* GPS Pin Badge */}
+            {/* GPS Geofence Pin Card */}
             <View style={styles.gpsCard}>
               <Text style={styles.gpsIcon}>📍</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.gpsTitle}>Shop Location Pinned Automatically</Text>
                 <Text style={styles.gpsCoords}>
-                  Lat: {currentCoords.latitude.toFixed(4)}, Lng: {currentCoords.longitude.toFixed(4)}
+                  Lat: {currentCoords.latitude.toFixed(4)}, Lng: {currentCoords.longitude.toFixed(4)} (Morbi Market)
                 </Text>
               </View>
             </View>
@@ -126,7 +142,7 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
               <Text style={styles.label}>Shop / Firm Name *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Radhe Sanitary Mart"
+                placeholder="e.g. Radhe Sanitary & Hardware"
                 placeholderTextColor="#64748b"
                 value={shopName}
                 onChangeText={setShopName}
@@ -137,7 +153,7 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
               <Text style={styles.label}>Owner / Proprietor Name *</Text>
               <TextInput
                 style={styles.input}
-                placeholder="e.g. Sanjaybhai"
+                placeholder="e.g. Sanjaybhai Patel"
                 placeholderTextColor="#64748b"
                 value={ownerName}
                 onChangeText={setOwnerName}
@@ -145,34 +161,59 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Owner Phone (Becomes App Login ID) *</Text>
+              <Text style={styles.label}>Owner Phone Number (Becomes App Login User ID) *</Text>
               <TextInput
                 style={styles.input}
-                keyboardType="phone-pad"
                 placeholder="10-digit mobile number"
                 placeholderTextColor="#64748b"
+                keyboardType="phone-pad"
                 value={phone}
                 onChangeText={setPhone}
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>City *</Text>
+              <Text style={styles.label}>Alternate Phone / Counter Number</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Morbi / Wankaner / Rajkot"
+                placeholder="e.g. 98980XXXXX"
                 placeholderTextColor="#64748b"
-                value={city}
-                onChangeText={setCity}
+                keyboardType="phone-pad"
+                value={altPhone}
+                onChangeText={setAltPhone}
               />
             </View>
 
+            <View style={styles.row}>
+              <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
+                <Text style={styles.label}>City / Beat Area *</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Morbi"
+                  placeholderTextColor="#64748b"
+                  value={city}
+                  onChangeText={setCity}
+                />
+              </View>
+
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={styles.label}>Credit Limit (₹)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="150000"
+                  placeholderTextColor="#64748b"
+                  keyboardType="numeric"
+                  value={creditLimit}
+                  onChangeText={setCreditLimit}
+                />
+              </View>
+            </View>
+
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Shop Address & Landmark *</Text>
+              <Text style={styles.label}>Detailed Shop Address / Landmark *</Text>
               <TextInput
-                style={[styles.input, { height: 60 }]}
-                multiline
-                placeholder="Full address"
+                style={styles.input}
+                placeholder="e.g. Shop 12, Sardar Patel Market, Sanala Road"
                 placeholderTextColor="#64748b"
                 value={address}
                 onChangeText={setAddress}
@@ -180,21 +221,22 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>GSTIN Number (Optional)</Text>
+              <Text style={styles.label}>GSTIN Number (Optional - Leave blank for Rough/Cash)</Text>
               <TextInput
                 style={styles.input}
-                placeholder="24XXXXX0000X1ZX"
+                placeholder="24AAAAA0000A1Z5"
                 placeholderTextColor="#64748b"
                 value={gstNumber}
                 onChangeText={setGstNumber}
+                autoCapitalize="characters"
               />
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Set Initial Password (Optional)</Text>
+              <Text style={styles.label}>Set Retailer App Password</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Default: last 6 digits of phone"
+                placeholder="shop123"
                 placeholderTextColor="#64748b"
                 value={ownerPassword}
                 onChangeText={setOwnerPassword}
@@ -202,14 +244,14 @@ export const RegisterShopScreen = ({ onBack, onRegisterSuccess }) => {
             </View>
 
             <TouchableOpacity
-              style={styles.submitBtn}
+              style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
               onPress={handleRegister}
               disabled={submitting}
             >
               {submitting ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color="#ffffff" size="small" />
               ) : (
-                <Text style={styles.submitBtnText}>Enrol Shop & Generate ID/Password &rarr;</Text>
+                <Text style={styles.submitBtnText}>Enrol Shop & Generate Credentials &rarr;</Text>
               )}
             </TouchableOpacity>
           </>
@@ -229,7 +271,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     backgroundColor: '#111827',
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
@@ -239,10 +281,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     backgroundColor: '#1f2937',
     borderRadius: 8,
-    marginRight: 10,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   backBtnText: {
-    color: '#38bdf8',
+    color: '#94a3b8',
     fontSize: 13,
     fontWeight: 'bold',
   },
@@ -251,6 +294,10 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
   },
+  headerSubtitle: {
+    fontSize: 11,
+    color: '#38bdf8',
+  },
   scrollContent: {
     padding: 16,
     paddingBottom: 40,
@@ -258,56 +305,62 @@ const styles = StyleSheet.create({
   gpsCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
+    backgroundColor: '#0c4a6e',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#38bdf8',
+    borderColor: '#0284c7',
+    gap: 10,
   },
   gpsIcon: {
     fontSize: 22,
-    marginRight: 10,
   },
   gpsTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#38bdf8',
+    color: '#ffffff',
   },
   gpsCoords: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 2,
+    fontSize: 10,
+    color: '#a5b4fc',
+    marginTop: 1,
   },
   inputGroup: {
-    marginBottom: 14,
+    marginBottom: 12,
   },
   label: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#cbd5e1',
-    marginBottom: 6,
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 'bold',
+    marginBottom: 4,
   },
   input: {
     backgroundColor: '#1e293b',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    fontSize: 13,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     color: '#ffffff',
+    fontSize: 13,
     borderWidth: 1,
     borderColor: '#334155',
   },
+  row: {
+    flexDirection: 'row',
+  },
   submitBtn: {
-    backgroundColor: '#0284c7',
-    borderRadius: 14,
-    paddingVertical: 15,
+    backgroundColor: '#059669',
+    borderRadius: 12,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 10,
+    marginTop: 12,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     color: '#ffffff',
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
   },
   successCard: {
@@ -315,54 +368,67 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     padding: 20,
     borderWidth: 1,
-    borderColor: '#10b981',
-    alignItems: 'center',
+    borderColor: '#334155',
   },
   successBadge: {
-    fontSize: 13,
-    fontWeight: 'bold',
+    backgroundColor: '#064e3b',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  successBadgeText: {
     color: '#34d399',
-    marginBottom: 8,
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   successTitle: {
     fontSize: 16,
-    fontWeight: '800',
+    fontWeight: 'bold',
     color: '#ffffff',
-    textAlign: 'center',
+    marginBottom: 6,
   },
   successSubtitle: {
     fontSize: 12,
     color: '#94a3b8',
-    textAlign: 'center',
-    marginTop: 4,
     marginBottom: 16,
+    lineHeight: 18,
   },
   credentialsBox: {
-    width: '100%',
     backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#334155',
-    marginBottom: 16,
   },
   credRow: {
-    fontSize: 13,
-    marginBottom: 6,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
   },
   credLabel: {
+    fontSize: 12,
     color: '#94a3b8',
   },
   credValue: {
-    color: '#38bdf8',
+    fontSize: 14,
     fontWeight: 'bold',
-    fontFamily: 'monospace',
+    color: '#38bdf8',
+  },
+  credDivider: {
+    height: 1,
+    backgroundColor: '#334155',
+    marginVertical: 8,
   },
   whatsappBtn: {
-    width: '100%',
-    backgroundColor: '#059669',
+    backgroundColor: '#15803d',
     borderRadius: 12,
-    paddingVertical: 14,
+    paddingVertical: 12,
     alignItems: 'center',
     marginBottom: 10,
   },
@@ -372,11 +438,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   doneBtn: {
-    paddingVertical: 10,
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   doneBtnText: {
-    color: '#38bdf8',
-    fontSize: 13,
-    fontWeight: '600',
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
 });

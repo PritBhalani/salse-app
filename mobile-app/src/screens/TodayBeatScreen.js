@@ -21,7 +21,7 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
   const [checkInLoading, setCheckInLoading] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Simulated salesman current coordinates (Morbi main market: 22.8125, 70.8355)
+  // Simulated salesman current coordinates (Morbi market: 22.8125, 70.8355)
   const currentSalesmanCoords = {
     latitude: 22.8125,
     longitude: 70.8355,
@@ -37,7 +37,7 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
         if (res.data.route && !selectedRouteId) {
           setSelectedRouteId(res.data.route._id);
         }
-        // Also fetch shops with distance calculated
+        // Fetch shops with distance calculated
         const shopRes = await mobileAPI.get(
           `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
         );
@@ -61,7 +61,7 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
     setSelectedRouteId(r ? r._id : 'ALL');
   };
 
-  // Filter shops based on selected route cities
+  // Filter shops based on selected route cities or search
   const activeRoute = allRoutes.find((r) => r._id === selectedRouteId) || routeData;
   const baseShops = activeRoute && selectedRouteId !== 'ALL' && !searchQuery
     ? shops.filter((s) => activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase()))
@@ -81,10 +81,22 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
     const lng = shop.location?.longitude;
     if (lat && lng) {
       const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-      Linking.openURL(url).catch((err) => Alert.alert('Error', 'Could not open map navigation'));
+      Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open map navigation'));
     } else {
       Alert.alert('Notice', 'No GPS coordinates pinned for this shop.');
     }
+  };
+
+  const handleCall = (phone) => {
+    if (!phone) return;
+    Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('Error', 'Cannot make call'));
+  };
+
+  const handleWhatsApp = (shop) => {
+    const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
+    const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
+    const msg = `*SHIVAM MARKETING - WHOLESALE ORDER INQUIRY*\nNamaste ${shop.ownerName || ''} ji,\nThis is ${user?.name || 'your Sales Executive'} from Shivam Marketing.\nChecking in for today's wholesale order requirements for ${shop.shopName}.`;
+    Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
   };
 
   const handleCheckIn = async (shop) => {
@@ -123,25 +135,31 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
 
   return (
     <View style={styles.container}>
-      {/* Header Bar */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.salesmanGreeting}>Namaste, {user?.name?.split(' ')[0]}</Text>
-          <Text style={styles.cashBadge}>
-            Cash in Hand: <Text style={styles.cashValue}>₹{user?.cashInHand?.toLocaleString() || 0}</Text>
-          </Text>
+      {/* Top Status & Salesman Header */}
+      <View style={styles.topBar}>
+        <View style={{ flex: 1 }}>
+          <View style={styles.userRow}>
+            <Text style={styles.salesmanGreeting}>Namaste, {user?.name?.split(' ')[0] || 'Sales Executive'}</Text>
+            <View style={styles.liveGpsBadge}>
+              <Text style={styles.liveGpsText}>🟢 GPS Live (12m)</Text>
+            </View>
+          </View>
+          <View style={styles.cashRow}>
+            <Text style={styles.cashBadgeLabel}>Cash in Hand:</Text>
+            <Text style={styles.cashValue}>₹{user?.cashInHand?.toLocaleString() || 0}</Text>
+          </View>
         </View>
+
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Today's Route Card */}
-        {/* Multi-Beat Selector (If salesman is assigned 2+ beats) */}
+        {/* Multi-Beat Switcher (If salesman is assigned 2+ beats) */}
         {allRoutes.length > 1 && (
           <View style={styles.beatSwitcherContainer}>
-            <Text style={styles.beatSwitcherLabel}>Switch Assigned Beat:</Text>
+            <Text style={styles.sectionTitle}>🎯 Select Active Beat Route:</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.beatSwitcherScroll}>
               {allRoutes.map((r) => {
                 const isSelected = selectedRouteId === r._id;
@@ -162,150 +180,144 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
                 onPress={() => handleSwitchBeat(null)}
               >
                 <Text style={[styles.beatPillText, selectedRouteId === 'ALL' && styles.beatPillTextActive]}>
-                  🌐 All Beats ({shops.length})
+                  🌐 All ({shops.length} Shops)
                 </Text>
               </TouchableOpacity>
             </ScrollView>
           </View>
         )}
 
-        {/* Route / Beat Info Card */}
+        {/* Current Beat Info Card */}
         <View style={styles.routeCard}>
-          <View style={styles.routeHeader}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
             <Text style={styles.routeTitle}>
-              {activeRoute?.name || 'Assigned Multi-City Beat'}
+              {selectedRouteId === 'ALL' ? '🌐 All Assigned Territory' : routeData ? routeData.name : 'Today Beat'}
             </Text>
-            <View style={styles.cityBadge}>
-              <Text style={styles.cityBadgeText}>
-                {activeRoute?.cities?.join(' + ') || 'All Cities'}
-              </Text>
+            <View style={styles.shopCountBadge}>
+              <Text style={styles.shopCountText}>{filteredShops.length} Shops</Text>
             </View>
           </View>
-          <Text style={styles.routeSubtitle}>
-            {activeRoute?.description || 'Plumbing, brassware & sanitaryware retail distribution'}
+          <Text style={styles.routeMeta}>
+            Coverage Cities: {routeData?.cities?.join(', ') || 'Morbi, Wankaner, Rajkot'}
           </Text>
-          <View style={styles.routeFooter}>
-            <Text style={styles.routeMeta}>Shops on this Beat: {filteredShops.length}</Text>
-            <Text style={styles.routeMeta}>
-              Days: {activeRoute?.scheduleDays?.join(', ') || 'Flexible'}
-            </Text>
-          </View>
         </View>
 
-        {/* Fast Shop Search Bar (For Phone Call Orders outside today's beat) */}
-        <View style={{ marginBottom: 14 }}>
+        {/* Quick Search & Filter Bar */}
+        <View style={styles.searchContainer}>
           <TextInput
             style={styles.searchBar}
-            placeholder="🔍 Search any assigned shop for phone order..."
+            placeholder="🔍 Search shop name, owner, phone number..."
             placeholderTextColor="#64748b"
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery ? (
-            <Text style={{ fontSize: 11, color: '#c084fc', fontWeight: 'bold', marginTop: 4, marginLeft: 2 }}>
-              📞 Searching all assigned shops (Off-Beat / Phone Orders)
-            </Text>
-          ) : null}
         </View>
 
-        {/* Section Header */}
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Shops on Beat ({filteredShops.length})</Text>
-          <Text style={styles.sectionSubtitle}>Sorted by proximity to your GPS</Text>
-        </View>
+        {/* Action Bar: Register New Shop */}
+        <TouchableOpacity style={styles.registerShopBtn} onPress={onOpenRegisterShop}>
+          <Text style={styles.registerShopBtnText}>➕ Onboard New Retail Shop in Field</Text>
+        </TouchableOpacity>
 
-        {/* Shops List */}
+        {/* Retail Shops List */}
+        <Text style={styles.sectionHeader}>
+          {searchQuery ? `Search Results (${filteredShops.length})` : 'Shops on Route:'}
+        </Text>
+
         {loading ? (
-          <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
+          <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 30 }} />
+        ) : filteredShops.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>🏪</Text>
+            <Text style={styles.emptyText}>No retail shops found matching your search.</Text>
+          </View>
         ) : (
-          filteredShops.map((shop) => {
-            const isNear = (shop.distanceMeters ?? 9999) <= 150;
-            const totalDue = (shop.gstBalance || 0) + (shop.nonGstBalance || 0);
+          filteredShops.map((s, index) => {
+            const distance = s.distanceMeters !== undefined ? s.distanceMeters : 45;
+            const isInsideGeofence = distance <= 250;
+            const totalDue = (s.gstBalance || 0) + (s.nonGstBalance || 0);
 
             return (
-              <View key={shop._id} style={styles.shopCard}>
-                {/* Shop Title Row */}
-                <View style={styles.shopHeader}>
+              <View key={s._id} style={styles.shopCard}>
+                {/* Header with Distance Badge */}
+                <View style={styles.shopCardHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.shopName}>{shop.shopName}</Text>
-                    <Text style={styles.ownerName}>Prop: {shop.ownerName}</Text>
-                  </View>
-                  <View style={styles.cityTag}>
-                    <Text style={styles.cityTagText}>{shop.city}</Text>
-                  </View>
-                </View>
-
-                {/* Distance & GPS Proximity Badge */}
-                <View style={styles.distanceRow}>
-                  <View
-                    style={[
-                      styles.distanceBadge,
-                      isNear ? styles.distanceBadgeNear : styles.distanceBadgeFar,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.distanceBadgeText,
-                        isNear ? styles.distanceBadgeTextNear : styles.distanceBadgeTextFar,
-                      ]}
-                    >
-                      {shop.distanceMeters !== null
-                        ? `📍 ${shop.distanceMeters}m away ${isNear ? '(At Shop)' : ''}`
-                        : '📍 Location pinned'}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.shopIndex}>#{index + 1}</Text>
+                      <Text style={styles.shopName} numberOfLines={1}>
+                        {s.shopName}
+                      </Text>
+                    </View>
+                    <Text style={styles.ownerText}>
+                      👤 {s.ownerName || 'Proprietor'} • 📞 {s.phone}
+                    </Text>
+                    <Text style={styles.addressText} numberOfLines={1}>
+                      📍 {s.address || 'Main Market'}, {s.city || 'Morbi'}
                     </Text>
                   </View>
 
-                  <TouchableOpacity
-                    style={styles.navButton}
-                    onPress={() => handleOpenMap(shop)}
-                  >
-                    <Text style={styles.navButtonText}>🗺️ Open Map</Text>
+                  {/* Geofence Distance Pill */}
+                  <View style={[styles.distancePill, isInsideGeofence ? styles.distanceInside : styles.distanceOutside]}>
+                    <Text style={[styles.distancePillText, isInsideGeofence ? styles.textInside : styles.textOutside]}>
+                      {distance > 1000 ? `${(distance / 1000).toFixed(1)} km` : `${distance}m`}
+                    </Text>
+                    <Text style={styles.geofenceLabel}>
+                      {isInsideGeofence ? '✓ Geofence OK' : '⚠️ Off-Site'}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Ledger Balance Pill */}
+                <View style={styles.ledgerRow}>
+                  <View style={styles.ledgerItem}>
+                    <Text style={styles.ledgerLabel}>GST Due:</Text>
+                    <Text style={styles.ledgerGst}>₹{s.gstBalance?.toLocaleString() || 0}</Text>
+                  </View>
+                  <View style={styles.ledgerDivider} />
+                  <View style={styles.ledgerItem}>
+                    <Text style={styles.ledgerLabel}>Rough Cash Due:</Text>
+                    <Text style={styles.ledgerNonGst}>₹{s.nonGstBalance?.toLocaleString() || 0}</Text>
+                  </View>
+                  <View style={styles.ledgerDivider} />
+                  <View style={styles.ledgerItem}>
+                    <Text style={styles.ledgerLabel}>Total Due:</Text>
+                    <Text style={styles.ledgerTotal}>₹{totalDue.toLocaleString()}</Text>
+                  </View>
+                </View>
+
+                {/* Quick Action Icons: Call, WhatsApp, Navigation */}
+                <View style={styles.quickContactRow}>
+                  <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleCall(s.phone)}>
+                    <Text style={styles.quickContactText}>📞 Call Owner</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleWhatsApp(s)}>
+                    <Text style={styles.quickContactText}>📲 WhatsApp</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleOpenMap(s)}>
+                    <Text style={styles.quickContactText}>🗺️ Maps Nav</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* Dual Ledger Balance Box */}
-                <View style={styles.balanceBox}>
-                  <View style={styles.balanceCol}>
-                    <Text style={styles.balanceLabel}>GST Due</Text>
-                    <Text style={styles.balanceGst}>₹{shop.gstBalance?.toLocaleString() || 0}</Text>
-                  </View>
-                  <View style={styles.balanceDivider} />
-                  <View style={styles.balanceCol}>
-                    <Text style={styles.balanceLabel}>Rough Due</Text>
-                    <Text style={styles.balanceNonGst}>
-                      ₹{shop.nonGstBalance?.toLocaleString() || 0}
-                    </Text>
-                  </View>
-                  <View style={styles.balanceDivider} />
-                  <View style={styles.balanceCol}>
-                    <Text style={styles.balanceLabel}>Total Due</Text>
-                    <Text style={styles.balanceTotal}>₹{totalDue.toLocaleString()}</Text>
-                  </View>
-                </View>
-
-                {/* Action Buttons */}
-                <View style={styles.actionRow}>
-                  {/* Anti-fraud Check-In Button */}
+                {/* Card Action Buttons */}
+                <View style={styles.actionButtonRow}>
                   <TouchableOpacity
-                    style={[styles.checkInBtn, isNear ? styles.checkInBtnActive : styles.checkInBtnWarning]}
-                    onPress={() => handleCheckIn(shop)}
-                    disabled={checkInLoading === shop._id}
+                    style={styles.checkInBtn}
+                    onPress={() => handleCheckIn(s)}
+                    disabled={checkInLoading === s._id}
                   >
-                    {checkInLoading === shop._id ? (
+                    {checkInLoading === s._id ? (
                       <ActivityIndicator color="#ffffff" size="small" />
                     ) : (
-                      <Text style={styles.checkInBtnText}>
-                        {isNear ? '✅ GPS Check-In' : '📍 Verify Visit'}
-                      </Text>
+                      <Text style={styles.checkInBtnText}>📍 GPS Check-In</Text>
                     )}
                   </TouchableOpacity>
 
-                  {/* Open Shop 360 View */}
                   <TouchableOpacity
-                    style={styles.openShopBtn}
-                    onPress={() => onSelectShop(shop)}
+                    style={styles.detailBtn}
+                    onPress={() => onSelectShop(s)}
                   >
-                    <Text style={styles.openShopBtnText}>Orders & Ledger &rarr;</Text>
+                    <Text style={styles.detailBtnText}>Open Shop &rarr;</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -313,317 +325,98 @@ export const TodayBeatScreen = ({ user, onSelectShop, onOpenRegisterShop, onLogo
           })
         )}
       </ScrollView>
-
-      {/* Floating Register Shop Button */}
-      <TouchableOpacity style={styles.floatingBtn} onPress={onOpenRegisterShop}>
-        <Text style={styles.floatingBtnText}>+ Onboard New Shop</Text>
-      </TouchableOpacity>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  searchBar: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: '#f8fafc',
-    fontSize: 13,
-    borderWidth: 1,
-    borderColor: '#475569',
-  },
   container: {
     flex: 1,
     backgroundColor: '#090d16',
   },
-  header: {
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: 12,
+    paddingBottom: 14,
     backgroundColor: '#111827',
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
   },
+  userRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   salesmanGreeting: {
     fontSize: 16,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  cashBadge: {
-    fontSize: 11,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  cashValue: {
-    color: '#34d399',
-    fontWeight: 'bold',
-  },
-  logoutBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#1f2937',
-  },
-  logoutText: {
-    fontSize: 11,
-    color: '#ef4444',
-    fontWeight: '600',
-  },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 80,
-  },
-  routeCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 18,
-  },
-  routeHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  routeTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#ffffff',
-    flex: 1,
-  },
-  cityBadge: {
-    backgroundColor: '#0369a1',
-    paddingHorizontal: 10,
-    paddingVertical: 3,
-    borderRadius: 12,
-  },
-  cityBadgeText: {
-    fontSize: 11,
     fontWeight: 'bold',
     color: '#ffffff',
   },
-  routeSubtitle: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginBottom: 10,
-  },
-  routeFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-    paddingTop: 8,
-  },
-  routeMeta: {
-    fontSize: 11,
-    color: '#cbd5e1',
-    fontWeight: '600',
-  },
-  sectionHeader: {
-    marginBottom: 12,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: '800',
-    color: '#ffffff',
-  },
-  sectionSubtitle: {
-    fontSize: 11,
-    color: '#64748b',
-    marginTop: 2,
-  },
-  shopCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 18,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-    marginBottom: 14,
-  },
-  shopHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  shopName: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: '#ffffff',
-  },
-  ownerName: {
-    fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  cityTag: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 8,
+  liveGpsBadge: {
+    backgroundColor: '#064e3b',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
-  cityTagText: {
-    fontSize: 11,
-    color: '#38bdf8',
-    fontWeight: '600',
-  },
-  distanceRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  distanceBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 8,
-  },
-  distanceBadgeNear: {
-    backgroundColor: 'rgba(16, 185, 129, 0.15)',
-  },
-  distanceBadgeFar: {
-    backgroundColor: 'rgba(245, 158, 11, 0.15)',
-  },
-  distanceBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  distanceBadgeTextNear: {
+  liveGpsText: {
     color: '#34d399',
+    fontSize: 9,
+    fontWeight: 'bold',
   },
-  distanceBadgeTextFar: {
-    color: '#fbbf24',
-  },
-  navButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  navButtonText: {
-    fontSize: 11,
-    color: '#cbd5e1',
-    fontWeight: '600',
-  },
-  balanceBox: {
+  cashRow: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
-    borderRadius: 12,
-    padding: 10,
-    marginBottom: 12,
-    justifyContent: 'space-around',
     alignItems: 'center',
+    gap: 4,
+    marginTop: 3,
   },
-  balanceCol: {
-    alignItems: 'center',
-  },
-  balanceLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    fontWeight: '600',
-    marginBottom: 2,
-  },
-  balanceGst: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  balanceNonGst: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-  },
-  balanceTotal: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  balanceDivider: {
-    width: 1,
-    height: 24,
-    backgroundColor: '#334155',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  checkInBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  checkInBtnActive: {
-    backgroundColor: '#059669',
-  },
-  checkInBtnWarning: {
-    backgroundColor: '#d97706',
-  },
-  checkInBtnText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  openShopBtn: {
-    flex: 1.2,
-    backgroundColor: '#0284c7',
-    paddingVertical: 10,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  openShopBtnText: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  floatingBtn: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-    backgroundColor: '#0284c7',
-    paddingVertical: 14,
-    borderRadius: 16,
-    alignItems: 'center',
-    shadowColor: '#0284c7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 10,
-    elevation: 6,
-  },
-  floatingBtnText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '800',
-  },
-  beatSwitcherContainer: {
-    marginBottom: 12,
-  },
-  beatSwitcherLabel: {
+  cashBadgeLabel: {
     fontSize: 11,
     color: '#94a3b8',
+  },
+  cashValue: {
+    fontSize: 12,
     fontWeight: 'bold',
-    marginBottom: 6,
+    color: '#34d399',
+  },
+  logoutBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    backgroundColor: '#1f2937',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
+  },
+  logoutText: {
+    color: '#f87171',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 40,
+  },
+  beatSwitcherContainer: {
+    marginBottom: 14,
+  },
+  sectionTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#94a3b8',
     textTransform: 'uppercase',
+    marginBottom: 8,
   },
   beatSwitcherScroll: {
+    flexDirection: 'row',
     gap: 8,
   },
   beatPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: '#1e293b',
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: '#334155',
   },
@@ -632,12 +425,238 @@ const styles = StyleSheet.create({
     borderColor: '#38bdf8',
   },
   beatPillText: {
-    fontSize: 11,
-    fontWeight: '600',
     color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: '600',
   },
   beatPillTextActive: {
     color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  routeCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  routeTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#38bdf8',
+  },
+  shopCountBadge: {
+    backgroundColor: '#0c4a6e',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  shopCountText: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  routeMeta: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  searchContainer: {
+    marginBottom: 12,
+  },
+  searchBar: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#f8fafc',
+    fontSize: 13,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  registerShopBtn: {
+    backgroundColor: '#065f46',
+    borderRadius: 12,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  registerShopBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#64748b',
+    fontSize: 13,
+  },
+  shopCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  shopCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  shopIndex: {
+    fontSize: 11,
+    color: '#38bdf8',
+    fontWeight: 'bold',
+  },
+  shopName: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  ownerText: {
+    fontSize: 11,
+    color: '#cbd5e1',
+    marginTop: 2,
+  },
+  addressText: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  distancePill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  distanceInside: {
+    backgroundColor: '#064e3b',
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  distanceOutside: {
+    backgroundColor: '#450a0a',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  distancePillText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  textInside: {
+    color: '#34d399',
+  },
+  textOutside: {
+    color: '#f87171',
+  },
+  geofenceLabel: {
+    fontSize: 8,
+    color: '#cbd5e1',
+    marginTop: 1,
+  },
+  ledgerRow: {
+    flexDirection: 'row',
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  ledgerItem: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  ledgerDivider: {
+    width: 1,
+    backgroundColor: '#334155',
+  },
+  ledgerLabel: {
+    fontSize: 9,
+    color: '#64748b',
+    marginBottom: 2,
+  },
+  ledgerGst: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  ledgerNonGst: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  ledgerTotal: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#f87171',
+  },
+  quickContactRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 10,
+  },
+  quickContactBtn: {
+    flex: 1,
+    paddingVertical: 6,
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  quickContactText: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  checkInBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#0284c7',
+  },
+  checkInBtnText: {
+    color: '#38bdf8',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  detailBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  detailBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
     fontWeight: 'bold',
   },
 });
