@@ -57,6 +57,8 @@ export default function App() {
             <TodayBeatScreen
               user={currentUser}
               onSelectShop={(shop) => navigateTo('SHOP_DETAIL', shop)}
+              onPunchOrder={(shop) => navigateTo('NEW_ORDER', shop)}
+              onCollectPayment={(shop) => navigateTo('COLLECT_PAYMENT', shop)}
               onOpenRegisterShop={() => navigateTo('REGISTER_SHOP')}
               onLogout={handleLogout}
             />

@@ -17,7 +17,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const [orders, setOrders] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('CATALOG'); // Default to Quick Catalog
+  const [activeTab, setActiveTab] = useState('CATALOG'); // 'CATALOG', 'ORDERS', 'LEDGER'
   const [catalog, setCatalog] = useState([]);
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -121,7 +121,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               onPress: () => {
                 setCart({});
                 fetchData();
-                setActiveTab('DASHBOARD');
+                setActiveTab('ORDERS');
               },
             },
           ]
@@ -160,141 +160,27 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && { paddingBottom: 110 }]}>
-        {/* Credit Limit & Health Gauge Card */}
-        <View style={styles.creditCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={styles.creditTitle}>💳 Credit Limit Health Gauge</Text>
-            <Text style={styles.creditLimitTotal}>Limit: ₹{creditLimit.toLocaleString()}</Text>
-          </View>
-          
-          <View style={styles.progressBarBg}>
-            <View style={[styles.progressBarFill, { width: `${creditUsagePercent}%` }]} />
-          </View>
-
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
-            <Text style={styles.creditMeta}>Used: ₹{totalDue.toLocaleString()} ({creditUsagePercent}%)</Text>
-            <Text style={styles.creditAvailable}>Available: ₹{availableCredit.toLocaleString()}</Text>
-          </View>
-        </View>
-
-        {/* Outstanding Balances Card */}
-        <View style={styles.duesCard}>
-          <Text style={styles.duesHeaderTitle}>Account Statement & Outstanding Balance</Text>
-          <View style={styles.duesRow}>
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>GST Tax Due</Text>
-              <Text style={styles.dueGst}>₹{shop?.gstBalance?.toLocaleString() || 0}</Text>
-            </View>
-            <View style={styles.dueDivider} />
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>Rough / Cash Due</Text>
-              <Text style={styles.dueNonGst}>₹{shop?.nonGstBalance?.toLocaleString() || 0}</Text>
-            </View>
-            <View style={styles.dueDivider} />
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>Total Outstanding</Text>
-              <Text style={styles.dueTotal}>₹{totalDue.toLocaleString()}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Live Order Dispatch Visual Tracking Card */}
-        <View style={styles.dispatchCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-            <Text style={styles.dispatchTitle}>🚚 Live Order Delivery Tracking</Text>
-            <Text style={styles.dispatchOrderNum}>
-              {orders.length > 0 ? orders[0].orderNumber : 'ORD-2026-0001'}
-            </Text>
-          </View>
-
-          {/* 4-Step Dispatch Visual Timeline */}
-          <View style={styles.timelineRow}>
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepCircle, styles.stepCircleDone]}>
-                <Text style={styles.stepCircleText}>✓</Text>
-              </View>
-              <Text style={styles.stepLabelDone}>Punched</Text>
-              <Text style={styles.stepTime}>09:15 AM</Text>
-            </View>
-
-            <View style={styles.timelineConnectorDone} />
-
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepCircle, styles.stepCircleDone]}>
-                <Text style={styles.stepCircleText}>✓</Text>
-              </View>
-              <Text style={styles.stepLabelDone}>Packed</Text>
-              <Text style={styles.stepTime}>09:30 AM</Text>
-            </View>
-
-            <View style={styles.timelineConnectorActive} />
-
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepCircle, styles.stepCircleActive]}>
-                <Text style={styles.stepCircleText}>🚚</Text>
-              </View>
-              <Text style={styles.stepLabelActive}>On Route</Text>
-              <Text style={styles.stepTime}>Driver: Amit</Text>
-            </View>
-
-            <View style={styles.timelineConnectorPending} />
-
-            <View style={styles.timelineStep}>
-              <View style={[styles.stepCircle, styles.stepCirclePending]}>
-                <Text style={styles.stepCircleText}>○</Text>
-              </View>
-              <Text style={styles.stepLabelPending}>Delivered</Text>
-              <Text style={styles.stepTime}>Est: 11:30</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Navigation Tabs */}
-        <View style={styles.tabContainer}>
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'CATALOG' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('CATALOG')}
-          >
-            <Text style={[styles.tabBtnText, activeTab === 'CATALOG' && styles.tabBtnTextActive]}>
-              🛍️ Wholesale Catalog ({catalog.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'DASHBOARD' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('DASHBOARD')}
-          >
-            <Text style={[styles.tabBtnText, activeTab === 'DASHBOARD' && styles.tabBtnTextActive]}>
-              📦 Orders ({orders.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'PAYMENTS' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('PAYMENTS')}
-          >
-            <Text style={[styles.tabBtnText, activeTab === 'PAYMENTS' && styles.tabBtnTextActive]}>
-              📑 Receipts ({payments.length})
-            </Text>
-          </TouchableOpacity>
-        </View>
-
-        {/* Tab Content */}
-        {loading ? (
-          <ActivityIndicator color="#6366f1" size="large" style={{ marginTop: 20 }} />
-        ) : activeTab === 'CATALOG' ? (
+      <ScrollView contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && activeTab === 'CATALOG' && { paddingBottom: 120 }]}>
+        {/* ========================================================================= */}
+        {/* TAB 1: WHOLESALE CATALOG (BLINKIT STYLE) */}
+        {/* ========================================================================= */}
+        {activeTab === 'CATALOG' && (
           <View>
+            <View style={styles.tabBanner}>
+              <Text style={styles.tabBannerTitle}>🛍️ Quick-Commerce Wholesale Catalog</Text>
+              <Text style={styles.tabBannerSubtitle}>Direct 1-click re-stock from Morbi central warehouse</Text>
+            </View>
+
             {/* Search Catalog */}
             <TextInput
               style={styles.searchBar}
-              placeholder="🔍 Search Astral CPVC, Jaquar, Cera, supreme..."
+              placeholder="🔍 Search Astral CPVC, Jaquar bib cocks, Cera basins..."
               placeholderTextColor="#64748b"
               value={catalogSearch}
               onChangeText={setCatalogSearch}
             />
 
-            {/* Category Pills Bar (Blinkit style) */}
+            {/* Category Pills Bar */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
               {categories.map((cat) => (
                 <TouchableOpacity
@@ -402,58 +288,165 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               );
             })}
           </View>
-        ) : activeTab === 'DASHBOARD' ? (
-          orders.length === 0 ? (
-            <Text style={styles.emptyText}>No wholesale orders found.</Text>
-          ) : (
-            orders.map((o) => (
-              <View key={o._id} style={styles.orderCard}>
-                <View style={styles.orderHeader}>
-                  <Text style={styles.orderNum}>{o.orderNumber}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{o.status}</Text>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 2: LIVE ORDERS & DELIVERY DISPATCH TRACKING */}
+        {/* ========================================================================= */}
+        {activeTab === 'ORDERS' && (
+          <View>
+            {/* Live Order Dispatch Visual Tracking Card */}
+            <View style={styles.dispatchCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <Text style={styles.dispatchTitle}>🚚 Live Order Delivery Tracking</Text>
+                <Text style={styles.dispatchOrderNum}>
+                  {orders.length > 0 ? orders[0].orderNumber : 'ORD-2026-0001'}
+                </Text>
+              </View>
+
+              {/* 4-Step Dispatch Visual Timeline */}
+              <View style={styles.timelineRow}>
+                <View style={styles.timelineStep}>
+                  <View style={[styles.stepCircle, styles.stepCircleDone]}>
+                    <Text style={styles.stepCircleText}>✓</Text>
+                  </View>
+                  <Text style={styles.stepLabelDone}>Punched</Text>
+                  <Text style={styles.stepTime}>09:15 AM</Text>
+                </View>
+
+                <View style={styles.timelineConnectorDone} />
+
+                <View style={styles.timelineStep}>
+                  <View style={[styles.stepCircle, styles.stepCircleDone]}>
+                    <Text style={styles.stepCircleText}>✓</Text>
+                  </View>
+                  <Text style={styles.stepLabelDone}>Packed</Text>
+                  <Text style={styles.stepTime}>09:30 AM</Text>
+                </View>
+
+                <View style={styles.timelineConnectorActive} />
+
+                <View style={styles.timelineStep}>
+                  <View style={[styles.stepCircle, styles.stepCircleActive]}>
+                    <Text style={styles.stepCircleText}>🚚</Text>
+                  </View>
+                  <Text style={styles.stepLabelActive}>On Route</Text>
+                  <Text style={styles.stepTime}>Driver: Amit</Text>
+                </View>
+
+                <View style={styles.timelineConnectorPending} />
+
+                <View style={styles.timelineStep}>
+                  <View style={[styles.stepCircle, styles.stepCirclePending]}>
+                    <Text style={styles.stepCircleText}>○</Text>
+                  </View>
+                  <Text style={styles.stepLabelPending}>Delivered</Text>
+                  <Text style={styles.stepTime}>Est: 11:30</Text>
+                </View>
+              </View>
+            </View>
+
+            <Text style={styles.sectionHeader}>Wholesale Orders History ({orders.length}):</Text>
+
+            {orders.length === 0 ? (
+              <Text style={styles.emptyText}>No wholesale orders found.</Text>
+            ) : (
+              orders.map((o) => (
+                <View key={o._id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <Text style={styles.orderNum}>{o.orderNumber}</Text>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusBadgeText}>{o.status}</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.orderMeta}>
+                    Placed on: {new Date(o.createdAt).toLocaleDateString('en-IN')} | Bill: {o.billType}
+                  </Text>
+                  <View style={styles.orderFooter}>
+                    <Text style={styles.orderItems}>
+                      {o.items?.length || 0} Products ({o.items?.reduce((s, i) => s + (i.boxCount || 1), 0)} Boxes)
+                    </Text>
+                    <Text style={styles.orderAmount}>₹{o.totalAmount?.toLocaleString()}</Text>
                   </View>
                 </View>
-                <Text style={styles.orderMeta}>
-                  Placed on: {new Date(o.createdAt).toLocaleDateString('en-IN')} | Bill: {o.billType}
-                </Text>
-                <View style={styles.orderFooter}>
-                  <Text style={styles.orderItems}>
-                    {o.items?.length || 0} Products ({o.items?.reduce((s, i) => s + (i.boxCount || 1), 0)} Boxes)
-                  </Text>
-                  <Text style={styles.orderAmount}>₹{o.totalAmount?.toLocaleString()}</Text>
+              ))
+            )}
+          </View>
+        )}
+
+        {/* ========================================================================= */}
+        {/* TAB 3: LEDGER, CREDIT LIMIT & RECEIPTS */}
+        {/* ========================================================================= */}
+        {activeTab === 'LEDGER' && (
+          <View>
+            {/* Credit Limit & Health Gauge Card */}
+            <View style={styles.creditCard}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <Text style={styles.creditTitle}>💳 Credit Limit Health Gauge</Text>
+                <Text style={styles.creditLimitTotal}>Limit: ₹{creditLimit.toLocaleString()}</Text>
+              </View>
+              
+              <View style={styles.progressBarBg}>
+                <View style={[styles.progressBarFill, { width: `${creditUsagePercent}%` }]} />
+              </View>
+
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+                <Text style={styles.creditMeta}>Used: ₹{totalDue.toLocaleString()} ({creditUsagePercent}%)</Text>
+                <Text style={styles.creditAvailable}>Available: ₹{availableCredit.toLocaleString()}</Text>
+              </View>
+            </View>
+
+            {/* Outstanding Balances Card */}
+            <View style={styles.duesCard}>
+              <Text style={styles.duesHeaderTitle}>Account Statement & Outstanding Balance</Text>
+              <View style={styles.duesRow}>
+                <View style={styles.dueCol}>
+                  <Text style={styles.dueLabel}>GST Tax Due</Text>
+                  <Text style={styles.dueGst}>₹{shop?.gstBalance?.toLocaleString() || 0}</Text>
+                </View>
+                <View style={styles.dueDivider} />
+                <View style={styles.dueCol}>
+                  <Text style={styles.dueLabel}>Rough / Cash Due</Text>
+                  <Text style={styles.dueNonGst}>₹{shop?.nonGstBalance?.toLocaleString() || 0}</Text>
+                </View>
+                <View style={styles.dueDivider} />
+                <View style={styles.dueCol}>
+                  <Text style={styles.dueLabel}>Total Outstanding</Text>
+                  <Text style={styles.dueTotal}>₹{totalDue.toLocaleString()}</Text>
                 </View>
               </View>
-            ))
-          )
-        ) : (
-          payments.length === 0 ? (
-            <Text style={styles.emptyText}>No payment receipts logged yet.</Text>
-          ) : (
-            payments.map((p) => (
-              <View key={p._id} style={styles.orderCard}>
-                <View style={styles.orderHeader}>
-                  <Text style={styles.orderNum}>{p.receiptNumber}</Text>
-                  <Text style={styles.paymentMode}>
-                    {p.mode} {p.chequeNumber ? `(#${p.chequeNumber})` : ''}
+            </View>
+
+            <Text style={styles.sectionHeader}>Payment Receipts & Settlements ({payments.length}):</Text>
+
+            {payments.length === 0 ? (
+              <Text style={styles.emptyText}>No payment receipts logged yet.</Text>
+            ) : (
+              payments.map((p) => (
+                <View key={p._id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <Text style={styles.orderNum}>{p.receiptNumber}</Text>
+                    <Text style={styles.paymentMode}>
+                      {p.mode} {p.chequeNumber ? `(#${p.chequeNumber})` : ''}
+                    </Text>
+                  </View>
+                  <Text style={styles.orderMeta}>
+                    Collected: {new Date(p.collectedAt).toLocaleDateString('en-IN')} | Book: {p.billType}
                   </Text>
+                  <View style={styles.orderFooter}>
+                    <Text style={styles.paymentCredited}>Balance Credited</Text>
+                    <Text style={styles.paidAmount}>₹{p.amount?.toLocaleString()}</Text>
+                  </View>
                 </View>
-                <Text style={styles.orderMeta}>
-                  Collected: {new Date(p.collectedAt).toLocaleDateString('en-IN')} | Book: {p.billType}
-                </Text>
-                <View style={styles.orderFooter}>
-                  <Text style={styles.paymentCredited}>Balance Credited</Text>
-                  <Text style={styles.paidAmount}>₹{p.amount?.toLocaleString()}</Text>
-                </View>
-              </View>
-            ))
-          )
+              ))
+            )}
+          </View>
         )}
       </ScrollView>
 
-      {/* Floating 1-Click Restock Bottom Bar (Blinkit style) */}
-      {cartSkuCount > 0 && (
-        <View style={styles.cartBar}>
+      {/* Floating 1-Click Restock Bottom Bar (When in CATALOG tab with items in cart) */}
+      {activeTab === 'CATALOG' && cartSkuCount > 0 && (
+        <View style={styles.floatingCartBar}>
           <View>
             <Text style={styles.cartBarLabel}>🛒 {cartSkuCount} Products ({cartTotalPcs} pcs)</Text>
             <Text style={styles.cartBarTotal}>₹{cartSubtotal.toLocaleString()}</Text>
@@ -472,6 +465,41 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
           </TouchableOpacity>
         </View>
       )}
+
+      {/* ========================================================================= */}
+      {/* PERSISTENT BOTTOM NAVIGATION BAR (SHOP OWNER) */}
+      {/* ========================================================================= */}
+      <View style={styles.bottomNavBar}>
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('CATALOG')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'CATALOG' && styles.navIconActive]}>🛍️</Text>
+          <Text style={[styles.navLabel, activeTab === 'CATALOG' && styles.navLabelActive]}>
+            Catalog
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('ORDERS')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'ORDERS' && styles.navIconActive]}>🚚</Text>
+          <Text style={[styles.navLabel, activeTab === 'ORDERS' && styles.navLabelActive]}>
+            Tracking & Orders
+          </Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.navItem}
+          onPress={() => setActiveTab('LEDGER')}
+        >
+          <Text style={[styles.navIcon, activeTab === 'LEDGER' && styles.navIconActive]}>📑</Text>
+          <Text style={[styles.navLabel, activeTab === 'LEDGER' && styles.navLabelActive]}>
+            Ledger & Dues
+          </Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -517,207 +545,20 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 40,
+    paddingBottom: 80,
   },
-  creditCard: {
-    backgroundColor: '#1e1b4b',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#4338ca',
+  tabBanner: {
+    marginBottom: 12,
   },
-  creditTitle: {
-    fontSize: 12,
+  tabBannerTitle: {
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#c7d2fe',
-    textTransform: 'uppercase',
+    color: '#818cf8',
   },
-  creditLimitTotal: {
-    fontSize: 11,
-    color: '#e0e7ff',
-    fontWeight: 'bold',
-  },
-  progressBarBg: {
-    height: 8,
-    backgroundColor: '#312e81',
-    borderRadius: 4,
-    overflow: 'hidden',
-  },
-  progressBarFill: {
-    height: '100%',
-    backgroundColor: '#818cf8',
-    borderRadius: 4,
-  },
-  creditMeta: {
-    fontSize: 11,
-    color: '#a5b4fc',
-  },
-  creditAvailable: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  duesCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  duesHeaderTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    marginBottom: 10,
-    textTransform: 'uppercase',
-  },
-  duesRow: {
-    flexDirection: 'row',
-  },
-  dueCol: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  dueDivider: {
-    width: 1,
-    backgroundColor: '#334155',
-  },
-  dueLabel: {
-    fontSize: 10,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  dueGst: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  dueNonGst: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-  },
-  dueTotal: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f87171',
-  },
-  dispatchCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  dispatchTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#38bdf8',
-    textTransform: 'uppercase',
-  },
-  dispatchOrderNum: {
+  tabBannerSubtitle: {
     fontSize: 11,
     color: '#94a3b8',
-    fontWeight: '600',
-  },
-  timelineRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 4,
-  },
-  timelineStep: {
-    alignItems: 'center',
-    minWidth: 54,
-  },
-  stepCircle: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-  },
-  stepCircleDone: {
-    backgroundColor: '#059669',
-  },
-  stepCircleActive: {
-    backgroundColor: '#d97706',
-  },
-  stepCirclePending: {
-    backgroundColor: '#334155',
-  },
-  stepCircleText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  stepLabelDone: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  stepLabelActive: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#fbbf24',
-  },
-  stepLabelPending: {
-    fontSize: 9,
-    color: '#64748b',
-  },
-  stepTime: {
-    fontSize: 8,
-    color: '#94a3b8',
-    marginTop: 1,
-  },
-  timelineConnectorDone: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#059669',
-    marginBottom: 16,
-  },
-  timelineConnectorActive: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#d97706',
-    marginBottom: 16,
-  },
-  timelineConnectorPending: {
-    flex: 1,
-    height: 2,
-    backgroundColor: '#334155',
-    marginBottom: 16,
-  },
-  tabContainer: {
-    flexDirection: 'row',
-    gap: 8,
-    marginBottom: 14,
-  },
-  tabBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: '#1e293b',
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  tabBtnActive: {
-    backgroundColor: '#4338ca',
-    borderColor: '#6366f1',
-  },
-  tabBtnText: {
-    color: '#94a3b8',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  tabBtnTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    marginTop: 2,
   },
   searchBar: {
     backgroundColor: '#1e293b',
@@ -911,6 +752,101 @@ const styles = StyleSheet.create({
     color: '#a5b4fc',
     fontSize: 9,
   },
+  dispatchCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  dispatchTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#38bdf8',
+    textTransform: 'uppercase',
+  },
+  dispatchOrderNum: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  timelineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 4,
+  },
+  timelineStep: {
+    alignItems: 'center',
+    minWidth: 54,
+  },
+  stepCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  stepCircleDone: {
+    backgroundColor: '#059669',
+  },
+  stepCircleActive: {
+    backgroundColor: '#d97706',
+  },
+  stepCirclePending: {
+    backgroundColor: '#334155',
+  },
+  stepCircleText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  stepLabelDone: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  stepLabelActive: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  stepLabelPending: {
+    fontSize: 9,
+    color: '#64748b',
+  },
+  stepTime: {
+    fontSize: 8,
+    color: '#94a3b8',
+    marginTop: 1,
+  },
+  timelineConnectorDone: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#059669',
+    marginBottom: 16,
+  },
+  timelineConnectorActive: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#d97706',
+    marginBottom: 16,
+  },
+  timelineConnectorPending: {
+    flex: 1,
+    height: 2,
+    backgroundColor: '#334155',
+    marginBottom: 16,
+  },
+  sectionHeader: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 10,
+  },
   orderCard: {
     backgroundColor: '#1e293b',
     borderRadius: 14,
@@ -963,6 +899,91 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#34d399',
   },
+  creditCard: {
+    backgroundColor: '#1e1b4b',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#4338ca',
+  },
+  creditTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#c7d2fe',
+    textTransform: 'uppercase',
+  },
+  creditLimitTotal: {
+    fontSize: 11,
+    color: '#e0e7ff',
+    fontWeight: 'bold',
+  },
+  progressBarBg: {
+    height: 8,
+    backgroundColor: '#312e81',
+    borderRadius: 4,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#818cf8',
+    borderRadius: 4,
+  },
+  creditMeta: {
+    fontSize: 11,
+    color: '#a5b4fc',
+  },
+  creditAvailable: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  duesCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  duesHeaderTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    marginBottom: 10,
+    textTransform: 'uppercase',
+  },
+  duesRow: {
+    flexDirection: 'row',
+  },
+  dueCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  dueDivider: {
+    width: 1,
+    backgroundColor: '#334155',
+  },
+  dueLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  dueGst: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  dueNonGst: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#fbbf24',
+  },
+  dueTotal: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f87171',
+  },
   paymentMode: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -983,16 +1004,16 @@ const styles = StyleSheet.create({
     paddingVertical: 20,
     fontSize: 13,
   },
-  cartBar: {
+  floatingCartBar: {
     position: 'absolute',
-    bottom: 0,
+    bottom: 56,
     left: 0,
     right: 0,
     backgroundColor: '#111827',
     borderTopWidth: 1,
     borderTopColor: '#1f2937',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -1002,22 +1023,59 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
   },
   cartBarTotal: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#34d399',
   },
   cartBarBtn: {
     backgroundColor: '#4f46e5',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   cartBarBtnDisabled: {
     opacity: 0.6,
   },
   cartBarBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  bottomNavBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 56,
+    backgroundColor: '#111827',
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-around',
+  },
+  navItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingVertical: 4,
+  },
+  navIcon: {
+    fontSize: 18,
+    opacity: 0.6,
+  },
+  navIconActive: {
+    opacity: 1,
+    transform: [{ scale: 1.15 }],
+  },
+  navLabel: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 2,
+    fontWeight: '600',
+  },
+  navLabelActive: {
+    color: '#818cf8',
     fontWeight: 'bold',
   },
 });
