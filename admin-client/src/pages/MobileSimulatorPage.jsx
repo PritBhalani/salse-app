@@ -37,6 +37,9 @@ import {
   Percent,
   PhoneCall,
   Radio,
+  Image as ImageIcon,
+  ShoppingCart,
+  Zap,
 } from 'lucide-react';
 import {
   shopsAPI,
@@ -53,7 +56,7 @@ export const MobileSimulatorPage = () => {
   // Simulator Role & Screen Navigation
   const [deviceRole, setDeviceRole] = useState('SALESMAN'); // 'SALESMAN' or 'SHOP_OWNER'
   const [salesmanTab, setSalesmanTab] = useState('BEAT'); // 'BEAT', 'PHONE_SEARCH', 'CATALOG', 'COLLECTIONS', 'KPIS'
-  const [shopOwnerTab, setShopOwnerTab] = useState('DASHBOARD'); // 'DASHBOARD', 'ORDERS', 'LEDGER', 'REORDER'
+  const [shopOwnerTab, setShopOwnerTab] = useState('DASHBOARD'); // 'DASHBOARD', 'ORDERS', 'CATALOG', 'LEDGER'
   const [screen, setScreen] = useState('MAIN'); // 'MAIN', 'SHOP_DETAIL', 'TAKE_ORDER', 'COLLECT_PAYMENT', 'REGISTER_SHOP', 'EDIT_SHOP_GPS', 'WHATSAPP_SHARE'
   
   const [selectedShop, setSelectedShop] = useState(null);
@@ -67,6 +70,7 @@ export const MobileSimulatorPage = () => {
   const [selectedRouteId, setSelectedRouteId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [catalogSearch, setCatalogSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [shopSearch, setShopSearch] = useState('');
 
   // Cart for ordering
@@ -109,6 +113,15 @@ export const MobileSimulatorPage = () => {
 
   // In-simulator status message toast
   const [simAlert, setSimAlert] = useState(null);
+
+  const categories = [
+    'ALL',
+    'Brass C.P. Fittings',
+    'Pipes & Fittings',
+    'Valves & Diverters',
+    'Sanitaryware',
+    'Bath Accessories',
+  ];
 
   const showSimToast = (msg, type = 'success') => {
     setSimAlert({ msg, type });
@@ -158,7 +171,7 @@ export const MobileSimulatorPage = () => {
     const lng = simulatedProximity === 'NEAR' ? shop.location?.longitude || 70.8354 : 70.89;
 
     try {
-      await visitsAPI.getAll(); // simulated call
+      await visitsAPI.getAll();
       if (simulatedProximity === 'NEAR') {
         showSimToast(`📍 GPS Verified (28m from ${shop.shopName})! Visit recorded.`, 'success');
       } else {
@@ -169,7 +182,7 @@ export const MobileSimulatorPage = () => {
     }
   };
 
-  // Cart helpers
+  // Cart helpers (Blinkit style)
   const handleUpdateCart = (prodId, delta, boxQty = 1) => {
     setCart((prev) => {
       const cur = prev[prodId] || 0;
@@ -186,11 +199,14 @@ export const MobileSimulatorPage = () => {
   // Calculate order totals
   let subtotal = 0;
   let gstAmount = 0;
+  let totalBoxes = 0;
+
   Object.entries(cart).forEach(([pId, qty]) => {
     const prod = products.find((p) => p._id === pId);
     if (prod) {
       const line = prod.basePrice * qty;
       subtotal += line;
+      totalBoxes += Math.ceil(qty / (prod.boxQuantity || 1));
       if (billType === 'GST') {
         gstAmount += Math.round((line * (prod.gstPercentage || 18)) / 100);
       }
@@ -201,7 +217,7 @@ export const MobileSimulatorPage = () => {
   // Submit order
   const handlePunchOrder = async () => {
     if (Object.keys(cart).length === 0) {
-      showSimToast('Select at least 1 product', 'error');
+      showSimToast('Select at least 1 product from catalog', 'error');
       return;
     }
 
@@ -210,7 +226,7 @@ export const MobileSimulatorPage = () => {
       return {
         productId,
         quantity,
-        boxCount: Math.floor(quantity / (p.boxQuantity || 1)),
+        boxCount: Math.floor(quantity / (p.boxQuantity || 1)) || 1,
         customPrice: p.basePrice,
       };
     });
@@ -230,7 +246,6 @@ export const MobileSimulatorPage = () => {
       if (res.data.success) {
         showSimToast(`🚀 ${isRemote ? 'Phone Order' : 'Order'} ${res.data.order.orderNumber} sent to Warehouse!`, 'success');
         
-        // Prepare WhatsApp message
         setWhatsAppData({
           type: 'ORDER',
           shop: selectedShop,
@@ -238,6 +253,7 @@ export const MobileSimulatorPage = () => {
           billType,
           totalAmount,
           itemCount: Object.keys(cart).length,
+          totalBoxes,
           orderChannel,
         });
 
@@ -370,7 +386,7 @@ export const MobileSimulatorPage = () => {
       latitude: lat,
       longitude: lng,
     }));
-    showSimToast(`📍 GPS Re-Pinned to current coordinates: ${lat}, ${lng}`, 'success');
+    showSimToast(`📍 GPS Re-Pinned to coordinates: ${lat}, ${lng}`, 'success');
   };
 
   // Generate WhatsApp Share Link
@@ -383,7 +399,7 @@ export const MobileSimulatorPage = () => {
 
     if (whatsAppData.type === 'ORDER') {
       const isPhone = whatsAppData.orderChannel === 'PHONE_ORDER';
-      msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n📄 *Order No:* ${whatsAppData.orderNumber}\n📑 *Bill Type:* ${whatsAppData.billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📞 *Channel:* ${isPhone ? 'Phone Call Order (Without Visit)' : 'In-Person Beat Visit'}\n📦 *Total Items:* ${whatsAppData.itemCount}\n💰 *Total Amount:* ₹${whatsAppData.totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your business!`;
+      msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n📄 *Order No:* ${whatsAppData.orderNumber}\n📑 *Bill Type:* ${whatsAppData.billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📞 *Channel:* ${isPhone ? 'Phone Call Order (Without Visit)' : 'In-Person Beat Visit'}\n📦 *Items:* ${whatsAppData.itemCount} Items (${whatsAppData.totalBoxes || 1} Boxes)\n💰 *Total Amount:* ₹${whatsAppData.totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your business!`;
     } else {
       const isRemote = whatsAppData.collectionChannel === 'PHONE_COLLECTION';
       msg = `*SHIVAM MARKETING - PAYMENT RECEIPT*\n------------------------------\n🏪 *Shop:* ${whatsAppData.shop?.shopName}\n🧾 *Receipt No:* ${whatsAppData.receiptNumber}\n📑 *Book:* ${whatsAppData.billType === 'GST' ? 'GST Official Ledger' : 'Rough Cash Ledger'}\n📞 *Type:* ${isRemote ? 'Remote Payment (Online/UPI)' : 'In-Person Cash Collection'}\n💵 *Amount Received:* ₹${whatsAppData.amount.toLocaleString()}\n💳 *Mode:* ${whatsAppData.mode}\n✅ *Status:* RECEIVED & CREDITED\n------------------------------\nThank you for the prompt payment!`;
@@ -391,6 +407,16 @@ export const MobileSimulatorPage = () => {
 
     return `https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`;
   };
+
+  const filteredCatalogProducts = products.filter((p) => {
+    const matchesSearch =
+      p.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      p.brand?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      (p.sku && p.sku.toLowerCase().includes(catalogSearch.toLowerCase()));
+    if (!matchesSearch) return false;
+    if (selectedCategory === 'ALL') return true;
+    return p.category === selectedCategory;
+  });
 
   return (
     <div className="space-y-6">
@@ -404,7 +430,7 @@ export const MobileSimulatorPage = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Test Salesman beat visits, phone orders for off-beat shops, GPS verification, 1-tap WhatsApp digital bills, and dispatch tracking.
+            Blinkit/Flipkart-style visual photo catalog, box packaging steppers, GPS proximity check-in, and 1-tap WhatsApp digital billing.
           </p>
         </div>
 
@@ -475,14 +501,14 @@ export const MobileSimulatorPage = () => {
       <div className="flex justify-center">
         {/* Smartphone Shell Frame */}
         <div className="w-full max-w-[430px] bg-slate-950 rounded-[46px] p-3.5 shadow-2xl border-4 border-slate-800 ring-1 ring-slate-700/50">
-          {/* Top Speaker / Dynamic Island */}
+          {/* Top Dynamic Island */}
           <div className="w-28 h-5 bg-slate-900 rounded-full mx-auto mb-2 flex items-center justify-center gap-2 border border-slate-800">
             <div className="w-2.5 h-2.5 rounded-full bg-slate-950 border border-slate-800" />
             <div className="w-8 h-1.5 rounded-full bg-slate-800" />
           </div>
 
           {/* Phone Display Screen */}
-          <div className="bg-slate-950 rounded-[34px] overflow-hidden border border-slate-800/80 min-h-[660px] max-h-[720px] flex flex-col relative text-slate-100 font-sans">
+          <div className="bg-slate-950 rounded-[34px] overflow-hidden border border-slate-800/80 min-h-[670px] max-h-[730px] flex flex-col relative text-slate-100 font-sans">
             {/* Status Bar */}
             <div className="bg-slate-900 px-5 py-1.5 flex items-center justify-between text-[11px] text-slate-400 border-b border-slate-800/80">
               <span className="font-bold text-white">09:41 AM</span>
@@ -511,7 +537,7 @@ export const MobileSimulatorPage = () => {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                   <span className="text-xs font-extrabold text-white tracking-wide">
-                    {deviceRole === 'SALESMAN' ? 'SHIVAM FIELD SALES' : 'B2B WHOLESALE PORTAL'}
+                    {deviceRole === 'SALESMAN' ? 'SHIVAM FIELD SALES' : 'B2B WHOLESALE STORE'}
                   </span>
                 </div>
               )}
@@ -528,7 +554,7 @@ export const MobileSimulatorPage = () => {
             {/* In-App Toast Notification */}
             {simAlert && (
               <div
-                className={`absolute top-14 left-3 right-3 z-50 p-2.5 rounded-xl text-xs font-bold shadow-xl border ${
+                className={`absolute top-14 left-3 right-3 z-50 p-2.5 rounded-xl text-xs font-bold shadow-xl border animate-bounce ${
                   simAlert.type === 'success'
                     ? 'bg-emerald-950/95 text-emerald-300 border-emerald-500'
                     : 'bg-amber-950/95 text-amber-300 border-amber-500'
@@ -733,7 +759,7 @@ export const MobileSimulatorPage = () => {
                       );
                     })()}
 
-                    {/* TAB 2: PHONE CALL ORDER / SEARCH ALL SHOPS (Without Physical Visit) */}
+                    {/* TAB 2: PHONE CALL ORDER / SEARCH ALL SHOPS */}
                     {salesmanTab === 'PHONE_SEARCH' && (
                       <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
                         <div className="p-3 rounded-2xl bg-gradient-to-r from-purple-950/70 to-slate-900 border border-purple-800/40 space-y-1">
@@ -809,36 +835,161 @@ export const MobileSimulatorPage = () => {
                       </div>
                     )}
 
-                    {/* TAB 3: PRODUCT CATALOG */}
+                    {/* TAB 3: VISUAL PHOTO CATALOG (Blinkit / Flipkart Style) */}
                     {salesmanTab === 'CATALOG' && (
-                      <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-                        <div className="relative">
-                          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-                          <input
-                            type="text"
-                            placeholder="Search sanitary, pipes, valves..."
-                            value={catalogSearch}
-                            onChange={(e) => setCatalogSearch(e.target.value)}
-                            className="w-full bg-slate-900 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
-                          />
+                      <div className="flex-1 flex flex-col overflow-hidden">
+                        {/* Search & Category Filter Pills */}
+                        <div className="p-3 space-y-2 bg-slate-900 border-b border-slate-800">
+                          <div className="relative">
+                            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                            <input
+                              type="text"
+                              placeholder="Search Astral, Jaquar, CPVC, bib cock..."
+                              value={catalogSearch}
+                              onChange={(e) => setCatalogSearch(e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-sky-500"
+                            />
+                          </div>
+
+                          <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                            {categories.map((cat) => (
+                              <button
+                                key={cat}
+                                onClick={() => setSelectedCategory(cat)}
+                                className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all ${
+                                  selectedCategory === cat
+                                    ? 'bg-sky-600 text-white shadow'
+                                    : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                                }`}
+                              >
+                                {cat}
+                              </button>
+                            ))}
+                          </div>
                         </div>
 
-                        <div className="space-y-2">
-                          {products
-                            .filter((p) => p.name?.toLowerCase().includes(catalogSearch.toLowerCase()) || p.brand?.toLowerCase().includes(catalogSearch.toLowerCase()))
-                            .map((p) => (
-                              <div key={p._id} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
+                        {/* Product Photo Grid (2-Columns Flipkart / Blinkit Style) */}
+                        <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2.5">
+                          {filteredCatalogProducts.map((p) => {
+                            const qty = cart[p._id] || 0;
+                            const isOutOfStock = p.isOutOfStock;
+
+                            return (
+                              <div
+                                key={p._id}
+                                className={`bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between hover:border-slate-700 transition-all ${
+                                  isOutOfStock ? 'opacity-60' : ''
+                                }`}
+                              >
                                 <div>
-                                  <div className="font-bold text-white">{p.name}</div>
-                                  <div className="text-[10px] text-slate-400">{p.brand} • {p.boxQuantity} pcs/box • HSN: {p.hsnCode || '3917'}</div>
+                                  {/* Product Image */}
+                                  <div className="relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center">
+                                    {p.imageUrl ? (
+                                      <img
+                                        src={p.imageUrl}
+                                        alt={p.name}
+                                        className="w-full h-full object-cover"
+                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                      />
+                                    ) : (
+                                      <ImageIcon className="w-8 h-8 text-slate-700" />
+                                    )}
+
+                                    {/* Brand Pill */}
+                                    <span className="absolute top-1.5 left-1.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-950/80 text-sky-400 border border-slate-800">
+                                      {p.brand}
+                                    </span>
+
+                                    {isOutOfStock && (
+                                      <span className="absolute inset-0 bg-black/60 flex items-center justify-center text-[10px] font-bold text-rose-300">
+                                        OUT OF STOCK
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  {/* Name & Packaging */}
+                                  <div className="font-bold text-white text-[11px] line-clamp-2 leading-tight mb-1">
+                                    {p.name}
+                                  </div>
+                                  <div className="text-[10px] text-slate-400">
+                                    Box: <b className="text-slate-200">{p.boxQuantity} {p.uom}</b>
+                                  </div>
                                 </div>
-                                <div className="text-right">
-                                  <div className="font-extrabold text-emerald-400 text-sm">₹{p.basePrice}</div>
-                                  <div className="text-[9px] text-slate-500">Stock: {p.stockQuantity ?? 120} pcs</div>
+
+                                {/* Price & Add / Stepper */}
+                                <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+                                  <div className="flex items-baseline justify-between">
+                                    <span className="font-extrabold text-white text-xs">₹{p.basePrice}</span>
+                                    <span className="text-[9px] text-slate-500">
+                                      ₹{(p.basePrice * (p.boxQuantity || 1)).toLocaleString()} / box
+                                    </span>
+                                  </div>
+
+                                  {!isOutOfStock ? (
+                                    qty === 0 ? (
+                                      <button
+                                        onClick={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
+                                        className="w-full py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold flex items-center justify-center gap-1 active:scale-95"
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                        <span>+ ADD BOX</span>
+                                      </button>
+                                    ) : (
+                                      <div className="flex items-center justify-between bg-emerald-950/80 border border-emerald-500/50 rounded-xl p-1">
+                                        <button
+                                          onClick={() => handleUpdateCart(p._id, -1, 1)}
+                                          className="w-6 h-6 rounded-lg bg-emerald-900/60 text-emerald-200 font-bold flex items-center justify-center active:scale-90"
+                                        >
+                                          -
+                                        </button>
+                                        <span className="text-xs font-extrabold text-emerald-300">
+                                          {qty}
+                                        </span>
+                                        <button
+                                          onClick={() => handleUpdateCart(p._id, 1, 1)}
+                                          className="w-6 h-6 rounded-lg bg-emerald-900/60 text-emerald-200 font-bold flex items-center justify-center active:scale-90"
+                                        >
+                                          +
+                                        </button>
+                                      </div>
+                                    )
+                                  ) : (
+                                    <span className="text-[9px] text-center text-rose-400 font-semibold">Unavailable</span>
+                                  )}
                                 </div>
                               </div>
-                            ))}
+                            );
+                          })}
                         </div>
+
+                        {/* Blinkit-Style Sticky Floating Bottom Cart Bar */}
+                        {Object.keys(cart).length > 0 && (
+                          <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-slate-900 border-t border-emerald-500/40 p-2.5 flex items-center justify-between shadow-2xl animate-fade-in">
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold">
+                                <ShoppingCart className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-slate-400 block font-semibold">
+                                  {Object.keys(cart).length} Items ({totalBoxes} Boxes)
+                                </span>
+                                <span className="text-sm font-extrabold text-emerald-400">
+                                  ₹{totalAmount.toLocaleString()}
+                                </span>
+                              </div>
+                            </div>
+
+                            <button
+                              onClick={() => {
+                                setScreen('TAKE_ORDER');
+                              }}
+                              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold shadow-lg shadow-emerald-900/40 active:scale-95 flex items-center gap-1"
+                            >
+                              <span>Review & Punch</span>
+                              <ArrowRight className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
                       </div>
                     )}
 
@@ -927,6 +1078,15 @@ export const MobileSimulatorPage = () => {
                         <span>Today Beat</span>
                       </button>
                       <button
+                        onClick={() => setSalesmanTab('CATALOG')}
+                        className={`flex flex-col items-center gap-1 ${
+                          salesmanTab === 'CATALOG' ? 'text-emerald-400 font-bold' : 'text-slate-400'
+                        }`}
+                      >
+                        <ShoppingBag className="w-4 h-4" />
+                        <span>Catalog</span>
+                      </button>
+                      <button
                         onClick={() => setSalesmanTab('PHONE_SEARCH')}
                         className={`flex flex-col items-center gap-1 ${
                           salesmanTab === 'PHONE_SEARCH' ? 'text-purple-400 font-bold' : 'text-slate-400'
@@ -934,15 +1094,6 @@ export const MobileSimulatorPage = () => {
                       >
                         <PhoneCall className="w-4 h-4" />
                         <span>Phone Order</span>
-                      </button>
-                      <button
-                        onClick={() => setSalesmanTab('CATALOG')}
-                        className={`flex flex-col items-center gap-1 ${
-                          salesmanTab === 'CATALOG' ? 'text-sky-400 font-bold' : 'text-slate-400'
-                        }`}
-                      >
-                        <ShoppingBag className="w-4 h-4" />
-                        <span>Catalog</span>
                       </button>
                       <button
                         onClick={() => setSalesmanTab('COLLECTIONS')}
@@ -1085,9 +1236,9 @@ export const MobileSimulatorPage = () => {
                 {screen === 'TAKE_ORDER' && selectedShop && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3 flex flex-col justify-between">
                     <div className="space-y-2.5">
-                      {/* Channel Indicator / Switcher */}
+                      {/* Channel Switcher */}
                       <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
-                        <span className="text-slate-400 text-[10px] font-bold uppercase">Order Mode:</span>
+                        <span className="text-slate-400 text-[10px] font-bold uppercase">Order Channel:</span>
                         <div className="flex gap-1">
                           <button
                             onClick={() => setOrderChannel('IN_PERSON_BEAT')}
@@ -1097,7 +1248,7 @@ export const MobileSimulatorPage = () => {
                                 : 'bg-slate-800 border-slate-700 text-slate-400'
                             }`}
                           >
-                            📍 In-Person Beat
+                            📍 Beat Visit
                           </button>
                           <button
                             onClick={() => setOrderChannel('PHONE_ORDER')}
@@ -1107,7 +1258,7 @@ export const MobileSimulatorPage = () => {
                                 : 'bg-slate-800 border-slate-700 text-slate-400'
                             }`}
                           >
-                            📞 Phone Call (No Visit)
+                            📞 Phone (No Visit)
                           </button>
                         </div>
                       </div>
@@ -1141,64 +1292,72 @@ export const MobileSimulatorPage = () => {
                         </div>
                       </div>
 
-                      {/* Product Catalog Items */}
-                      <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
-                        {products.slice(0, 6).map((prod) => {
+                      {/* Product Catalog Items with Photos */}
+                      <div className="space-y-2 max-h-[250px] overflow-y-auto pr-1">
+                        {products.map((prod) => {
                           const qty = cart[prod._id] || 0;
                           const isOutOfStock = prod.isOutOfStock;
 
                           return (
                             <div
                               key={prod._id}
-                              className={`p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-1.5 ${
+                              className={`p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between gap-2.5 ${
                                 isOutOfStock ? 'opacity-50' : ''
                               }`}
                             >
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <div className="font-bold text-white text-xs">{prod.name}</div>
+                              <div className="flex items-center gap-2.5 flex-1 min-w-0">
+                                {prod.imageUrl ? (
+                                  <img
+                                    src={prod.imageUrl}
+                                    alt={prod.name}
+                                    className="w-11 h-11 rounded-lg object-cover border border-slate-800 shrink-0"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <div className="w-11 h-11 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0">
+                                    <ImageIcon className="w-4 h-4 text-slate-700" />
+                                  </div>
+                                )}
+                                <div className="truncate">
+                                  <div className="font-bold text-white text-xs truncate">{prod.name}</div>
                                   <div className="text-[10px] text-slate-400">
                                     {prod.brand} • Box: {prod.boxQuantity} {prod.uom}
                                   </div>
-                                </div>
-                                <div className="text-right">
-                                  <span className="font-extrabold text-white text-xs">₹{prod.basePrice}</span>
-                                  <span className="block text-[9px] text-slate-500">
-                                    {billType === 'GST' ? '+18%' : 'Net'}
-                                  </span>
+                                  <div className="text-[11px] font-extrabold text-emerald-400">
+                                    ₹{prod.basePrice} <span className="text-[9px] text-slate-500 font-normal">({billType === 'GST' ? '+18%' : 'Net'})</span>
+                                  </div>
                                 </div>
                               </div>
 
                               {!isOutOfStock ? (
-                                <div className="flex items-center justify-between pt-1">
-                                  <button
-                                    onClick={() => handleUpdateCart(prod._id, 1, prod.boxQuantity)}
-                                    className="px-2 py-0.5 rounded-lg bg-sky-950 text-sky-300 border border-sky-800 text-[10px] font-bold"
-                                  >
-                                    +1 Box ({prod.boxQuantity} pcs)
-                                  </button>
-
-                                  <div className="flex items-center gap-2 bg-slate-950 px-2 py-0.5 rounded-lg border border-slate-800">
+                                <div className="flex flex-col items-end gap-1 shrink-0">
+                                  <div className="flex items-center gap-1.5 bg-slate-950 px-1.5 py-0.5 rounded-lg border border-slate-800">
                                     <button
                                       onClick={() => handleUpdateCart(prod._id, -1, 1)}
-                                      className="text-slate-400 hover:text-white font-bold"
+                                      className="text-slate-400 hover:text-white font-bold px-1"
                                     >
                                       -
                                     </button>
-                                    <span className="font-bold text-sky-400 text-xs min-w-[24px] text-center">
+                                    <span className="font-bold text-emerald-400 text-xs min-w-[20px] text-center">
                                       {qty}
                                     </span>
                                     <button
                                       onClick={() => handleUpdateCart(prod._id, 1, 1)}
-                                      className="text-slate-400 hover:text-white font-bold"
+                                      className="text-slate-400 hover:text-white font-bold px-1"
                                     >
                                       +
                                     </button>
                                   </div>
+                                  <button
+                                    onClick={() => handleUpdateCart(prod._id, 1, prod.boxQuantity || 1)}
+                                    className="text-[9px] font-bold text-sky-400 hover:underline"
+                                  >
+                                    +1 Box ({prod.boxQuantity})
+                                  </button>
                                 </div>
                               ) : (
-                                <span className="text-[10px] text-rose-400 font-bold block">
-                                  ⚠️ Out of Stock
+                                <span className="text-[10px] text-rose-400 font-bold block shrink-0">
+                                  Out of Stock
                                 </span>
                               )}
                             </div>
@@ -1241,7 +1400,6 @@ export const MobileSimulatorPage = () => {
                 {/* 4. SALESMAN COLLECT PAYMENT SCREEN */}
                 {screen === 'COLLECT_PAYMENT' && selectedShop && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3">
-                    {/* Collection Channel Selector */}
                     <div className="p-2 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between text-xs">
                       <span className="text-slate-400 text-[10px] font-bold uppercase">Collection:</span>
                       <div className="flex gap-1">
@@ -1253,7 +1411,7 @@ export const MobileSimulatorPage = () => {
                               : 'bg-slate-800 border-slate-700 text-slate-400'
                           }`}
                         >
-                          📍 In-Person Cash
+                          📍 Beat Cash
                         </button>
                         <button
                           onClick={() => setCollectionChannel('PHONE_COLLECTION')}
@@ -1263,7 +1421,7 @@ export const MobileSimulatorPage = () => {
                               : 'bg-slate-800 border-slate-700 text-slate-400'
                           }`}
                         >
-                          📞 Remote (No Visit)
+                          📞 Remote Payment
                         </button>
                       </div>
                     </div>
@@ -1309,7 +1467,6 @@ export const MobileSimulatorPage = () => {
                       />
                     </div>
 
-                    {/* Mode Selector */}
                     <div>
                       <label className="block text-[11px] font-bold text-slate-300 mb-1">
                         Payment Mode:
@@ -1427,7 +1584,6 @@ export const MobileSimulatorPage = () => {
                         />
                       </div>
 
-                      {/* GPS Coordinates & Re-Pin Tool */}
                       <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
                         <div className="flex items-center justify-between text-[11px]">
                           <span className="font-bold text-slate-300 flex items-center gap-1">
@@ -1583,7 +1739,8 @@ export const MobileSimulatorPage = () => {
                         {whatsAppData.type === 'ORDER' ? (
                           <>
                             <div><b>Order No:</b> {whatsAppData.orderNumber}</div>
-                            <div><b>Type:</b> {whatsAppData.orderChannel === 'PHONE_ORDER' ? '📞 Phone Order (Without Visit)' : '📍 Beat Visit Order'}</div>
+                            <div><b>Channel:</b> {whatsAppData.orderChannel === 'PHONE_ORDER' ? '📞 Phone Order (No Visit)' : '📍 Beat Visit'}</div>
+                            <div><b>Boxes:</b> {whatsAppData.totalBoxes || 1} Master Boxes</div>
                             <div><b>Amount:</b> ₹{whatsAppData.totalAmount.toLocaleString()}</div>
                           </>
                         ) : (
@@ -1618,7 +1775,7 @@ export const MobileSimulatorPage = () => {
               </div>
             )}
 
-            {/* SCREEN: SHOP OWNER MODE */}
+            {/* SCREEN: SHOP OWNER MODE (Blinkit / Flipkart Style Retail Portal) */}
             {deviceRole === 'SHOP_OWNER' && (
               <div className="flex-1 flex flex-col overflow-hidden">
                 {/* 1. SHOP OWNER DASHBOARD */}
@@ -1655,6 +1812,7 @@ export const MobileSimulatorPage = () => {
                       </div>
                     </div>
 
+                    {/* Delivery Tracker */}
                     <div className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 space-y-2.5">
                       <div className="flex items-center justify-between">
                         <span className="font-bold text-white text-xs flex items-center gap-1.5">
@@ -1688,16 +1846,20 @@ export const MobileSimulatorPage = () => {
                       </div>
                     </div>
 
-                    <div className="p-3 rounded-2xl bg-gradient-to-r from-sky-950/60 to-indigo-950/60 border border-sky-800/40 flex items-center justify-between">
+                    {/* Quick Restock Banner */}
+                    <div className="p-3.5 rounded-2xl bg-gradient-to-r from-indigo-950/80 via-purple-950/70 to-slate-900 border border-indigo-800/40 flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-white text-xs">Need Quick Restock?</div>
-                        <div className="text-[10px] text-slate-400">Re-order past CPVC & Jaquar items</div>
+                        <div className="font-bold text-white text-xs flex items-center gap-1">
+                          <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                          <span>Browse Visual Wholesale Catalog</span>
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">Order Astral, Jaquar & Cera bathware directly</div>
                       </div>
                       <button
-                        onClick={() => setShopOwnerTab('REORDER')}
-                        className="px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-[11px] font-bold shadow"
+                        onClick={() => setShopOwnerTab('CATALOG')}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[11px] font-bold shadow"
                       >
-                        1-Click Re-Order
+                        Shop Now &rarr;
                       </button>
                     </div>
                   </div>
@@ -1727,7 +1889,149 @@ export const MobileSimulatorPage = () => {
                   </div>
                 )}
 
-                {/* 3. SHOP OWNER DUAL LEDGER */}
+                {/* 3. SHOP OWNER BLINKIT/FLIPKART STYLE WHOLESALE CATALOG */}
+                {shopOwnerTab === 'CATALOG' && (
+                  <div className="flex-1 flex flex-col overflow-hidden">
+                    <div className="p-3 space-y-2 bg-slate-900 border-b border-slate-800">
+                      <div className="relative">
+                        <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                        <input
+                          type="text"
+                          placeholder="Search Jaquar, CPVC, basin..."
+                          value={catalogSearch}
+                          onChange={(e) => setCatalogSearch(e.target.value)}
+                          className="w-full bg-slate-950 border border-slate-800 rounded-xl pl-9 pr-3 py-2 text-xs text-white focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+
+                      <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                        {categories.map((cat) => (
+                          <button
+                            key={cat}
+                            onClick={() => setSelectedCategory(cat)}
+                            className={`px-2.5 py-1 rounded-xl text-[10px] font-bold whitespace-nowrap transition-all ${
+                              selectedCategory === cat
+                                ? 'bg-indigo-600 text-white shadow'
+                                : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            {cat}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2.5">
+                      {filteredCatalogProducts.map((p) => {
+                        const qty = cart[p._id] || 0;
+                        const isOutOfStock = p.isOutOfStock;
+
+                        return (
+                          <div
+                            key={p._id}
+                            className={`bg-slate-900 border border-slate-800 rounded-2xl p-2.5 flex flex-col justify-between hover:border-slate-700 transition-all ${
+                              isOutOfStock ? 'opacity-60' : ''
+                            }`}
+                          >
+                            <div>
+                              <div className="relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center">
+                                {p.imageUrl ? (
+                                  <img
+                                    src={p.imageUrl}
+                                    alt={p.name}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                  />
+                                ) : (
+                                  <ImageIcon className="w-8 h-8 text-slate-700" />
+                                )}
+
+                                <span className="absolute top-1.5 left-1.5 text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-950/80 text-indigo-400 border border-slate-800">
+                                  {p.brand}
+                                </span>
+                              </div>
+
+                              <div className="font-bold text-white text-[11px] line-clamp-2 leading-tight mb-1">
+                                {p.name}
+                              </div>
+                              <div className="text-[10px] text-slate-400">
+                                Box: <b className="text-slate-200">{p.boxQuantity} {p.uom}</b>
+                              </div>
+                            </div>
+
+                            <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
+                              <div className="flex items-baseline justify-between">
+                                <span className="font-extrabold text-white text-xs">₹{p.basePrice}</span>
+                                <span className="text-[9px] text-slate-500">
+                                  ₹{(p.basePrice * (p.boxQuantity || 1)).toLocaleString()} / box
+                                </span>
+                              </div>
+
+                              {!isOutOfStock ? (
+                                qty === 0 ? (
+                                  <button
+                                    onClick={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
+                                    className="w-full py-1.5 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 border border-indigo-500/40 text-[10px] font-extrabold flex items-center justify-center gap-1 active:scale-95"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                    <span>+ RESTOCK BOX</span>
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center justify-between bg-indigo-950/80 border border-indigo-500/50 rounded-xl p-1">
+                                    <button
+                                      onClick={() => handleUpdateCart(p._id, -1, 1)}
+                                      className="w-6 h-6 rounded-lg bg-indigo-900/60 text-indigo-200 font-bold flex items-center justify-center active:scale-90"
+                                    >
+                                      -
+                                    </button>
+                                    <span className="text-xs font-extrabold text-indigo-300">
+                                      {qty}
+                                    </span>
+                                    <button
+                                      onClick={() => handleUpdateCart(p._id, 1, 1)}
+                                      className="w-6 h-6 rounded-lg bg-indigo-900/60 text-indigo-200 font-bold flex items-center justify-center active:scale-90"
+                                    >
+                                      +
+                                    </button>
+                                  </div>
+                                )
+                              ) : (
+                                <span className="text-[9px] text-center text-rose-400 font-semibold">Out of Stock</span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Shop Owner Floating Order Button */}
+                    {Object.keys(cart).length > 0 && (
+                      <div className="bg-gradient-to-r from-indigo-950 via-slate-900 to-slate-900 border-t border-indigo-500/40 p-2.5 flex items-center justify-between shadow-2xl animate-fade-in">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block font-semibold">
+                            {Object.keys(cart).length} Products ({totalBoxes} Boxes)
+                          </span>
+                          <span className="text-sm font-extrabold text-indigo-400">
+                            ₹{totalAmount.toLocaleString()}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => {
+                            showSimToast('🚀 Restock Order sent directly to Shivam Warehouse Desk!', 'success');
+                            setCart({});
+                          }}
+                          className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-lg shadow-indigo-900/40 active:scale-95 flex items-center gap-1"
+                        >
+                          <span>Place Restock Order</span>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 4. SHOP OWNER DUAL LEDGER */}
                 {shopOwnerTab === 'LEDGER' && (
                   <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs">
                     <span className="font-bold text-slate-300 uppercase tracking-wider text-[11px] block">
@@ -1747,41 +2051,6 @@ export const MobileSimulatorPage = () => {
                   </div>
                 )}
 
-                {/* 4. SHOP OWNER FAST REORDER */}
-                {shopOwnerTab === 'REORDER' && (
-                  <div className="flex-1 overflow-y-auto p-3.5 space-y-3 text-xs flex flex-col justify-between">
-                    <div className="space-y-2">
-                      <span className="font-bold text-white text-xs block">Fast Wholesale Re-Order</span>
-                      <p className="text-[11px] text-slate-400">Punches direct restock request to Shivam Warehouse dispatcher.</p>
-
-                      {products.slice(0, 4).map((prod) => (
-                        <div key={prod._id} className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-between">
-                          <div>
-                            <div className="font-bold text-white">{prod.name}</div>
-                            <div className="text-[10px] text-slate-400">{prod.brand} • Box: {prod.boxQuantity} pcs</div>
-                          </div>
-                          <button
-                            onClick={() => showSimToast(`📦 Added ${prod.name} box to restock order!`, 'success')}
-                            className="px-2.5 py-1 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-[10px]"
-                          >
-                            + Re-Order Box
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    <button
-                      onClick={() => {
-                        showSimToast('🚀 Restock request sent to Shivam Marketing dispatch desk!', 'success');
-                        setShopOwnerTab('DASHBOARD');
-                      }}
-                      className="w-full py-3 rounded-2xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold shadow"
-                    >
-                      Send Restock Order to Shivam &rarr;
-                    </button>
-                  </div>
-                )}
-
                 {/* Shop Owner Bottom Navigation Bar */}
                 <div className="bg-slate-900 border-t border-slate-800 px-2 py-2 flex items-center justify-around text-[10px]">
                   <button
@@ -1792,6 +2061,15 @@ export const MobileSimulatorPage = () => {
                   >
                     <ShieldCheck className="w-4 h-4" />
                     <span>Dashboard</span>
+                  </button>
+                  <button
+                    onClick={() => setShopOwnerTab('CATALOG')}
+                    className={`flex flex-col items-center gap-1 ${
+                      shopOwnerTab === 'CATALOG' ? 'text-indigo-400 font-bold' : 'text-slate-400'
+                    }`}
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Store Catalog</span>
                   </button>
                   <button
                     onClick={() => setShopOwnerTab('ORDERS')}
@@ -1810,15 +2088,6 @@ export const MobileSimulatorPage = () => {
                   >
                     <FileSpreadsheet className="w-4 h-4" />
                     <span>Ledger</span>
-                  </button>
-                  <button
-                    onClick={() => setShopOwnerTab('REORDER')}
-                    className={`flex flex-col items-center gap-1 ${
-                      shopOwnerTab === 'REORDER' ? 'text-indigo-400 font-bold' : 'text-slate-400'
-                    }`}
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                    <span>Re-Order</span>
                   </button>
                 </div>
               </div>

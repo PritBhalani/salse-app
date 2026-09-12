@@ -209,6 +209,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 450,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1542013936693-884638332954?w=600&auto=format&fit=crop&q=80',
       description: 'Hot and cold potable water plumbing pipe Astral Poly Technik Ltd',
     },
     {
@@ -223,6 +224,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 600,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1590496793929-36417d3117de?w=600&auto=format&fit=crop&q=80',
       description: 'Cold water distribution UPVC pipe lead-free certified',
     },
     {
@@ -237,6 +239,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 140,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=600&auto=format&fit=crop&q=80',
       description: 'Solid brass body, 10-year chrome warranty, ceramic disc cartridge',
     },
     {
@@ -251,6 +254,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 85,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1585421514738-01798e348b17?w=600&auto=format&fit=crop&q=80',
       description: 'Dual outlet for hand shower / health faucet and bucket tap',
     },
     {
@@ -265,6 +269,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 120,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1620626011761-996317b8d101?w=600&auto=format&fit=crop&q=80',
       description: 'Quarter turn concealed valve for bathroom water control',
     },
     {
@@ -279,6 +284,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 32,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1604709177225-055f99402ea3?w=600&auto=format&fit=crop&q=80',
       description: 'High neck mixer tap for counter top ceramic wash basins',
     },
     {
@@ -293,6 +299,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 18,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1507652313519-d4e9174996dd?w=600&auto=format&fit=crop&q=80',
       description: 'Hot and cold shower diverter with high flow rate mechanism',
     },
     {
@@ -307,6 +314,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 210,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1616486338812-3dadae4b4ace?w=600&auto=format&fit=crop&q=80',
       description: 'Anti-tangle flexible hose with ergonomic spray trigger',
     },
     {
@@ -321,6 +329,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 24,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1584622781564-1d987f7333c1?w=600&auto=format&fit=crop&q=80',
       description: 'Fine glaze ceramic bowl basin (480x370x130mm)',
     },
     {
@@ -335,6 +344,7 @@ export const getSeedDataset = async () => {
       gstPercentage: 18,
       stockQuantity: 12,
       isOutOfStock: false,
+      imageUrl: 'https://images.unsplash.com/photo-1564540574859-0dfb63985953?w=600&auto=format&fit=crop&q=80',
       description: 'Rimless hygienic flush toilet seat with UF hydraulic seat cover',
     },
     {
@@ -348,7 +358,8 @@ export const getSeedDataset = async () => {
       basePrice: 420,
       gstPercentage: 18,
       stockQuantity: 0,
-      isOutOfStock: true, // Sample Out-of-Stock for warehouse toggle testing
+      isOutOfStock: true,
+      imageUrl: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=600&auto=format&fit=crop&q=80',
       description: 'Forged brass full bore ball valve for main water lines',
     },
   ];

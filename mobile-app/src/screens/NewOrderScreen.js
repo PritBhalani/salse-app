@@ -5,6 +5,7 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
+  Image,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -20,6 +21,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [cart, setCart] = useState({});
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [search, setSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -52,6 +54,9 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
     });
   };
 
+  // Extract categories dynamically
+  const categories = ['ALL', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
+
   // Calculate Cart Totals
   let subtotal = 0;
   let gstTotal = 0;
@@ -69,10 +74,11 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
 
   const totalAmount = subtotal + gstTotal;
   const totalItemCount = Object.keys(cart).length;
+  const totalPcsCount = Object.values(cart).reduce((sum, q) => sum + q, 0);
 
   const handleSubmitOrder = async () => {
     if (totalItemCount === 0) {
-      Alert.alert('Cart is Empty', 'Please select at least 1 product.');
+      Alert.alert('Cart is Empty', 'Please select at least 1 product from the catalog.');
       return;
     }
 
@@ -81,7 +87,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
       return {
         productId,
         quantity,
-        boxCount: Math.floor(quantity / (p.boxQuantity || 1)),
+        boxCount: Math.ceil(quantity / (p.boxQuantity || 1)),
         customPrice: p.basePrice,
       };
     });
@@ -99,12 +105,12 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         const orderNum = res.data.order?.orderNumber || 'ORD-NEW';
         Alert.alert(
           'Order Sent to Warehouse! 🚀',
-          `Order ${orderNum} for ₹${totalAmount.toLocaleString()} has been punched to the warehouse dispatch desk.`,
+          `Order ${orderNum} for ₹${totalAmount.toLocaleString()} has been punched to Morbi warehouse dispatch.`,
           [
             {
               text: 'Share WhatsApp Bill 📲',
               onPress: () => {
-                const msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${shop.shopName}\n📄 *Order No:* ${orderNum}\n📑 *Bill Type:* ${billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📦 *Items Count:* ${totalItemCount}\n💰 *Total Amount:* ₹${totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your wholesale order!`;
+                const msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${shop.shopName}\n📄 *Order No:* ${orderNum}\n📑 *Bill Type:* ${billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📦 *Items:* ${totalItemCount} SKU (${totalPcsCount} pcs)\n💰 *Total Amount:* ₹${totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO MORBI WAREHOUSE\n------------------------------\nThank you for your wholesale order!`;
                 const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
                 const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
                 Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
@@ -125,25 +131,29 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
+  const filteredProducts = products.filter((p) => {
+    const matchesSearch =
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      p.category?.toLowerCase().includes(search.toLowerCase())
-  );
+      p.category?.toLowerCase().includes(search.toLowerCase());
+    const matchesCategory = selectedCategory === 'ALL' || p.category === selectedCategory;
+    return matchesSearch && matchesCategory;
+  });
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backBtnText}>&larr; Cancel</Text>
+          <Text style={styles.backBtnText}>&larr; Back</Text>
         </TouchableOpacity>
-        <View style={{ flex: 1, marginHorizontal: 8 }}>
+        <View style={{ flex: 1, marginHorizontal: 10 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            Punch Order
+            📸 Wholesale Catalog & Order
           </Text>
-          <Text style={styles.headerSubtitle}>{shop.shopName}</Text>
+          <Text style={styles.headerSubtitle} numberOfLines={1}>
+            {shop.shopName} • {shop.city || 'Morbi'}
+          </Text>
         </View>
       </View>
 
@@ -156,13 +166,8 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
               style={[styles.pillBtn, billType === 'NON_GST' && styles.pillBtnActiveNonGst]}
               onPress={() => setBillType('NON_GST')}
             >
-              <Text
-                style={[
-                  styles.pillBtnText,
-                  billType === 'NON_GST' && styles.pillBtnTextActive,
-                ]}
-              >
-                Rough / Without GST
+              <Text style={[styles.pillBtnText, billType === 'NON_GST' && styles.pillBtnTextActive]}>
+                💵 Rough / Cash (No GST)
               </Text>
             </TouchableOpacity>
 
@@ -170,13 +175,8 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
               style={[styles.pillBtn, billType === 'GST' && styles.pillBtnActiveGst]}
               onPress={() => setBillType('GST')}
             >
-              <Text
-                style={[
-                  styles.pillBtnText,
-                  billType === 'GST' && styles.pillBtnTextActive,
-                ]}
-              >
-                GST Tax Bill (+18%)
+              <Text style={[styles.pillBtnText, billType === 'GST' && styles.pillBtnTextActive]}>
+                🏛️ GST Tax Bill (+18%)
               </Text>
             </TouchableOpacity>
           </View>
@@ -185,49 +185,109 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         {/* Search Catalog */}
         <TextInput
           style={styles.searchBar}
-          placeholder="🔍 Search CPVC, pipes, taps, sanitaryware..."
+          placeholder="🔍 Search CPVC pipes, Jaquar taps, Cera fittings..."
           placeholderTextColor="#64748b"
           value={search}
           onChangeText={setSearch}
         />
 
-        {/* Product List */}
+        {/* Category Pills Bar (Blinkit style) */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+          {categories.map((cat) => (
+            <TouchableOpacity
+              key={cat}
+              style={[
+                styles.categoryChip,
+                selectedCategory === cat && styles.categoryChipActive,
+              ]}
+              onPress={() => setSelectedCategory(cat)}
+            >
+              <Text
+                style={[
+                  styles.categoryChipText,
+                  selectedCategory === cat && styles.categoryChipTextActive,
+                ]}
+              >
+                {cat === 'ALL' ? '🌟 All Items' : cat}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Product Catalog Grid */}
         {loading ? (
           <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
+        ) : filteredProducts.length === 0 ? (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyEmoji}>📦</Text>
+            <Text style={styles.emptyText}>No matching wholesale products found.</Text>
+          </View>
         ) : (
           filteredProducts.map((p) => {
             const qtyInCart = cart[p._id] || 0;
             const isOutOfStock = p.isOutOfStock;
+            const boxCount = Math.floor(qtyInCart / (p.boxQuantity || 1));
+            const looseCount = qtyInCart % (p.boxQuantity || 1);
 
             return (
               <View
                 key={p._id}
                 style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
               >
-                <View style={styles.productHeader}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.productName}>{p.name}</Text>
-                    <Text style={styles.productMeta}>
-                      {p.brand} • Box: {p.boxQuantity} {p.uom}
-                    </Text>
+                <View style={styles.productMainRow}>
+                  {/* Product Photo Thumbnail */}
+                  <View style={styles.imageContainer}>
+                    {p.imageUrl ? (
+                      <Image source={{ uri: p.imageUrl }} style={styles.productImage} resizeMode="cover" />
+                    ) : (
+                      <View style={styles.imagePlaceholder}>
+                        <Text style={styles.placeholderEmoji}>🚿</Text>
+                      </View>
+                    )}
+                    {p.brand && (
+                      <View style={styles.brandBadge}>
+                        <Text style={styles.brandBadgeText}>{p.brand}</Text>
+                      </View>
+                    )}
                   </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.productPrice}>₹{p.basePrice}</Text>
-                    <Text style={styles.taxNote}>
-                      {billType === 'GST' ? `+${p.gstPercentage || 18}% GST` : 'Net Price'}
+
+                  {/* Product Details */}
+                  <View style={styles.productDetails}>
+                    <Text style={styles.productName} numberOfLines={2}>
+                      {p.name}
                     </Text>
+                    <Text style={styles.productCategory}>
+                      Category: {p.category || 'Hardware'}
+                    </Text>
+
+                    <View style={styles.boxTag}>
+                      <Text style={styles.boxTagText}>
+                        📦 Master Box: {p.boxQuantity || 1} {p.uom || 'pcs'} (₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()})
+                      </Text>
+                    </View>
+
+                    <View style={styles.priceRow}>
+                      <Text style={styles.productPrice}>₹{p.basePrice?.toLocaleString()}</Text>
+                      <Text style={styles.priceUnit}> / {p.uom || 'pc'}</Text>
+                      <Text style={styles.taxNote}>
+                        {billType === 'GST' ? ' (+18% GST)' : ' (Net Cash)'}
+                      </Text>
+                    </View>
                   </View>
                 </View>
 
+                {/* Stock / Stepper Controls */}
                 {isOutOfStock ? (
-                  <Text style={styles.stockBadge}>⚠️ Out of Stock at Morbi Warehouse</Text>
+                  <View style={styles.outOfStockBanner}>
+                    <Text style={styles.outOfStockText}>⚠️ Out of Stock at Warehouse</Text>
+                  </View>
                 ) : (
                   <View style={styles.qtyControls}>
                     <TouchableOpacity
                       style={styles.boxBtn}
-                      onPress={() => handleUpdateCart(p._id, 1, p.boxQuantity)}
+                      onPress={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
                     >
-                      <Text style={styles.boxBtnText}>+1 Box ({p.boxQuantity} pcs)</Text>
+                      <Text style={styles.boxBtnText}>+1 Full Box ({p.boxQuantity || 1} pcs)</Text>
                     </TouchableOpacity>
 
                     <View style={styles.stepper}>
@@ -238,7 +298,14 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
                         <Text style={styles.stepperBtnText}>-</Text>
                       </TouchableOpacity>
 
-                      <Text style={styles.stepperQty}>{qtyInCart}</Text>
+                      <View style={styles.stepperQtyContainer}>
+                        <Text style={styles.stepperQty}>{qtyInCart} pcs</Text>
+                        {qtyInCart > 0 && (
+                          <Text style={styles.stepperSubtext}>
+                            ({boxCount}b {looseCount > 0 ? `+${looseCount}p` : ''})
+                          </Text>
+                        )}
+                      </View>
 
                       <TouchableOpacity
                         style={styles.stepperBtn}
@@ -259,7 +326,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           <Text style={styles.sectionLabel}>Dispatch / Packaging Instructions:</Text>
           <TextInput
             style={styles.notesInput}
-            placeholder="e.g. Pack Jaquar fittings in wooden crate; deliver by 2 PM..."
+            placeholder="e.g. Pack in wooden crate; deliver by 2 PM via Patel Transport..."
             placeholderTextColor="#64748b"
             value={dispatchNotes}
             onChangeText={setDispatchNotes}
@@ -267,11 +334,11 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         </View>
       </ScrollView>
 
-      {/* Bottom Punch Order Bar */}
+      {/* Bottom Cart Drawer Bar */}
       <View style={styles.footer}>
         <View>
           <Text style={styles.footerLabel}>
-            Total: {totalItemCount} Items ({billType === 'GST' ? 'GST Tax' : 'Rough'})
+            🛒 {totalItemCount} Items ({totalPcsCount} pcs) • {billType === 'GST' ? 'GST Tax' : 'Rough Cash'}
           </Text>
           <Text style={styles.footerTotal}>₹{totalAmount.toLocaleString()}</Text>
         </View>
@@ -284,7 +351,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           {submitting ? (
             <ActivityIndicator color="#ffffff" size="small" />
           ) : (
-            <Text style={styles.submitBtnText}>Punch to Warehouse &rarr;</Text>
+            <Text style={styles.submitBtnText}>Punch Order &rarr;</Text>
           )}
         </TouchableOpacity>
       </View>
@@ -312,6 +379,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     backgroundColor: '#1f2937',
     borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   backBtnText: {
     color: '#94a3b8',
@@ -329,13 +398,13 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     padding: 16,
-    paddingBottom: 100,
+    paddingBottom: 120,
   },
   billTypeContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   sectionLabel: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 'bold',
     color: '#94a3b8',
     marginBottom: 8,
@@ -377,14 +446,52 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     color: '#f8fafc',
     fontSize: 13,
-    marginBottom: 16,
+    marginBottom: 10,
     borderWidth: 1,
     borderColor: '#334155',
+  },
+  categoryScroll: {
+    flexDirection: 'row',
+    marginBottom: 14,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  categoryChipTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#64748b',
+    fontSize: 13,
   },
   productCard: {
     backgroundColor: '#1e293b',
     borderRadius: 14,
-    padding: 14,
+    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: '#334155',
@@ -392,11 +499,49 @@ const styles = StyleSheet.create({
   productCardDisabled: {
     opacity: 0.5,
   },
-  productHeader: {
+  productMainRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 12,
+    gap: 12,
+    marginBottom: 10,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: 76,
+    height: 76,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f172a',
+  },
+  placeholderEmoji: {
+    fontSize: 28,
+  },
+  brandBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  brandBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  productDetails: {
+    flex: 1,
   },
   productName: {
     fontSize: 14,
@@ -404,22 +549,54 @@ const styles = StyleSheet.create({
     color: '#f8fafc',
     marginBottom: 2,
   },
-  productMeta: {
+  productCategory: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  boxTag: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  boxTagText: {
+    color: '#a5b4fc',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
   },
   productPrice: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#34d399',
+  },
+  priceUnit: {
+    fontSize: 11,
+    color: '#94a3b8',
   },
   taxNote: {
     fontSize: 10,
     color: '#64748b',
   },
-  stockBadge: {
-    fontSize: 11,
+  outOfStockBanner: {
+    backgroundColor: '#450a0a',
+    borderRadius: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  outOfStockText: {
     color: '#f87171',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   qtyControls: {
@@ -432,7 +609,7 @@ const styles = StyleSheet.create({
   },
   boxBtn: {
     backgroundColor: '#0c4a6e',
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
@@ -460,12 +637,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+  stepperQtyContainer: {
+    alignItems: 'center',
+    minWidth: 44,
+  },
   stepperQty: {
     color: '#f8fafc',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
-    minWidth: 28,
-    textAlign: 'center',
+  },
+  stepperSubtext: {
+    color: '#a5b4fc',
+    fontSize: 9,
   },
   notesContainer: {
     marginTop: 16,
@@ -507,11 +690,6 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 20,
     paddingVertical: 12,
-    shadowColor: '#0284c7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 4,
   },
   submitBtnDisabled: {
     opacity: 0.6,

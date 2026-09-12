@@ -4,6 +4,8 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Image,
   StyleSheet,
   ActivityIndicator,
   Alert,
@@ -15,8 +17,12 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const [orders, setOrders] = useState([]);
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('DASHBOARD'); // 'DASHBOARD', 'ORDERS', 'PAYMENTS', 'CATALOG'
+  const [activeTab, setActiveTab] = useState('CATALOG'); // Default to Quick Catalog
   const [catalog, setCatalog] = useState([]);
+  const [catalogSearch, setCatalogSearch] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [cart, setCart] = useState({});
+  const [submittingOrder, setSubmittingOrder] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -54,40 +60,111 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const availableCredit = Math.max(0, creditLimit - totalDue);
   const creditUsagePercent = Math.min(100, Math.round((totalDue / creditLimit) * 100));
 
-  const handleQuickReorder = (prod) => {
-    Alert.alert(
-      'Restock Request 🚀',
-      `Send restock request for 1 Box of ${prod.name} (${prod.boxQuantity} pcs) to Shivam Warehouse?`,
-      [
-        {
-          text: 'Send to Warehouse',
-          onPress: () => {
-            Alert.alert('Request Sent ✅', 'Warehouse dispatcher notified for rapid packing.');
-          },
-        },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+  const categories = ['ALL', ...Array.from(new Set(catalog.map((p) => p.category).filter(Boolean)))];
+
+  const handleUpdateCart = (productId, delta, boxQty = 1) => {
+    setCart((prev) => {
+      const current = prev[productId] || 0;
+      const next = Math.max(0, current + delta * boxQty);
+      if (next === 0) {
+        const copy = { ...prev };
+        delete copy[productId];
+        return copy;
+      }
+      return { ...prev, [productId]: next };
+    });
   };
+
+  let cartSubtotal = 0;
+  let cartTotalPcs = 0;
+  Object.entries(cart).forEach(([prodId, qty]) => {
+    const p = catalog.find((prod) => prod._id === prodId);
+    if (p) {
+      cartSubtotal += (p.basePrice || 0) * qty;
+      cartTotalPcs += qty;
+    }
+  });
+  const cartSkuCount = Object.keys(cart).length;
+
+  const handleDirectOrder = async () => {
+    if (cartSkuCount === 0) {
+      Alert.alert('Cart Empty', 'Please add items to your cart.');
+      return;
+    }
+
+    const items = Object.entries(cart).map(([productId, quantity]) => {
+      const p = catalog.find((prod) => prod._id === productId);
+      return {
+        productId,
+        quantity,
+        boxCount: Math.ceil(quantity / (p.boxQuantity || 1)),
+        customPrice: p.basePrice,
+      };
+    });
+
+    setSubmittingOrder(true);
+    try {
+      const res = await mobileAPI.post('/orders', {
+        shopId: shop?._id || user?.shopId,
+        billType: 'NON_GST',
+        items,
+        dispatchNotes: 'Direct 1-Click Order from Shop Owner Mobile App (Blinkit Quick Re-order)',
+      });
+
+      if (res.data.success) {
+        Alert.alert(
+          'Restock Order Punched! 🚀',
+          `Order ${res.data.order?.orderNumber} placed for ₹${cartSubtotal.toLocaleString()}. Morbi warehouse notified!`,
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                setCart({});
+                fetchData();
+                setActiveTab('DASHBOARD');
+              },
+            },
+          ]
+        );
+      }
+    } catch (err) {
+      Alert.alert('Order Failed', err.response?.data?.message || 'Server error');
+    } finally {
+      setSubmittingOrder(false);
+    }
+  };
+
+  const filteredCatalog = catalog.filter((p) => {
+    const matchesSearch =
+      p.name?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      p.brand?.toLowerCase().includes(catalogSearch.toLowerCase()) ||
+      p.category?.toLowerCase().includes(catalogSearch.toLowerCase());
+    const matchesCat = selectedCategory === 'ALL' || p.category === selectedCategory;
+    return matchesSearch && matchesCat;
+  });
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={styles.shopName}>{shop?.shopName || 'Shri Krishna Hardware'}</Text>
-          <Text style={styles.ownerSubtitle}>Owner: {user?.name} • Verified Retailer</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.shopName} numberOfLines={1}>
+            🏪 {shop?.shopName || 'Shri Krishna Hardware'}
+          </Text>
+          <Text style={styles.ownerSubtitle}>
+            Owner: {user?.name || 'Retailer'} • Verified B2B Account
+          </Text>
         </View>
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={[styles.scrollContent, cartSkuCount > 0 && { paddingBottom: 110 }]}>
         {/* Credit Limit & Health Gauge Card */}
         <View style={styles.creditCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={styles.creditTitle}>Credit Limit Health Gauge</Text>
+            <Text style={styles.creditTitle}>💳 Credit Limit Health Gauge</Text>
             <Text style={styles.creditLimitTotal}>Limit: ₹{creditLimit.toLocaleString()}</Text>
           </View>
           
@@ -126,7 +203,9 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
         <View style={styles.dispatchCard}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
             <Text style={styles.dispatchTitle}>🚚 Live Order Delivery Tracking</Text>
-            <Text style={styles.dispatchOrderNum}>ORD-2026-0001</Text>
+            <Text style={styles.dispatchOrderNum}>
+              {orders.length > 0 ? orders[0].orderNumber : 'ORD-2026-0001'}
+            </Text>
           </View>
 
           {/* 4-Step Dispatch Visual Timeline */}
@@ -174,11 +253,20 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
         {/* Navigation Tabs */}
         <View style={styles.tabContainer}>
           <TouchableOpacity
+            style={[styles.tabBtn, activeTab === 'CATALOG' && styles.tabBtnActive]}
+            onPress={() => setActiveTab('CATALOG')}
+          >
+            <Text style={[styles.tabBtnText, activeTab === 'CATALOG' && styles.tabBtnTextActive]}>
+              🛍️ Wholesale Catalog ({catalog.length})
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={[styles.tabBtn, activeTab === 'DASHBOARD' && styles.tabBtnActive]}
             onPress={() => setActiveTab('DASHBOARD')}
           >
             <Text style={[styles.tabBtnText, activeTab === 'DASHBOARD' && styles.tabBtnTextActive]}>
-              Orders ({orders.length})
+              📦 Orders ({orders.length})
             </Text>
           </TouchableOpacity>
 
@@ -187,16 +275,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
             onPress={() => setActiveTab('PAYMENTS')}
           >
             <Text style={[styles.tabBtnText, activeTab === 'PAYMENTS' && styles.tabBtnTextActive]}>
-              Receipts ({payments.length})
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[styles.tabBtn, activeTab === 'CATALOG' && styles.tabBtnActive]}
-            onPress={() => setActiveTab('CATALOG')}
-          >
-            <Text style={[styles.tabBtnText, activeTab === 'CATALOG' && styles.tabBtnTextActive]}>
-              Fast Re-Order
+              📑 Receipts ({payments.length})
             </Text>
           </TouchableOpacity>
         </View>
@@ -204,6 +283,125 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
         {/* Tab Content */}
         {loading ? (
           <ActivityIndicator color="#6366f1" size="large" style={{ marginTop: 20 }} />
+        ) : activeTab === 'CATALOG' ? (
+          <View>
+            {/* Search Catalog */}
+            <TextInput
+              style={styles.searchBar}
+              placeholder="🔍 Search Astral CPVC, Jaquar, Cera, supreme..."
+              placeholderTextColor="#64748b"
+              value={catalogSearch}
+              onChangeText={setCatalogSearch}
+            />
+
+            {/* Category Pills Bar (Blinkit style) */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory === cat && styles.categoryChipActive,
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      selectedCategory === cat && styles.categoryChipTextActive,
+                    ]}
+                  >
+                    {cat === 'ALL' ? '🌟 All Items' : cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+
+            {/* Catalog Grid */}
+            {filteredCatalog.map((prod) => {
+              const qtyInCart = cart[prod._id] || 0;
+              const isOutOfStock = prod.isOutOfStock;
+              const boxCount = Math.floor(qtyInCart / (prod.boxQuantity || 1));
+              const looseCount = qtyInCart % (prod.boxQuantity || 1);
+
+              return (
+                <View key={prod._id} style={[styles.catalogCard, isOutOfStock && styles.catalogCardDisabled]}>
+                  <View style={styles.catalogMainRow}>
+                    {/* Photo thumbnail */}
+                    <View style={styles.imageContainer}>
+                      {prod.imageUrl ? (
+                        <Image source={{ uri: prod.imageUrl }} style={styles.productImage} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Text style={styles.placeholderEmoji}>📦</Text>
+                        </View>
+                      )}
+                      {prod.brand && (
+                        <View style={styles.brandBadge}>
+                          <Text style={styles.brandBadgeText}>{prod.brand}</Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Details */}
+                    <View style={styles.catalogDetails}>
+                      <Text style={styles.prodName}>{prod.name}</Text>
+                      <Text style={styles.prodCategory}>{prod.category || 'Hardware'}</Text>
+                      <View style={styles.boxTag}>
+                        <Text style={styles.boxTagText}>
+                          📦 Master Box: {prod.boxQuantity || 1} {prod.uom || 'pcs'} • ₹{((prod.basePrice || 0) * (prod.boxQuantity || 1)).toLocaleString()}
+                        </Text>
+                      </View>
+                      <Text style={styles.prodPrice}>
+                        ₹{prod.basePrice?.toLocaleString()} <Text style={styles.prodPriceUnit}>/ {prod.uom || 'pc'}</Text>
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Stepper / Controls */}
+                  {isOutOfStock ? (
+                    <View style={styles.outOfStockBanner}>
+                      <Text style={styles.outOfStockText}>⚠️ Out of Stock at Morbi Warehouse</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.catalogQtyControls}>
+                      <TouchableOpacity
+                        style={styles.boxBtn}
+                        onPress={() => handleUpdateCart(prod._id, 1, prod.boxQuantity || 1)}
+                      >
+                        <Text style={styles.boxBtnText}>+1 Box ({prod.boxQuantity || 1} pcs)</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.stepper}>
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => handleUpdateCart(prod._id, -1, 1)}
+                        >
+                          <Text style={styles.stepperBtnText}>-</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.stepperQtyContainer}>
+                          <Text style={styles.stepperQty}>{qtyInCart} pcs</Text>
+                          {qtyInCart > 0 && (
+                            <Text style={styles.stepperSubtext}>
+                              ({boxCount}b {looseCount > 0 ? `+${looseCount}p` : ''})
+                            </Text>
+                          )}
+                        </View>
+
+                        <TouchableOpacity
+                          style={styles.stepperBtn}
+                          onPress={() => handleUpdateCart(prod._id, 1, 1)}
+                        >
+                          <Text style={styles.stepperBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         ) : activeTab === 'DASHBOARD' ? (
           orders.length === 0 ? (
             <Text style={styles.emptyText}>No wholesale orders found.</Text>
@@ -228,7 +426,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               </View>
             ))
           )
-        ) : activeTab === 'PAYMENTS' ? (
+        ) : (
           payments.length === 0 ? (
             <Text style={styles.emptyText}>No payment receipts logged yet.</Text>
           ) : (
@@ -250,24 +448,30 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               </View>
             ))
           )
-        ) : (
-          catalog.slice(0, 6).map((prod) => (
-            <View key={prod._id} style={styles.catalogCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.prodName}>{prod.name}</Text>
-                <Text style={styles.prodMeta}>{prod.brand} • Box: {prod.boxQuantity} pcs</Text>
-                <Text style={styles.prodPrice}>₹{prod.basePrice} / pc</Text>
-              </View>
-              <TouchableOpacity
-                style={styles.reorderBtn}
-                onPress={() => handleQuickReorder(prod)}
-              >
-                <Text style={styles.reorderBtnText}>+ Re-Order</Text>
-              </TouchableOpacity>
-            </View>
-          ))
         )}
       </ScrollView>
+
+      {/* Floating 1-Click Restock Bottom Bar (Blinkit style) */}
+      {cartSkuCount > 0 && (
+        <View style={styles.cartBar}>
+          <View>
+            <Text style={styles.cartBarLabel}>🛒 {cartSkuCount} Products ({cartTotalPcs} pcs)</Text>
+            <Text style={styles.cartBarTotal}>₹{cartSubtotal.toLocaleString()}</Text>
+          </View>
+
+          <TouchableOpacity
+            style={[styles.cartBarBtn, submittingOrder && styles.cartBarBtnDisabled]}
+            onPress={handleDirectOrder}
+            disabled={submittingOrder}
+          >
+            {submittingOrder ? (
+              <ActivityIndicator color="#ffffff" size="small" />
+            ) : (
+              <Text style={styles.cartBarBtnText}>1-Click Restock &rarr;</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
     </View>
   );
 };
@@ -398,34 +602,36 @@ const styles = StyleSheet.create({
   dueTotal: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#f8fafc',
+    color: '#f87171',
   },
   dispatchCard: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1e293b',
     borderRadius: 16,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#38bdf8',
+    borderColor: '#334155',
   },
   dispatchTitle: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#38bdf8',
+    textTransform: 'uppercase',
   },
   dispatchOrderNum: {
     fontSize: 11,
     color: '#94a3b8',
-    fontFamily: 'monospace',
+    fontWeight: '600',
   },
   timelineRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingHorizontal: 4,
   },
   timelineStep: {
     alignItems: 'center',
-    width: 58,
+    minWidth: 54,
   },
   stepCircle: {
     width: 26,
@@ -439,10 +645,10 @@ const styles = StyleSheet.create({
     backgroundColor: '#059669',
   },
   stepCircleActive: {
-    backgroundColor: '#0284c7',
+    backgroundColor: '#d97706',
   },
   stepCirclePending: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#334155',
   },
   stepCircleText: {
     color: '#ffffff',
@@ -450,22 +656,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   stepLabelDone: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
     color: '#34d399',
   },
   stepLabelActive: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
-    color: '#38bdf8',
+    color: '#fbbf24',
   },
   stepLabelPending: {
-    fontSize: 10,
+    fontSize: 9,
     color: '#64748b',
   },
   stepTime: {
-    fontSize: 9,
-    color: '#64748b',
+    fontSize: 8,
+    color: '#94a3b8',
+    marginTop: 1,
   },
   timelineConnectorDone: {
     flex: 1,
@@ -476,7 +683,7 @@ const styles = StyleSheet.create({
   timelineConnectorActive: {
     flex: 1,
     height: 2,
-    backgroundColor: '#0284c7',
+    backgroundColor: '#d97706',
     marginBottom: 16,
   },
   timelineConnectorPending: {
@@ -487,27 +694,222 @@ const styles = StyleSheet.create({
   },
   tabContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    padding: 4,
+    gap: 8,
     marginBottom: 14,
   },
   tabBtn: {
     flex: 1,
     paddingVertical: 10,
     alignItems: 'center',
-    borderRadius: 8,
+    backgroundColor: '#1e293b',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   tabBtnActive: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#4338ca',
+    borderColor: '#6366f1',
   },
   tabBtnText: {
     color: '#94a3b8',
     fontSize: 11,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   tabBtnTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  searchBar: {
+    backgroundColor: '#1e293b',
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#f8fafc',
+    fontSize: 13,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  categoryScroll: {
+    flexDirection: 'row',
+    marginBottom: 14,
+  },
+  categoryChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 8,
+  },
+  categoryChipActive: {
+    backgroundColor: '#4338ca',
+    borderColor: '#818cf8',
+  },
+  categoryChipText: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '600',
+  },
+  categoryChipTextActive: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  catalogCard: {
+    backgroundColor: '#1e293b',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  catalogCardDisabled: {
+    opacity: 0.5,
+  },
+  catalogMainRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 10,
+  },
+  imageContainer: {
+    position: 'relative',
+    width: 76,
+    height: 76,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#0f172a',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePlaceholder: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0f172a',
+  },
+  placeholderEmoji: {
+    fontSize: 28,
+  },
+  brandBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  brandBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  catalogDetails: {
+    flex: 1,
+  },
+  prodName: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#f8fafc',
+    marginBottom: 2,
+  },
+  prodCategory: {
+    fontSize: 11,
+    color: '#64748b',
+    marginBottom: 4,
+  },
+  boxTag: {
+    backgroundColor: '#0f172a',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  boxTagText: {
+    color: '#a5b4fc',
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  prodPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  prodPriceUnit: {
+    fontSize: 11,
+    color: '#94a3b8',
+    fontWeight: 'normal',
+  },
+  outOfStockBanner: {
+    backgroundColor: '#450a0a',
+    borderRadius: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  outOfStockText: {
+    color: '#f87171',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  catalogQtyControls: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  boxBtn: {
+    backgroundColor: '#312e81',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#4338ca',
+  },
+  boxBtnText: {
+    color: '#a5b4fc',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  stepperBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  stepperBtnText: {
     color: '#818cf8',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  stepperQtyContainer: {
+    alignItems: 'center',
+    minWidth: 44,
+  },
+  stepperQty: {
+    color: '#f8fafc',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  stepperSubtext: {
+    color: '#a5b4fc',
+    fontSize: 9,
   },
   orderCard: {
     backgroundColor: '#1e293b',
@@ -521,24 +923,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   orderNum: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#f8fafc',
-    fontFamily: 'monospace',
   },
   statusBadge: {
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#065f46',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
   },
   statusBadgeText: {
+    color: '#34d399',
     fontSize: 10,
     fontWeight: 'bold',
-    color: '#a5b4fc',
   },
   orderMeta: {
     fontSize: 11,
@@ -549,75 +950,74 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: 8,
     borderTopWidth: 1,
     borderTopColor: '#334155',
+    paddingTop: 8,
   },
   orderItems: {
     fontSize: 11,
-    color: '#64748b',
+    color: '#cbd5e1',
   },
   orderAmount: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#818cf8',
+    color: '#34d399',
   },
   paymentMode: {
-    fontSize: 11,
-    color: '#a5b4fc',
+    fontSize: 12,
     fontWeight: 'bold',
+    color: '#38bdf8',
   },
   paymentCredited: {
     fontSize: 11,
     color: '#34d399',
   },
   paidAmount: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#34d399',
-  },
-  catalogCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  prodName: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#ffffff',
-  },
-  prodMeta: {
-    fontSize: 11,
-    color: '#94a3b8',
-    marginTop: 2,
-  },
-  prodPrice: {
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: '#34d399',
-    marginTop: 2,
-  },
-  reorderBtn: {
-    backgroundColor: '#4338ca',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  reorderBtnText: {
-    color: '#ffffff',
-    fontSize: 11,
-    fontWeight: 'bold',
   },
   emptyText: {
     color: '#64748b',
     textAlign: 'center',
-    marginTop: 20,
+    paddingVertical: 20,
     fontSize: 13,
+  },
+  cartBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#111827',
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cartBarLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  cartBarTotal: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  cartBarBtn: {
+    backgroundColor: '#4f46e5',
+    borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+  },
+  cartBarBtnDisabled: {
+    opacity: 0.6,
+  },
+  cartBarBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
   },
 });
