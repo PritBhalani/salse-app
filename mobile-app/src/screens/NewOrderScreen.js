@@ -8,6 +8,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 
@@ -15,8 +16,8 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [billType, setBillType] = useState('NON_GST'); // Default per wholesale flow
-  const [cart, setCart] = useState({}); // { [productId]: quantity }
+  const [billType, setBillType] = useState('NON_GST');
+  const [cart, setCart] = useState({});
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [search, setSearch] = useState('');
 
@@ -95,14 +96,30 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
       });
 
       if (res.data.success) {
+        const orderNum = res.data.order?.orderNumber || 'ORD-NEW';
         Alert.alert(
           'Order Sent to Warehouse! 🚀',
-          `Order ${res.data.order.orderNumber} for ₹${totalAmount.toLocaleString()} has been placed.\nThe warehouse team has been notified in real-time.`
+          `Order ${orderNum} for ₹${totalAmount.toLocaleString()} has been punched to the warehouse dispatch desk.`,
+          [
+            {
+              text: 'Share WhatsApp Bill 📲',
+              onPress: () => {
+                const msg = `*SHIVAM MARKETING - ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${shop.shopName}\n📄 *Order No:* ${orderNum}\n📑 *Bill Type:* ${billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📦 *Items Count:* ${totalItemCount}\n💰 *Total Amount:* ₹${totalAmount.toLocaleString()}\n🚚 *Status:* PUNCHED TO WAREHOUSE\n------------------------------\nThank you for your wholesale order!`;
+                const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
+                const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
+                Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
+                onOrderSuccess();
+              },
+            },
+            {
+              text: 'Done',
+              onPress: () => onOrderSuccess(),
+            },
+          ]
         );
-        onOrderSuccess();
       }
     } catch (err) {
-      Alert.alert('Order Failed', err.response?.data?.message || 'Could not place order');
+      Alert.alert('Order Punching Failed', err.response?.data?.message || 'Server error');
     } finally {
       setSubmitting(false);
     }
@@ -110,162 +127,139 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
 
   const filteredProducts = products.filter(
     (p) =>
-      p.name.toLowerCase().includes(search.toLowerCase()) ||
-      p.brand.toLowerCase().includes(search.toLowerCase()) ||
-      p.category.toLowerCase().includes(search.toLowerCase())
+      p.name?.toLowerCase().includes(search.toLowerCase()) ||
+      p.brand?.toLowerCase().includes(search.toLowerCase()) ||
+      p.category?.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <View style={styles.container}>
-      {/* Top Header */}
+      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack}>
-          <Text style={styles.backBtnText}>&larr; Back</Text>
+          <Text style={styles.backBtnText}>&larr; Cancel</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 8 }}>
           <Text style={styles.headerTitle} numberOfLines={1}>
-            New Order: {shop.shopName}
+            Punch Order
           </Text>
-          <Text style={styles.headerSubtitle}>{shop.city}</Text>
+          <Text style={styles.headerSubtitle}>{shop.shopName}</Text>
         </View>
       </View>
 
-      {/* Bill Type Selector (GST vs Without GST) */}
-      <View style={styles.billingTypeContainer}>
-        <Text style={styles.billingTypeLabel}>Select Billing Mode:</Text>
-        <View style={styles.billingTypeButtons}>
-          <TouchableOpacity
-            style={[
-              styles.billModeBtn,
-              billType === 'NON_GST' && styles.billModeBtnActiveNonGst,
-            ]}
-            onPress={() => setBillType('NON_GST')}
-          >
-            <Text
-              style={[
-                styles.billModeBtnText,
-                billType === 'NON_GST' && styles.billModeBtnTextActive,
-              ]}
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Bill Type Selector */}
+        <View style={styles.billTypeContainer}>
+          <Text style={styles.sectionLabel}>Select Billing Mode:</Text>
+          <View style={styles.pillRow}>
+            <TouchableOpacity
+              style={[styles.pillBtn, billType === 'NON_GST' && styles.pillBtnActiveNonGst]}
+              onPress={() => setBillType('NON_GST')}
             >
-              Without GST (Rough)
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.pillBtnText,
+                  billType === 'NON_GST' && styles.pillBtnTextActive,
+                ]}
+              >
+                Rough / Without GST
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[
-              styles.billModeBtn,
-              billType === 'GST' && styles.billModeBtnActiveGst,
-            ]}
-            onPress={() => setBillType('GST')}
-          >
-            <Text
-              style={[
-                styles.billModeBtnText,
-                billType === 'GST' && styles.billModeBtnTextActive,
-              ]}
+            <TouchableOpacity
+              style={[styles.pillBtn, billType === 'GST' && styles.pillBtnActiveGst]}
+              onPress={() => setBillType('GST')}
             >
-              GST Tax Bill (+18%)
-            </Text>
-          </TouchableOpacity>
+              <Text
+                style={[
+                  styles.pillBtnText,
+                  billType === 'GST' && styles.pillBtnTextActive,
+                ]}
+              >
+                GST Tax Bill (+18%)
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
-      </View>
 
-      {/* Search Filter */}
-      <View style={styles.searchBar}>
+        {/* Search Catalog */}
         <TextInput
-          style={styles.searchInput}
-          placeholder="Search pipes, Jaquar faucets, valves..."
+          style={styles.searchBar}
+          placeholder="🔍 Search CPVC, pipes, taps, sanitaryware..."
           placeholderTextColor="#64748b"
           value={search}
           onChangeText={setSearch}
         />
-      </View>
 
-      {/* Products Catalog List */}
-      <ScrollView contentContainerStyle={styles.catalogList}>
+        {/* Product List */}
         {loading ? (
-          <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 30 }} />
+          <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
         ) : (
-          filteredProducts.map((product) => {
-            const qtyInCart = cart[product._id] || 0;
-            const isOutOfStock = product.isOutOfStock || product.stockQuantity <= 0;
+          filteredProducts.map((p) => {
+            const qtyInCart = cart[p._id] || 0;
+            const isOutOfStock = p.isOutOfStock;
 
             return (
               <View
-                key={product._id}
-                style={[
-                  styles.productCard,
-                  isOutOfStock && styles.productCardDisabled,
-                ]}
+                key={p._id}
+                style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
               >
                 <View style={styles.productHeader}>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.productName}>{product.name}</Text>
-                    <Text style={styles.productBrand}>
-                      {product.brand} • {product.category}
-                    </Text>
-                    <Text style={styles.productBoxInfo}>
-                      Box Packaging: {product.boxQuantity} {product.uom}/Box
+                    <Text style={styles.productName}>{p.name}</Text>
+                    <Text style={styles.productMeta}>
+                      {p.brand} • Box: {p.boxQuantity} {p.uom}
                     </Text>
                   </View>
-                  <View style={styles.priceTag}>
-                    <Text style={styles.priceValue}>₹{product.basePrice}</Text>
-                    <Text style={styles.priceSubtext}>
-                      {billType === 'GST' ? '+18% GST' : 'Net'}
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={styles.productPrice}>₹{p.basePrice}</Text>
+                    <Text style={styles.taxNote}>
+                      {billType === 'GST' ? `+${p.gstPercentage || 18}% GST` : 'Net Price'}
                     </Text>
                   </View>
                 </View>
 
-                {/* Stock status or Add to Cart Controls */}
-                <View style={styles.cartControlRow}>
-                  {isOutOfStock ? (
-                    <Text style={styles.outOfStockLabel}>⚠️ Out of Stock at Warehouse</Text>
-                  ) : (
-                    <>
-                      {/* Box adder shortcuts */}
+                {isOutOfStock ? (
+                  <Text style={styles.stockBadge}>⚠️ Out of Stock at Morbi Warehouse</Text>
+                ) : (
+                  <View style={styles.qtyControls}>
+                    <TouchableOpacity
+                      style={styles.boxBtn}
+                      onPress={() => handleUpdateCart(p._id, 1, p.boxQuantity)}
+                    >
+                      <Text style={styles.boxBtnText}>+1 Box ({p.boxQuantity} pcs)</Text>
+                    </TouchableOpacity>
+
+                    <View style={styles.stepper}>
                       <TouchableOpacity
-                        style={styles.boxAddBtn}
-                        onPress={() => handleUpdateCart(product._id, 1, product.boxQuantity)}
+                        style={styles.stepperBtn}
+                        onPress={() => handleUpdateCart(p._id, -1, 1)}
                       >
-                        <Text style={styles.boxAddBtnText}>
-                          +1 Box ({product.boxQuantity} pcs)
-                        </Text>
+                        <Text style={styles.stepperBtnText}>-</Text>
                       </TouchableOpacity>
 
-                      {/* Quantity Stepper */}
-                      <View style={styles.stepperContainer}>
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(product._id, -1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>-</Text>
-                        </TouchableOpacity>
+                      <Text style={styles.stepperQty}>{qtyInCart}</Text>
 
-                        <Text style={styles.stepperQty}>{qtyInCart} Pcs</Text>
-
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(product._id, 1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </>
-                  )}
-                </View>
+                      <TouchableOpacity
+                        style={styles.stepperBtn}
+                        onPress={() => handleUpdateCart(p._id, 1, 1)}
+                      >
+                        <Text style={styles.stepperBtnText}>+</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                )}
               </View>
             );
           })
         )}
 
-        {/* Dispatch Notes Input */}
-        <View style={styles.notesCard}>
-          <Text style={styles.notesLabel}>Special Dispatch Instructions for Warehouse:</Text>
+        {/* Dispatch Instruction */}
+        <View style={styles.notesContainer}>
+          <Text style={styles.sectionLabel}>Dispatch / Packaging Instructions:</Text>
           <TextInput
             style={styles.notesInput}
-            multiline
-            numberOfLines={2}
-            placeholder="e.g. Urgent delivery by Thursday tempo, double packaging"
+            placeholder="e.g. Pack Jaquar fittings in wooden crate; deliver by 2 PM..."
             placeholderTextColor="#64748b"
             value={dispatchNotes}
             onChangeText={setDispatchNotes}
@@ -273,29 +267,27 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         </View>
       </ScrollView>
 
-      {/* Sticky Bottom Cart Bar */}
-      {totalItemCount > 0 && (
-        <View style={styles.cartBar}>
-          <View>
-            <Text style={styles.cartTotalLabel}>
-              {totalItemCount} Items ({billType === 'GST' ? 'GST Invoice' : 'Rough Bill'})
-            </Text>
-            <Text style={styles.cartTotalAmount}>₹{totalAmount.toLocaleString()}</Text>
-          </View>
-
-          <TouchableOpacity
-            style={styles.submitOrderBtn}
-            onPress={handleSubmitOrder}
-            disabled={submitting}
-          >
-            {submitting ? (
-              <ActivityIndicator color="#ffffff" />
-            ) : (
-              <Text style={styles.submitOrderBtnText}>Punch to Warehouse &rarr;</Text>
-            )}
-          </TouchableOpacity>
+      {/* Bottom Punch Order Bar */}
+      <View style={styles.footer}>
+        <View>
+          <Text style={styles.footerLabel}>
+            Total: {totalItemCount} Items ({billType === 'GST' ? 'GST Tax' : 'Rough'})
+          </Text>
+          <Text style={styles.footerTotal}>₹{totalAmount.toLocaleString()}</Text>
         </View>
-      )}
+
+        <TouchableOpacity
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
+          onPress={handleSubmitOrder}
+          disabled={submitting}
+        >
+          {submitting ? (
+            <ActivityIndicator color="#ffffff" size="small" />
+          ) : (
+            <Text style={styles.submitBtnText}>Punch to Warehouse &rarr;</Text>
+          )}
+        </TouchableOpacity>
+      </View>
     </View>
   );
 };
@@ -322,83 +314,78 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backBtnText: {
-    color: '#38bdf8',
+    color: '#94a3b8',
     fontSize: 13,
     fontWeight: 'bold',
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 11,
+    fontSize: 12,
+    color: '#38bdf8',
+  },
+  scrollContent: {
+    padding: 16,
+    paddingBottom: 100,
+  },
+  billTypeContainer: {
+    marginBottom: 16,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: 'bold',
     color: '#94a3b8',
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
-  billingTypeContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    backgroundColor: '#1e293b',
-  },
-  billingTypeLabel: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  billingTypeButtons: {
+  pillRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
-  billModeBtn: {
+  pillBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
     borderWidth: 1,
     borderColor: '#334155',
   },
-  billModeBtnActiveNonGst: {
-    backgroundColor: '#d97706',
+  pillBtnActiveNonGst: {
+    backgroundColor: '#78350f',
     borderColor: '#f59e0b',
   },
-  billModeBtnActiveGst: {
-    backgroundColor: '#059669',
+  pillBtnActiveGst: {
+    backgroundColor: '#064e3b',
     borderColor: '#10b981',
   },
-  billModeBtnText: {
-    fontSize: 11,
-    fontWeight: 'bold',
+  pillBtnText: {
     color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
-  billModeBtnTextActive: {
+  pillBtnTextActive: {
     color: '#ffffff',
   },
   searchBar: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    backgroundColor: '#0f172a',
-  },
-  searchInput: {
     backgroundColor: '#1e293b',
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    color: '#ffffff',
-    fontSize: 12,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    color: '#f8fafc',
+    fontSize: 13,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#334155',
   },
-  catalogList: {
-    padding: 16,
-    paddingBottom: 90,
-  },
   productCard: {
     backgroundColor: '#1e293b',
-    borderRadius: 16,
+    borderRadius: 14,
     padding: 14,
-    marginBottom: 10,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#334155',
   },
@@ -408,36 +395,34 @@ const styles = StyleSheet.create({
   productHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 10,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
   productName: {
     fontSize: 14,
-    fontWeight: '700',
-    color: '#ffffff',
+    fontWeight: 'bold',
+    color: '#f8fafc',
+    marginBottom: 2,
   },
-  productBrand: {
-    fontSize: 11,
-    color: '#38bdf8',
-    marginTop: 2,
-  },
-  productBoxInfo: {
+  productMeta: {
     fontSize: 11,
     color: '#94a3b8',
-    marginTop: 2,
   },
-  priceTag: {
-    alignItems: 'flex-end',
+  productPrice: {
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#34d399',
   },
-  priceValue: {
-    fontSize: 16,
-    fontWeight: 'extrabold',
-    color: '#ffffff',
-  },
-  priceSubtext: {
+  taxNote: {
     fontSize: 10,
-    color: '#94a3b8',
+    color: '#64748b',
   },
-  cartControlRow: {
+  stockBadge: {
+    fontSize: 11,
+    color: '#f87171',
+    fontWeight: 'bold',
+  },
+  qtyControls: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -445,25 +430,20 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#334155',
   },
-  outOfStockLabel: {
-    fontSize: 11,
-    color: '#f87171',
-    fontWeight: 'bold',
-  },
-  boxAddBtn: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 10,
+  boxBtn: {
+    backgroundColor: '#0c4a6e',
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#38bdf8',
+    borderColor: '#0284c7',
   },
-  boxAddBtnText: {
-    fontSize: 11,
+  boxBtnText: {
     color: '#38bdf8',
+    fontSize: 11,
     fontWeight: 'bold',
   },
-  stepperContainer: {
+  stepper: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#0f172a',
@@ -476,39 +456,30 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   stepperBtnText: {
+    color: '#38bdf8',
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#ffffff',
   },
   stepperQty: {
-    fontSize: 12,
+    color: '#f8fafc',
+    fontSize: 13,
     fontWeight: 'bold',
-    color: '#34d399',
-    paddingHorizontal: 8,
+    minWidth: 28,
+    textAlign: 'center',
   },
-  notesCard: {
+  notesContainer: {
+    marginTop: 16,
+  },
+  notesInput: {
     backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 14,
-    marginTop: 10,
+    borderRadius: 12,
+    padding: 12,
+    color: '#f8fafc',
+    fontSize: 13,
     borderWidth: 1,
     borderColor: '#334155',
   },
-  notesLabel: {
-    fontSize: 11,
-    color: '#cbd5e1',
-    fontWeight: '600',
-    marginBottom: 6,
-  },
-  notesInput: {
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    padding: 10,
-    color: '#ffffff',
-    fontSize: 12,
-    textAlignVertical: 'top',
-  },
-  cartBar: {
+  footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -517,32 +488,35 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#1f2937',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  cartTotalLabel: {
+  footerLabel: {
     fontSize: 11,
-    color: '#9ca3af',
+    color: '#94a3b8',
   },
-  cartTotalAmount: {
+  footerTotal: {
     fontSize: 18,
-    fontWeight: 'extrabold',
+    fontWeight: 'bold',
     color: '#34d399',
   },
-  submitOrderBtn: {
+  submitBtn: {
     backgroundColor: '#0284c7',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
     borderRadius: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
     shadowColor: '#0284c7',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 5,
     elevation: 4,
   },
-  submitOrderBtnText: {
+  submitBtnDisabled: {
+    opacity: 0.6,
+  },
+  submitBtnText: {
     color: '#ffffff',
     fontSize: 13,
     fontWeight: 'bold',

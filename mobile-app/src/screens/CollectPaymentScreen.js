@@ -8,36 +8,28 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Linking,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 
 export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
-  const [billType, setBillType] = useState(
-    (shop.nonGstBalance || 0) > 0 ? 'NON_GST' : 'GST'
-  );
+  const [billType, setBillType] = useState('NON_GST');
   const [amount, setAmount] = useState('');
   const [mode, setMode] = useState('CASH'); // 'CASH', 'CHEQUE', 'UPI'
   const [chequeNumber, setChequeNumber] = useState('');
   const [chequeBank, setChequeBank] = useState('');
-  const [upiRef, setUpiRef] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
-
-  const activeDue = billType === 'GST' ? (shop.gstBalance || 0) : (shop.nonGstBalance || 0);
-
-  const handleFillFullDue = () => {
-    setAmount(activeDue.toString());
-  };
 
   const handleRecordPayment = async () => {
     const parsedAmount = parseFloat(amount);
     if (!parsedAmount || parsedAmount <= 0) {
-      Alert.alert('Invalid Amount', 'Please enter a valid payment collection amount.');
+      Alert.alert('Invalid Amount', 'Please enter a valid payment amount in ₹.');
       return;
     }
 
     if (mode === 'CHEQUE' && (!chequeNumber || !chequeBank)) {
-      Alert.alert('Cheque Details Required', 'Please enter the cheque number and bank name.');
+      Alert.alert('Cheque Details', 'Please provide Cheque Number and Bank Name.');
       return;
     }
 
@@ -50,20 +42,31 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
         mode,
         chequeNumber: mode === 'CHEQUE' ? chequeNumber : undefined,
         chequeBank: mode === 'CHEQUE' ? chequeBank : undefined,
-        upiTransactionId: mode === 'UPI' ? upiRef : undefined,
         notes,
       });
 
       if (res.data.success) {
+        const rcpNum = res.data.payment?.receiptNumber || 'RCP-NEW';
         Alert.alert(
-          'Payment Recorded Successfully! ✅',
-          `Receipt ${res.data.payment.receiptNumber} generated for ₹${parsedAmount.toLocaleString()}.\nShop ${billType} balance updated.\n${
-            mode === 'CASH'
-              ? 'Cash added to your digital wallet for warehouse handover.'
-              : ''
-          }`
+          'Payment Recorded! 💵',
+          `Receipt ${rcpNum} generated for ₹${parsedAmount.toLocaleString()}.`,
+          [
+            {
+              text: 'Share WhatsApp Receipt 📲',
+              onPress: () => {
+                const msg = `*SHIVAM MARKETING - PAYMENT RECEIPT*\n------------------------------\n🏪 *Shop:* ${shop.shopName}\n🧾 *Receipt No:* ${rcpNum}\n📑 *Ledger Book:* ${billType === 'GST' ? 'GST Official Ledger' : 'Rough Cash Ledger'}\n💵 *Amount Received:* ₹${parsedAmount.toLocaleString()}\n💳 *Mode:* ${mode}\n✅ *Status:* RECEIVED & CREDITED\n------------------------------\nThank you for your timely payment!`;
+                const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
+                const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
+                Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
+                onPaymentSuccess();
+              },
+            },
+            {
+              text: 'Done',
+              onPress: () => onPaymentSuccess(),
+            },
+          ]
         );
-        onPaymentSuccess();
       }
     } catch (err) {
       Alert.alert('Payment Error', err.response?.data?.message || 'Failed to record payment');
@@ -121,7 +124,7 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
               onPress={() => setBillType('GST')}
             >
               <Text style={[styles.pillBtnText, billType === 'GST' && styles.pillBtnTextActive]}>
-                GST Tax Book
+                GST Tax Invoice Book
               </Text>
             </TouchableOpacity>
           </View>
@@ -129,19 +132,12 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
 
         {/* Amount Input */}
         <View style={styles.formSection}>
-          <View style={styles.amountLabelRow}>
-            <Text style={styles.sectionLabel}>Collection Amount (₹):</Text>
-            {activeDue > 0 && (
-              <TouchableOpacity onPress={handleFillFullDue}>
-                <Text style={styles.fillDueText}>Fill Full Due (₹{activeDue.toLocaleString()})</Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <Text style={styles.sectionLabel}>Payment Amount (₹) *</Text>
           <TextInput
             style={styles.amountInput}
-            keyboardType="numeric"
-            placeholder="e.g. 15000"
+            placeholder="0.00"
             placeholderTextColor="#64748b"
+            keyboardType="numeric"
             value={amount}
             onChangeText={setAmount}
           />
@@ -149,51 +145,37 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
 
         {/* Payment Mode Selector */}
         <View style={styles.formSection}>
-          <Text style={styles.sectionLabel}>Payment Mode:</Text>
+          <Text style={styles.sectionLabel}>Payment Mode *</Text>
           <View style={styles.modeRow}>
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'CASH' && styles.modeBtnActive]}
-              onPress={() => setMode('CASH')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'CASH' && styles.modeBtnTextActive]}>
-                💵 Cash
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'CHEQUE' && styles.modeBtnActive]}
-              onPress={() => setMode('CHEQUE')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'CHEQUE' && styles.modeBtnTextActive]}>
-                🏦 Cheque
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.modeBtn, mode === 'UPI' && styles.modeBtnActive]}
-              onPress={() => setMode('UPI')}
-            >
-              <Text style={[styles.modeBtnText, mode === 'UPI' && styles.modeBtnTextActive]}>
-                📱 UPI
-              </Text>
-            </TouchableOpacity>
+            {['CASH', 'CHEQUE', 'UPI'].map((m) => (
+              <TouchableOpacity
+                key={m}
+                style={[styles.modeBtn, mode === m && styles.modeBtnActive]}
+                onPress={() => setMode(m)}
+              >
+                <Text style={[styles.modeBtnText, mode === m && styles.modeBtnTextActive]}>
+                  {m === 'CASH' ? '💵 Cash' : m === 'CHEQUE' ? '🏦 Cheque' : '📱 UPI'}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
         </View>
 
-        {/* Conditional Cheque Details */}
+        {/* Cheque Details (Conditional) */}
         {mode === 'CHEQUE' && (
-          <View style={styles.chequeDetailsBox}>
-            <Text style={styles.chequeTitle}>Cheque Information</Text>
+          <View style={styles.chequeSection}>
+            <Text style={styles.sectionLabel}>Cheque Details *</Text>
             <TextInput
-              style={styles.chequeInput}
-              placeholder="Cheque Number (6 digits)"
+              style={styles.input}
+              placeholder="Cheque Number (e.g. 048291)"
               placeholderTextColor="#64748b"
+              keyboardType="numeric"
               value={chequeNumber}
               onChangeText={setChequeNumber}
             />
             <TextInput
-              style={styles.chequeInput}
-              placeholder="Bank Name (e.g. HDFC / SBI)"
+              style={styles.input}
+              placeholder="Bank Name (e.g. HDFC Bank, Morbi)"
               placeholderTextColor="#64748b"
               value={chequeBank}
               onChangeText={setChequeBank}
@@ -201,26 +183,12 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
           </View>
         )}
 
-        {/* Conditional UPI Details */}
-        {mode === 'UPI' && (
-          <View style={styles.chequeDetailsBox}>
-            <Text style={styles.chequeTitle}>UPI Transaction Reference</Text>
-            <TextInput
-              style={styles.chequeInput}
-              placeholder="UPI UTR / Reference ID"
-              placeholderTextColor="#64748b"
-              value={upiRef}
-              onChangeText={setUpiRef}
-            />
-          </View>
-        )}
-
-        {/* Remarks / Notes */}
+        {/* Notes */}
         <View style={styles.formSection}>
-          <Text style={styles.sectionLabel}>Notes / Remarks (Optional):</Text>
+          <Text style={styles.sectionLabel}>Collection Remarks (Optional):</Text>
           <TextInput
-            style={styles.notesInput}
-            placeholder="e.g. Balance promise next Monday"
+            style={styles.input}
+            placeholder="e.g. Paid in full for last month deliveries..."
             placeholderTextColor="#64748b"
             value={notes}
             onChangeText={setNotes}
@@ -229,14 +197,14 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
 
         {/* Submit Button */}
         <TouchableOpacity
-          style={styles.submitBtn}
+          style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleRecordPayment}
           disabled={submitting}
         >
           {submitting ? (
-            <ActivityIndicator color="#ffffff" />
+            <ActivityIndicator color="#ffffff" size="small" />
           ) : (
-            <Text style={styles.submitBtnText}>Record Payment & Issue Receipt &rarr;</Text>
+            <Text style={styles.submitBtnText}>Record Payment & Generate Receipt &rarr;</Text>
           )}
         </TouchableOpacity>
       </ScrollView>
@@ -266,36 +234,37 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   backBtnText: {
-    color: '#38bdf8',
+    color: '#94a3b8',
     fontSize: 13,
     fontWeight: 'bold',
   },
   headerTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 12,
+    color: '#38bdf8',
   },
   scrollContent: {
     padding: 16,
+    paddingBottom: 40,
   },
   duesCard: {
     backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 14,
+    padding: 14,
+    marginBottom: 20,
     borderWidth: 1,
     borderColor: '#334155',
-    marginBottom: 16,
   },
   duesTitle: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#94a3b8',
+    marginBottom: 10,
     textTransform: 'uppercase',
-    marginBottom: 8,
   },
   duesRow: {
     flexDirection: 'row',
@@ -306,89 +275,77 @@ const styles = StyleSheet.create({
   },
   dueLabel: {
     fontSize: 11,
-    color: '#cbd5e1',
+    color: '#64748b',
+    marginBottom: 2,
   },
   dueValueGst: {
     fontSize: 16,
-    fontWeight: 'extrabold',
+    fontWeight: 'bold',
     color: '#34d399',
-    marginTop: 2,
   },
   dueValueNonGst: {
     fontSize: 16,
-    fontWeight: 'extrabold',
+    fontWeight: 'bold',
     color: '#fbbf24',
-    marginTop: 2,
   },
   formSection: {
-    marginBottom: 16,
+    marginBottom: 18,
   },
   sectionLabel: {
     fontSize: 12,
-    fontWeight: '700',
-    color: '#cbd5e1',
-    marginBottom: 6,
-  },
-  amountLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 6,
-  },
-  fillDueText: {
-    fontSize: 11,
-    color: '#38bdf8',
     fontWeight: 'bold',
+    color: '#94a3b8',
+    marginBottom: 8,
+    textTransform: 'uppercase',
   },
   pillRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   pillBtn: {
     flex: 1,
     paddingVertical: 10,
-    borderRadius: 10,
     alignItems: 'center',
+    borderRadius: 10,
     backgroundColor: '#1e293b',
     borderWidth: 1,
     borderColor: '#334155',
   },
   pillBtnActiveNonGst: {
-    backgroundColor: '#d97706',
+    backgroundColor: '#78350f',
     borderColor: '#f59e0b',
   },
   pillBtnActiveGst: {
-    backgroundColor: '#059669',
+    backgroundColor: '#064e3b',
     borderColor: '#10b981',
   },
   pillBtnText: {
-    fontSize: 11,
-    fontWeight: 'bold',
     color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   pillBtnTextActive: {
     color: '#ffffff',
   },
   amountInput: {
     backgroundColor: '#1e293b',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 20,
-    fontWeight: 'extrabold',
+    borderRadius: 14,
+    padding: 16,
     color: '#34d399',
+    fontSize: 24,
+    fontWeight: 'bold',
     borderWidth: 1,
     borderColor: '#334155',
   },
   modeRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 10,
   },
   modeBtn: {
     flex: 1,
     paddingVertical: 12,
-    borderRadius: 10,
     alignItems: 'center',
+    borderRadius: 10,
     backgroundColor: '#1e293b',
     borderWidth: 1,
     borderColor: '#334155',
@@ -398,63 +355,49 @@ const styles = StyleSheet.create({
     borderColor: '#38bdf8',
   },
   modeBtnText: {
+    color: '#94a3b8',
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#94a3b8',
   },
   modeBtnTextActive: {
     color: '#ffffff',
   },
-  chequeDetailsBox: {
+  chequeSection: {
     backgroundColor: '#1e293b',
     borderRadius: 14,
     padding: 14,
-    marginBottom: 16,
+    marginBottom: 18,
     borderWidth: 1,
     borderColor: '#334155',
+    gap: 10,
   },
-  chequeTitle: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#38bdf8',
-    marginBottom: 8,
-  },
-  chequeInput: {
+  input: {
     backgroundColor: '#0f172a',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    borderRadius: 10,
+    padding: 12,
+    color: '#f8fafc',
     fontSize: 13,
-    color: '#ffffff',
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  notesInput: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 12,
-    color: '#ffffff',
     borderWidth: 1,
     borderColor: '#334155',
   },
   submitBtn: {
     backgroundColor: '#059669',
     borderRadius: 14,
-    paddingVertical: 16,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 10,
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 5,
     elevation: 4,
+  },
+  submitBtnDisabled: {
+    opacity: 0.6,
   },
   submitBtnText: {
     color: '#ffffff',
     fontSize: 14,
-    fontWeight: '800',
+    fontWeight: 'bold',
   },
 });

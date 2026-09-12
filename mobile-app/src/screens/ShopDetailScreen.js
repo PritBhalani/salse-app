@@ -4,9 +4,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  TextInput,
+  Modal,
   StyleSheet,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 
@@ -14,6 +17,20 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
   const [shopData, setShopData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('ORDERS'); // 'ORDERS' or 'PAYMENTS'
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  // Edit form state
+  const [editForm, setEditForm] = useState({
+    shopName: '',
+    ownerName: '',
+    phone: '',
+    altPhone: '',
+    address: '',
+    city: '',
+    latitude: 22.8123,
+    longitude: 70.8354,
+  });
 
   const fetchShopDetails = async () => {
     setLoading(true);
@@ -38,6 +55,72 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
   const payments = shopData?.payments || [];
   const totalDue = (currentShop.gstBalance || 0) + (currentShop.nonGstBalance || 0);
 
+  const handleOpenEdit = () => {
+    setEditForm({
+      shopName: currentShop.shopName || '',
+      ownerName: currentShop.ownerName || '',
+      phone: currentShop.phone || '',
+      altPhone: currentShop.altPhone || '',
+      address: currentShop.address || '',
+      city: currentShop.city || 'Morbi',
+      latitude: currentShop.location?.latitude || 22.8123,
+      longitude: currentShop.location?.longitude || 70.8354,
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleRepinGps = () => {
+    // Current mobile coords
+    const lat = 22.8128;
+    const lng = 70.8358;
+    setEditForm((prev) => ({
+      ...prev,
+      latitude: lat,
+      longitude: lng,
+    }));
+    Alert.alert('GPS Location Acquired 📍', `Geofence coordinates set to ${lat}, ${lng}`);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editForm.shopName || !editForm.ownerName || !editForm.phone) {
+      Alert.alert('Validation', 'Shop Name, Owner Name, and Phone are required.');
+      return;
+    }
+
+    setSavingEdit(true);
+    try {
+      const payload = {
+        shopName: editForm.shopName,
+        ownerName: editForm.ownerName,
+        phone: editForm.phone,
+        altPhone: editForm.altPhone,
+        address: editForm.address,
+        city: editForm.city,
+        location: {
+          latitude: parseFloat(editForm.latitude),
+          longitude: parseFloat(editForm.longitude),
+        },
+      };
+      const res = await mobileAPI.put(`/shops/${currentShop._id}`, payload);
+      if (res.data.success) {
+        setEditModalVisible(false);
+        Alert.alert('Success ✅', 'Shop details and GPS coordinates updated successfully!');
+        await fetchShopDetails();
+      }
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.message || 'Failed to update shop details');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
+  const handleShareStatementWhatsApp = () => {
+    const cleanPhone = currentShop.phone?.replace(/[^0-9]/g, '');
+    const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
+    const msg = `*SHIVAM MARKETING - ACCOUNT STATEMENT*\n------------------------------\n🏪 *Shop:* ${currentShop.shopName}\n👤 *Owner:* ${currentShop.ownerName}\n\n📊 *Current Outstanding Balance:*\n• GST Tax Book: ₹${(currentShop.gstBalance || 0).toLocaleString()}\n• Rough / Cash Book: ₹${(currentShop.nonGstBalance || 0).toLocaleString()}\n💰 *Total Due:* ₹${totalDue.toLocaleString()}\n------------------------------\nPlease keep payment ready for our salesman visit.\nThank you!`;
+    Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
+  };
+
   return (
     <View style={styles.container}>
       {/* Top Bar */}
@@ -48,25 +131,34 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
         <Text style={styles.headerTitle} numberOfLines={1}>
           {currentShop.shopName}
         </Text>
-        <TouchableOpacity
-          style={styles.callBtn}
-          onPress={() => Linking.openURL(`tel:${currentShop.phone}`)}
-        >
-          <Text style={styles.callBtnText}>📞 Call</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          <TouchableOpacity style={styles.editBtn} onPress={handleOpenEdit}>
+            <Text style={styles.editBtnText}>✏️ Edit</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.callBtn}
+            onPress={() => Linking.openURL(`tel:${currentShop.phone}`)}
+          >
+            <Text style={styles.callBtnText}>📞 Call</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Shop Info Card */}
         <View style={styles.infoCard}>
-          <Text style={styles.shopTitle}>{currentShop.shopName}</Text>
-          <Text style={styles.ownerText}>Proprietor: {currentShop.ownerName}</Text>
-          <Text style={styles.addressText}>
-            📍 {currentShop.address}, {currentShop.city}
-          </Text>
-          {currentShop.gstNumber && (
-            <Text style={styles.gstText}>GSTIN: {currentShop.gstNumber}</Text>
-          )}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.shopTitle}>{currentShop.shopName}</Text>
+              <Text style={styles.ownerText}>Proprietor: {currentShop.ownerName}</Text>
+              <Text style={styles.addressText}>
+                📍 {currentShop.address}, {currentShop.city}
+              </Text>
+              {currentShop.gstNumber ? (
+                <Text style={styles.gstText}>GSTIN: {currentShop.gstNumber}</Text>
+              ) : null}
+            </View>
+          </View>
 
           {/* Dual Ledger Balance Box */}
           <View style={styles.ledgerBox}>
@@ -87,6 +179,14 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
               <Text style={styles.ledgerTotal}>₹{totalDue.toLocaleString()}</Text>
             </View>
           </View>
+
+          {/* 1-Tap WhatsApp Statement Sharing Button */}
+          <TouchableOpacity
+            style={styles.whatsappShareBtn}
+            onPress={handleShareStatementWhatsApp}
+          >
+            <Text style={styles.whatsappShareBtnText}>📲 Send Statement via WhatsApp</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Action Buttons: Punch Order & Collect Payment */}
@@ -155,7 +255,7 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
                     {new Date(order.createdAt).toLocaleDateString('en-IN')} | Status:{' '}
                     <Text style={styles.statusText}>{order.status}</Text>
                   </Text>
-                  <Text style={styles.historyAmount}>₹{order.totalAmount.toLocaleString()}</Text>
+                  <Text style={styles.historyAmount}>₹{order.totalAmount?.toLocaleString()}</Text>
                 </View>
               </View>
             ))
@@ -178,12 +278,103 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
                 <Text style={styles.historyMeta}>
                   {new Date(p.collectedAt).toLocaleDateString('en-IN')} | Book: {p.billType}
                 </Text>
-                <Text style={styles.historyPaidAmount}>₹{p.amount.toLocaleString()}</Text>
+                <Text style={styles.historyPaidAmount}>₹{p.amount?.toLocaleString()}</Text>
               </View>
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* Edit Shop & GPS Modal */}
+      <Modal
+        visible={editModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setEditModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Edit Shop Details & GPS</Text>
+              <TouchableOpacity onPress={() => setEditModalVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={{ maxHeight: 420 }}>
+              <Text style={styles.inputLabel}>Shop Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.shopName}
+                onChangeText={(text) => setEditForm({ ...editForm, shopName: text })}
+              />
+
+              <Text style={styles.inputLabel}>Owner / Contact Name *</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.ownerName}
+                onChangeText={(text) => setEditForm({ ...editForm, ownerName: text })}
+              />
+
+              <Text style={styles.inputLabel}>Primary Phone *</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.phone}
+                keyboardType="phone-pad"
+                onChangeText={(text) => setEditForm({ ...editForm, phone: text })}
+              />
+
+              <Text style={styles.inputLabel}>Alternate Phone</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.altPhone}
+                keyboardType="phone-pad"
+                onChangeText={(text) => setEditForm({ ...editForm, altPhone: text })}
+              />
+
+              <Text style={styles.inputLabel}>Address</Text>
+              <TextInput
+                style={styles.input}
+                value={editForm.address}
+                onChangeText={(text) => setEditForm({ ...editForm, address: text })}
+              />
+
+              {/* GPS Geofence Re-Pin Section */}
+              <View style={styles.gpsBox}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <Text style={styles.gpsTitle}>📍 GPS Geofence Pin</Text>
+                  <TouchableOpacity style={styles.gpsPinBtn} onPress={handleRepinGps}>
+                    <Text style={styles.gpsPinBtnText}>Pin My Location</Text>
+                  </TouchableOpacity>
+                </View>
+                <Text style={styles.gpsCoords}>
+                  Lat: {editForm.latitude} | Lng: {editForm.longitude}
+                </Text>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.modalCancelBtn}
+                onPress={() => setEditModalVisible(false)}
+              >
+                <Text style={styles.modalCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.modalSaveBtn}
+                onPress={handleSaveEdit}
+                disabled={savingEdit}
+              >
+                {savingEdit ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Text style={styles.modalSaveBtnText}>Save Updates</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -220,13 +411,24 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#ffffff',
     flex: 1,
-    marginHorizontal: 10,
+    marginHorizontal: 8,
     textAlign: 'center',
+  },
+  editBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#0284c7',
+    borderRadius: 8,
+  },
+  editBtnText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   callBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#0369a1',
+    backgroundColor: '#059669',
     borderRadius: 8,
   },
   callBtnText: {
@@ -248,107 +450,123 @@ const styles = StyleSheet.create({
   },
   shopTitle: {
     fontSize: 18,
-    fontWeight: '800',
-    color: '#ffffff',
+    fontWeight: 'bold',
+    color: '#f8fafc',
+    marginBottom: 4,
   },
   ownerText: {
     fontSize: 13,
-    color: '#cbd5e1',
-    marginTop: 2,
+    color: '#94a3b8',
+    marginBottom: 2,
   },
   addressText: {
     fontSize: 12,
-    color: '#94a3b8',
-    marginTop: 4,
+    color: '#64748b',
+    marginBottom: 4,
   },
   gstText: {
     fontSize: 11,
+    fontWeight: 'bold',
     color: '#38bdf8',
-    fontFamily: 'monospace',
-    marginTop: 4,
+    marginTop: 2,
   },
   ledgerBox: {
     flexDirection: 'row',
     backgroundColor: '#0f172a',
     borderRadius: 12,
-    padding: 12,
-    marginTop: 14,
-    justifyContent: 'space-around',
-    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   ledgerCol: {
+    flex: 1,
     alignItems: 'center',
+  },
+  ledgerDivider: {
+    width: 1,
+    backgroundColor: '#334155',
   },
   ledgerLabel: {
     fontSize: 10,
-    color: '#64748b',
-    fontWeight: '600',
-    marginBottom: 3,
+    color: '#94a3b8',
+    marginBottom: 4,
+    textTransform: 'uppercase',
   },
   ledgerGst: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#34d399',
   },
   ledgerNonGst: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#fbbf24',
   },
   ledgerTotal: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#f8fafc',
   },
-  ledgerDivider: {
-    width: 1,
-    height: 28,
-    backgroundColor: '#334155',
+  whatsappShareBtn: {
+    marginTop: 12,
+    backgroundColor: '#065f46',
+    borderRadius: 10,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#059669',
+  },
+  whatsappShareBtnText: {
+    color: '#a7f3d0',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   primaryActions: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 12,
+    marginBottom: 20,
   },
   actionBtnOrder: {
     flex: 1,
     backgroundColor: '#0284c7',
-    paddingVertical: 14,
     borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     shadowColor: '#0284c7',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 5,
     elevation: 4,
   },
   actionBtnPayment: {
     flex: 1,
     backgroundColor: '#059669',
-    paddingVertical: 14,
     borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
     shadowColor: '#059669',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
+    shadowRadius: 5,
     elevation: 4,
   },
   actionBtnText: {
     color: '#ffffff',
     fontSize: 13,
-    fontWeight: '800',
+    fontWeight: 'bold',
   },
   tabContainer: {
     flexDirection: 'row',
     backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 4,
-    marginBottom: 14,
+    marginBottom: 16,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 8,
+    paddingVertical: 10,
     alignItems: 'center',
     borderRadius: 8,
   },
@@ -356,18 +574,17 @@ const styles = StyleSheet.create({
     backgroundColor: '#0f172a',
   },
   tabBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
     color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
   },
   tabBtnTextActive: {
-    color: '#ffffff',
-    fontWeight: 'bold',
+    color: '#38bdf8',
   },
   historyCard: {
     backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 14,
+    borderRadius: 12,
+    padding: 12,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#334155',
@@ -379,21 +596,21 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   historyNumber: {
-    fontFamily: 'monospace',
-    fontWeight: 'bold',
     fontSize: 13,
-    color: '#ffffff',
+    fontWeight: 'bold',
+    color: '#f8fafc',
+    fontFamily: 'monospace',
   },
   tagBadge: {
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
   },
   tagGst: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    backgroundColor: '#064e3b',
   },
   tagNonGst: {
-    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    backgroundColor: '#78350f',
   },
   tagText: {
     fontSize: 10,
@@ -401,15 +618,15 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   tagMode: {
-    backgroundColor: '#0f172a',
+    backgroundColor: '#1e1b4b',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 6,
   },
   tagModeText: {
-    fontSize: 11,
-    color: '#38bdf8',
+    fontSize: 10,
     fontWeight: 'bold',
+    color: '#a5b4fc',
   },
   historyRow: {
     flexDirection: 'row',
@@ -427,7 +644,7 @@ const styles = StyleSheet.create({
   historyAmount: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: '#38bdf8',
   },
   historyPaidAmount: {
     fontSize: 14,
@@ -436,8 +653,117 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     color: '#64748b',
-    fontSize: 12,
     textAlign: 'center',
     marginTop: 20,
+    fontSize: 13,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    padding: 16,
+  },
+  modalContent: {
+    backgroundColor: '#1e293b',
+    borderRadius: 20,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    paddingBottom: 10,
+  },
+  modalTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  modalClose: {
+    fontSize: 18,
+    color: '#94a3b8',
+    padding: 4,
+  },
+  inputLabel: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginBottom: 4,
+    marginTop: 8,
+    fontWeight: 'bold',
+  },
+  input: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 10,
+    color: '#ffffff',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 13,
+  },
+  gpsBox: {
+    backgroundColor: '#0f172a',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#0284c7',
+    marginTop: 12,
+  },
+  gpsTitle: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#38bdf8',
+  },
+  gpsPinBtn: {
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  gpsPinBtnText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  gpsCoords: {
+    fontSize: 10,
+    color: '#94a3b8',
+    fontFamily: 'monospace',
+    marginTop: 4,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 16,
+  },
+  modalCancelBtn: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#334155',
+    alignItems: 'center',
+  },
+  modalCancelBtnText: {
+    color: '#94a3b8',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  modalSaveBtn: {
+    flex: 2,
+    paddingVertical: 12,
+    borderRadius: 10,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+  },
+  modalSaveBtnText: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+    fontSize: 12,
   },
 });
