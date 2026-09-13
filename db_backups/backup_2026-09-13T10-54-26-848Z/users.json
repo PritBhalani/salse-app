@@ -1,0 +1,122 @@
+[
+  {
+    "_id": "6aa57ec376a18b01d0018144",
+    "name": "Sanjaybhai Patel (Uncle / Boss)",
+    "phone": "9898011111",
+    "email": "boss@salaseplumbing.com",
+    "password": "$2a$10$zECYPZ26BLgDvHhTzilQi.C63j/FWJO3pIzprLSv2fCHwjHSf1m7q",
+    "role": "ADMIN",
+    "deviceId": null,
+    "shopId": null,
+    "activeCities": [
+      "Morbi",
+      "Wankaner",
+      "Rajkot",
+      "Gondal"
+    ],
+    "cashInHand": 12000,
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.802Z",
+    "updatedAt": "2026-09-12T17:10:58.350Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d0018145",
+    "name": "Kishorbhai (Warehouse Manager)",
+    "phone": "9898022222",
+    "email": "warehouse@salaseplumbing.com",
+    "password": "$2a$10$zECYPZ26BLgDvHhTzilQi.t47IePBxto9sKtElSf/qWoMK4C2AhAu",
+    "role": "WAREHOUSE",
+    "deviceId": null,
+    "shopId": null,
+    "activeCities": [],
+    "cashInHand": 0,
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.805Z",
+    "updatedAt": "2026-09-12T16:33:08.805Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d0018146",
+    "name": "Ramesh Kumar (Salesman)",
+    "phone": "9898033333",
+    "email": "ramesh@salaseplumbing.com",
+    "password": "$2a$10$zECYPZ26BLgDvHhTzilQi.kVJtOHARfevQcChvZbsTxeP/r2JZh4y",
+    "role": "SALESMAN",
+    "deviceId": "DEVICE_ANDROID_SM_G998B",
+    "shopId": null,
+    "activeCities": [
+      "Morbi",
+      "Wankaner"
+    ],
+    "cashInHand": 0,
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.805Z",
+    "updatedAt": "2026-09-13T09:15:21.950Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d0018147",
+    "name": "Prakash Joshi (Salesman)",
+    "phone": "9898044444",
+    "email": "prakash@salaseplumbing.com",
+    "password": "$2a$10$zECYPZ26BLgDvHhTzilQi.kVJtOHARfevQcChvZbsTxeP/r2JZh4y",
+    "role": "SALESMAN",
+    "deviceId": "DEVICE_ANDROID_SM_G998B",
+    "shopId": null,
+    "activeCities": [
+      "Rajkot",
+      "Gondal"
+    ],
+    "cashInHand": 0,
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.805Z",
+    "updatedAt": "2026-09-12T18:40:21.710Z"
+  },
+  {
+    "_id": "6aa57ec476a18b01d001814f",
+    "name": "Jayeshbhai Shah (Shop Owner)",
+    "phone": "9898055555",
+    "password": "$2a$10$zECYPZ26BLgDvHhTzilQi.iKX98vW2bcsMDOaMSbEdKUePuxPRScW",
+    "role": "SHOP_OWNER",
+    "deviceId": null,
+    "shopId": "6aa57ec376a18b01d0018148",
+    "activeCities": [],
+    "cashInHand": 0,
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.806Z",
+    "updatedAt": "2026-09-12T16:33:08.806Z"
+  },
+  {
+    "_id": "6aa5a2d97f50052048d0787c",
+    "name": "Raju",
+    "phone": "9635865236",
+    "password": "$2a$10$h8.lrxYUc8Eer8aIDM/tBOBQ9V3TPEhHMFNTuoMVggOjVhaWbMZKu",
+    "role": "SHOP_OWNER",
+    "deviceId": null,
+    "shopId": "6aa5a2d97f50052048d07879",
+    "activeCities": [],
+    "cashInHand": 0,
+    "isActive": true,
+    "createdAt": "2026-09-12T19:07:05.556Z",
+    "updatedAt": "2026-09-12T19:07:05.556Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa5b09c76e85a05443f5b63",
+    "name": "Any",
+    "phone": "6464646644",
+    "password": "$2a$10$XnW3mHtDLyLKSCMflpx4UuGaVpajkwdfZCzaEFt09xhS62RmLi5i6",
+    "role": "SHOP_OWNER",
+    "deviceId": null,
+    "shopId": "6aa5b09b76e85a05443f5b60",
+    "activeCities": [],
+    "cashInHand": 0,
+    "isActive": true,
+    "createdAt": "2026-09-12T20:05:48.015Z",
+    "updatedAt": "2026-09-12T20:05:48.015Z",
+    "__v": 0
+  }
+]

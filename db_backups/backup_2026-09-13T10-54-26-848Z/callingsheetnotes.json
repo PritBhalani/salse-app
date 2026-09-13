@@ -1,0 +1,30 @@
+[
+  {
+    "_id": "6aa57ec476a18b01d001815f",
+    "shop": "6aa57ec376a18b01d0018148",
+    "route": "6aa57ec376a18b01d001814d",
+    "plannedVisitDate": "2026-09-14T16:33:08.754Z",
+    "calledBy": "6aa57ec376a18b01d0018145",
+    "callStatus": "PAYMENT_READY",
+    "expectedPaymentAmount": 25000,
+    "remarks": "Jayeshbhai confirmed payment of ₹25,000 cash will be ready. Also requested Astral pipe price list.",
+    "calledAt": "2026-09-12T16:33:08.756Z",
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:09.109Z",
+    "updatedAt": "2026-09-12T16:33:09.109Z"
+  },
+  {
+    "_id": "6aa57ec476a18b01d0018160",
+    "shop": "6aa57ec376a18b01d0018149",
+    "route": "6aa57ec376a18b01d001814d",
+    "plannedVisitDate": "2026-09-14T16:33:08.754Z",
+    "calledBy": "6aa57ec376a18b01d0018145",
+    "callStatus": "ORDER_READY",
+    "expectedPaymentAmount": 0,
+    "remarks": "Stock low on Jaquar bib cocks, order list kept ready.",
+    "calledAt": "2026-09-12T16:33:08.756Z",
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:09.109Z",
+    "updatedAt": "2026-09-12T16:33:09.109Z"
+  }
+]
