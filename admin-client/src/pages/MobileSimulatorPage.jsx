@@ -920,7 +920,10 @@ export const MobileSimulatorPage = () => {
                                         src={p.imageUrl}
                                         alt={p.name}
                                         className="w-full h-full object-cover"
-                                        onError={(e) => { e.target.style.display = 'none'; }}
+                                        onError={(e) => {
+                                          e.currentTarget.onerror = null;
+                                          e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                                        }}
                                       />
                                     ) : (
                                       <ImageIcon className="w-8 h-8 text-slate-700" />
@@ -1369,7 +1372,10 @@ export const MobileSimulatorPage = () => {
                                     src={prod.imageUrl}
                                     alt={prod.name}
                                     className="w-11 h-11 rounded-lg object-cover border border-slate-800 shrink-0"
-                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                    onError={(e) => {
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                                    }}
                                   />
                                 ) : (
                                   <div className="w-11 h-11 rounded-lg bg-slate-950 border border-slate-800 flex items-center justify-center shrink-0">
@@ -1998,7 +2004,10 @@ export const MobileSimulatorPage = () => {
                                     src={p.imageUrl}
                                     alt={p.name}
                                     className="w-full h-full object-cover"
-                                    onError={(e) => { e.target.style.display = 'none'; }}
+                                    onError={(e) => {
+                                   e.currentTarget.onerror = null;
+                                   e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                                 }}
                                   />
                                 ) : (
                                   <ImageIcon className="w-8 h-8 text-slate-700" />

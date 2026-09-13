@@ -5,29 +5,23 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { protect } from '../middleware/auth.js';
 
+import { Media } from '../models/Media.js';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads directory exists inside backend/uploads
+// Ensure uploads directory exists inside backend/uploads for local caching
 const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+  } catch (e) {
+    // Ignore in read-only environments
+  }
 }
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase() || '.jpg';
-    const cleanName = path
-      .basename(file.originalname, ext)
-      .replace(/[^a-zA-Z0-9]/g, '-')
-      .slice(0, 20);
-    cb(null, `photo-${Date.now()}-${cleanName}${ext}`);
-  },
-});
+// Memory storage keeps the image buffer in RAM to store in MongoDB Atlas
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
   const isImage =
@@ -49,10 +43,10 @@ const upload = multer({
 
 const router = express.Router();
 
-// @desc    Upload product or receipt image directly
+// @desc    Upload product or receipt image directly and persist in MongoDB Atlas
 // @route   POST /api/upload
 router.post('/', protect, (req, res) => {
-  upload.single('photo')(req, res, (err) => {
+  upload.single('photo')(req, res, async (err) => {
     if (err) {
       console.error('Multer upload error:', err.message);
       return res.status(400).json({ success: false, message: err.message || 'Image upload error' });
@@ -62,20 +56,50 @@ router.post('/', protect, (req, res) => {
       return res.status(400).json({ success: false, message: 'No file uploaded' });
     }
 
-    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-    const host = req.get('host');
-    const fullUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
-    const relativeUrl = `/uploads/${req.file.filename}`;
+    try {
+      const ext = path.extname(req.file.originalname || '').toLowerCase() || '.jpg';
+      const cleanName = path
+        .basename(req.file.originalname || 'photo', ext)
+        .replace(/[^a-zA-Z0-9]/g, '-')
+        .slice(0, 20);
+      const filename = `photo-${Date.now()}-${cleanName}${ext}`;
 
-    res.json({
-      success: true,
-      message: 'Photo uploaded successfully',
-      imageUrl: fullUrl,
-      url: fullUrl,
-      relativeUrl,
-      filename: req.file.filename,
-      size: req.file.size,
-    });
+      // Save directly to MongoDB Atlas
+      const media = await Media.create({
+        filename,
+        contentType: req.file.mimetype || 'image/jpeg',
+        data: req.file.buffer,
+        size: req.file.size,
+        uploadedBy: req.user?._id || null,
+      });
+
+      // Also save to disk as secondary local cache if writable
+      try {
+        fs.writeFileSync(path.join(uploadsDir, filename), req.file.buffer);
+      } catch (fsErr) {
+        // Ephemeral filesystem warnings safely caught
+      }
+
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+      const host = req.get('host');
+      const persistentUrl = `/api/images/${media._id}`;
+      const fullUrl = `${protocol}://${host}${persistentUrl}`;
+
+      res.json({
+        success: true,
+        message: 'Photo uploaded and persisted permanently in database',
+        imageUrl: persistentUrl,
+        url: persistentUrl,
+        relativeUrl: persistentUrl,
+        fullUrl,
+        id: media._id,
+        filename,
+        size: req.file.size,
+      });
+    } catch (saveErr) {
+      console.error('Failed to save uploaded photo to MongoDB:', saveErr);
+      return res.status(500).json({ success: false, message: 'Failed to store image in database' });
+    }
   });
 });
 

@@ -15,7 +15,9 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import visitRoutes from './routes/visitRoutes.js';
 import callingSheetRoutes from './routes/callingSheetRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import imageRoutes from './routes/imageRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
+import { Media } from './models/Media.js';
 
 dotenv.config();
 
@@ -50,7 +52,33 @@ if (!fs.existsSync(UPLOADS_DIR)) {
   fs.mkdirSync(UPLOADS_DIR, { recursive: true });
 }
 
-// Serve uploaded product and receipt photos
+// Serve uploaded product and receipt photos (Disk first, then MongoDB persistent fallback)
+app.get('/uploads/:filename', async (req, res, next) => {
+  const filePath = path.join(UPLOADS_DIR, req.params.filename);
+  if (fs.existsSync(filePath)) {
+    return res.sendFile(filePath);
+  }
+
+  // If wiped from ephemeral disk (e.g. on Render), look up in MongoDB
+  try {
+    const media = await Media.findOne({ filename: req.params.filename });
+    if (media && media.data) {
+      const buffer = Buffer.isBuffer(media.data) ? media.data : Buffer.from(media.data, 'base64');
+      res.set({
+        'Content-Type': media.contentType || 'image/jpeg',
+        'Content-Length': buffer.length,
+        'Cache-Control': 'public, max-age=31536000, immutable',
+      });
+      return res.end(buffer);
+    }
+  } catch (dbErr) {
+    console.warn(`Could not fetch MongoDB media for ${req.params.filename}:`, dbErr.message);
+  }
+
+  // Not found on disk or DB - return clean 404 instead of serving index.html
+  return res.status(404).json({ success: false, message: 'Image not found' });
+});
+
 app.use('/uploads', express.static(UPLOADS_DIR));
 
 // Serve compiled Admin CRM & Warehouse web portal
@@ -66,6 +94,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/calling-sheet', callingSheetRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/images', imageRoutes);
 app.use('/api/categories', categoryRoutes);
 
 // Socket.io connection logic
@@ -92,9 +121,14 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Single Page Application Fallback
+// Single Page Application Fallback (Protect API, uploads, and static assets from returning index.html)
 app.get('*', (req, res, next) => {
-  if (req.path.startsWith('/api')) {
+  if (
+    req.path.startsWith('/api') ||
+    req.path.startsWith('/uploads') ||
+    req.path.startsWith('/socket.io') ||
+    /\.(jpg|jpeg|png|webp|gif|svg|ico|css|js|map|json|woff2?|ttf|eot)$/i.test(req.path)
+  ) {
     return res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
   }
   res.sendFile(path.join(CLIENT_DIST, 'index.html'));

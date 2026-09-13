@@ -28,6 +28,7 @@ class DatabaseStore {
       payments: [],
       visitlogs: [],
       callingsheetnotes: [],
+      media: [],
     };
     this.isInitialized = false;
   }
@@ -41,6 +42,7 @@ class DatabaseStore {
       try {
         const raw = fs.readFileSync(DATA_FILE, 'utf8');
         this.collections = JSON.parse(raw);
+        if (!this.collections.media) this.collections.media = [];
         this.isInitialized = true;
         console.log('📦 Loaded existing data store from data/store.json');
         return;

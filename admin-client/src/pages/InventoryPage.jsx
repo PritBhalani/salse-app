@@ -604,7 +604,8 @@ export const InventoryPage = () => {
                             alt={p.name}
                             className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
                             onError={(e) => {
-                              e.target.style.display = 'none';
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
                             }}
                           />
                         ) : (
@@ -938,6 +939,10 @@ export const InventoryPage = () => {
                           src={formData.imageUrl}
                           alt="Uploaded Preview"
                           className="w-16 h-16 rounded-xl object-cover border border-slate-700 shadow-md"
+                          onError={(e) => {
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                          }}
                         />
                         <div className="flex-1 min-w-0">
                           <span className="text-emerald-400 font-bold text-xs flex items-center gap-1">
@@ -1001,7 +1006,8 @@ export const InventoryPage = () => {
                           alt="Link Preview"
                           className="w-12 h-12 rounded-lg object-cover border border-slate-700"
                           onError={(e) => {
-                            e.target.style.display = 'none';
+                            e.currentTarget.onerror = null;
+                            e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
                           }}
                         />
                         <div>
