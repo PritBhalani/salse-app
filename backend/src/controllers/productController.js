@@ -1,5 +1,23 @@
 import { Product } from '../models/Product.js';
 
+// Format image URL so mobile apps (React Native) always receive absolute URLs
+const formatImageUrl = (req, url) => {
+  if (!url || typeof url !== 'string') return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+  const host = req.get('host') || 'salse-app.onrender.com';
+  return `${protocol}://${host}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
+const formatProductDoc = (req, p) => {
+  if (!p) return p;
+  const doc = p.toObject ? p.toObject() : { ...p };
+  if (doc.imageUrl) {
+    doc.imageUrl = formatImageUrl(req, doc.imageUrl);
+  }
+  return doc;
+};
+
 // @desc    Get all products with category, brand and search filters
 // @route   GET /api/products
 export const getProducts = async (req, res) => {
@@ -25,7 +43,8 @@ export const getProducts = async (req, res) => {
     }
 
     const products = await Product.find(filter).sort({ category: 1, name: 1 });
-    res.json({ success: true, count: products.length, products });
+    const formatted = products.map((p) => formatProductDoc(req, p));
+    res.json({ success: true, count: formatted.length, products: formatted });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -39,7 +58,7 @@ export const getProductById = async (req, res) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
-    res.json({ success: true, product });
+    res.json({ success: true, product: formatProductDoc(req, product) });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

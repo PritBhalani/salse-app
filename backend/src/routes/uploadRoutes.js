@@ -81,15 +81,15 @@ router.post('/', protect, (req, res) => {
       }
 
       const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-      const host = req.get('host');
+      const host = req.get('host') || 'salse-app.onrender.com';
       const persistentUrl = `/api/images/${media._id}`;
       const fullUrl = `${protocol}://${host}${persistentUrl}`;
 
       res.json({
         success: true,
         message: 'Photo uploaded and persisted permanently in database',
-        imageUrl: persistentUrl,
-        url: persistentUrl,
+        imageUrl: fullUrl,
+        url: fullUrl,
         relativeUrl: persistentUrl,
         fullUrl,
         id: media._id,
