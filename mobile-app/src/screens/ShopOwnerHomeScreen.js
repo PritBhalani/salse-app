@@ -198,11 +198,13 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
+        <View style={styles.logoBadgeContainer}>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.headerLogo}
+            resizeMode="contain"
+          />
+        </View>
         <View style={{ flex: 1 }}>
           <Text style={styles.shopName} numberOfLines={1}>
             🏪 {shop?.shopName || 'Shri Krishna Hardware'}
@@ -211,7 +213,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
             Owner: {user?.name || 'Retailer'} • Verified B2B Account
           </Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.7}>
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
       </View>
@@ -238,13 +240,30 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
             </View>
 
             {/* Search Catalog */}
-            <TextInput
-              style={styles.searchBar}
-              placeholder="🔍 Search Astral CPVC, Jaquar bib cocks, Cera basins..."
-              placeholderTextColor="#64748b"
-              value={catalogSearch}
-              onChangeText={setCatalogSearch}
-            />
+            <View style={styles.searchBarWrapper}>
+              <View style={styles.searchIconBadge}>
+                <Text style={styles.searchIconGlyph}>🔍</Text>
+              </View>
+              <TextInput
+                style={styles.searchInputField}
+                placeholder="Search Astral CPVC, Jaquar bib cocks, Cera basins..."
+                placeholderTextColor="#64748b"
+                value={catalogSearch}
+                onChangeText={setCatalogSearch}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {catalogSearch?.length > 0 && (
+                <TouchableOpacity
+                  style={styles.searchClearBtn}
+                  onPress={() => setCatalogSearch('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.searchClearGlyph}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
             {/* Category Pills Bar */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
@@ -697,42 +716,56 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    backgroundColor: '#0f172a',
+    paddingTop: 14,
+    paddingBottom: 12,
+    backgroundColor: '#090d16',
     borderBottomWidth: 1,
     borderBottomColor: '#1e293b',
   },
-  headerLogo: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    marginRight: 10,
+  logoBadgeContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#374151',
+    borderWidth: 1.5,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  headerLogo: {
+    width: 32,
+    height: 32,
   },
   shopName: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
+    letterSpacing: 0.2,
   },
   ownerSubtitle: {
     fontSize: 11,
-    color: '#a5b4fc',
+    color: '#94a3b8',
     marginTop: 2,
   },
   logoutBtn: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
+    paddingVertical: 7,
+    paddingHorizontal: 10,
+    backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
-    color: '#f87171',
-    fontSize: 12,
+    color: '#fb7185',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   scrollContent: {
@@ -751,6 +784,52 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#94a3b8',
     marginTop: 2,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#1e293b',
+    paddingHorizontal: 12,
+    height: 46,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIconBadge: {
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchIconGlyph: {
+    fontSize: 14,
+    opacity: 0.85,
+  },
+  searchInputField: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  searchClearGlyph: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   searchBar: {
     backgroundColor: '#1e293b',

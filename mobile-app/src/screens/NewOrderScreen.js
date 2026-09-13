@@ -247,13 +247,30 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         </View>
 
         {/* Search Catalog */}
-        <TextInput
-          style={styles.searchBar}
-          placeholder="🔍 Search CPVC pipes, Jaquar taps, Cera fittings..."
-          placeholderTextColor="#64748b"
-          value={search}
-          onChangeText={setSearch}
-        />
+        <View style={styles.searchBarWrapper}>
+          <View style={styles.searchIconBadge}>
+            <Text style={styles.searchIconGlyph}>🔍</Text>
+          </View>
+          <TextInput
+            style={styles.searchInputField}
+            placeholder="Search CPVC pipes, Jaquar taps, Cera fittings..."
+            placeholderTextColor="#64748b"
+            value={search}
+            onChangeText={setSearch}
+            returnKeyType="search"
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {search?.length > 0 && (
+            <TouchableOpacity
+              style={styles.searchClearBtn}
+              onPress={() => setSearch('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.searchClearGlyph}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Category Pills Bar (Blinkit style) */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
@@ -633,6 +650,52 @@ const styles = StyleSheet.create({
   },
   pillBtnTextActive: {
     color: '#ffffff',
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#1e293b',
+    paddingHorizontal: 12,
+    height: 46,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIconBadge: {
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchIconGlyph: {
+    fontSize: 14,
+    opacity: 0.85,
+  },
+  searchInputField: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  searchClearGlyph: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   searchBar: {
     backgroundColor: '#1e293b',

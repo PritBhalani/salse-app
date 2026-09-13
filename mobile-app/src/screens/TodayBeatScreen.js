@@ -263,31 +263,51 @@ export const TodayBeatScreen = ({
     <View style={styles.container}>
       {/* Top Header Bar */}
       <View style={styles.topBar}>
-        <Image
-          source={require('../../assets/logo.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-        <View style={{ flex: 1 }}>
-          <View style={styles.userRow}>
-            <Text style={styles.salesmanGreeting}>Namaste, {user?.name?.split(' ')[0] || 'Sales Executive'}</Text>
-            <View style={styles.liveGpsBadge}>
-              <Text style={styles.liveGpsText}>🟢 GPS Live (12m)</Text>
+        <View style={styles.topBarContent}>
+          {/* Logo Badge */}
+          <View style={styles.logoBadgeContainer}>
+            <Image
+              source={require('../../assets/logo.png')}
+              style={styles.headerLogo}
+              resizeMode="contain"
+            />
+          </View>
+
+          {/* Salesman Info & Financial Status */}
+          <View style={styles.headerInfoCol}>
+            <Text style={styles.salesmanGreeting} numberOfLines={1}>
+              Namaste, {user?.name?.split(' ')[0] || 'Sales Executive'}
+            </Text>
+            <View style={styles.headerMetaRow}>
+              <View style={styles.cashChip}>
+                <Text style={styles.cashChipLabel}>Cash: </Text>
+                <Text style={styles.cashChipValue}>₹{user?.cashInHand?.toLocaleString() || 0}</Text>
+              </View>
+              <View style={styles.liveGpsBadge}>
+                <View style={styles.liveGpsDot} />
+                <Text style={styles.liveGpsText}>Live GPS</Text>
+              </View>
             </View>
           </View>
-          <View style={styles.cashRow}>
-            <Text style={styles.cashBadgeLabel}>Cash in Hand:</Text>
-            <Text style={styles.cashValue}>₹{user?.cashInHand?.toLocaleString() || 0}</Text>
-          </View>
-        </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <TouchableOpacity style={styles.refreshIconBtn} onPress={onRefresh}>
-            <Text style={styles.refreshIconText}>🔄</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
-            <Text style={styles.logoutText}>Log Out</Text>
-          </TouchableOpacity>
+          {/* Action Buttons: Refresh & Log Out */}
+          <View style={styles.headerActionsGroup}>
+            <TouchableOpacity
+              style={styles.refreshIconBtn}
+              onPress={onRefresh}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={styles.refreshIconText}>🔄</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.logoutBtn}
+              onPress={onLogout}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.logoutText}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -373,13 +393,30 @@ export const TodayBeatScreen = ({
 
             {/* Quick Search & Filter Bar */}
             <View style={styles.searchContainer}>
-              <TextInput
-                style={styles.searchBar}
-                placeholder="🔍 Search shop, owner, mobile, or city..."
-                placeholderTextColor="#64748b"
-                value={searchQuery}
-                onChangeText={setSearchQuery}
-              />
+              <View style={styles.searchBarWrapper}>
+                <View style={styles.searchIconBadge}>
+                  <Text style={styles.searchIconGlyph}>🔍</Text>
+                </View>
+                <TextInput
+                  style={styles.searchInputField}
+                  placeholder="Search shop, owner, mobile, or city..."
+                  placeholderTextColor="#64748b"
+                  value={searchQuery}
+                  onChangeText={setSearchQuery}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {searchQuery?.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.searchClearBtn}
+                    onPress={() => setSearchQuery('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.searchClearGlyph}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
             </View>
 
             {loading && !refreshing ? (
@@ -506,13 +543,32 @@ export const TodayBeatScreen = ({
             </View>
 
             {/* Catalog Search */}
-            <TextInput
-              style={styles.searchBar}
-              placeholder="🔍 Search Astral CPVC, Jaquar bib cocks, Cera basins..."
-              placeholderTextColor="#64748b"
-              value={catalogSearch}
-              onChangeText={setCatalogSearch}
-            />
+            <View style={styles.searchContainer}>
+              <View style={styles.searchBarWrapper}>
+                <View style={styles.searchIconBadge}>
+                  <Text style={styles.searchIconGlyph}>🔍</Text>
+                </View>
+                <TextInput
+                  style={styles.searchInputField}
+                  placeholder="Search Astral CPVC, Jaquar bib cocks, Cera..."
+                  placeholderTextColor="#64748b"
+                  value={catalogSearch}
+                  onChangeText={setCatalogSearch}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {catalogSearch?.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.searchClearBtn}
+                    onPress={() => setCatalogSearch('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.searchClearGlyph}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
 
             {/* Category Pills Bar */}
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
@@ -678,13 +734,32 @@ export const TodayBeatScreen = ({
               </Text>
             </View>
 
-            <TextInput
-              style={styles.searchBar}
-              placeholder="🔍 Search all shops (e.g. Radhe, Krishna, Morbi, Rajkot)..."
-              placeholderTextColor="#64748b"
-              value={phoneSearchQuery}
-              onChangeText={setPhoneSearchQuery}
-            />
+            <View style={styles.searchContainer}>
+              <View style={styles.searchBarWrapper}>
+                <View style={styles.searchIconBadge}>
+                  <Text style={styles.searchIconGlyph}>🔍</Text>
+                </View>
+                <TextInput
+                  style={styles.searchInputField}
+                  placeholder="Search all shops (e.g. Radhe, Krishna, Morbi)..."
+                  placeholderTextColor="#64748b"
+                  value={phoneSearchQuery}
+                  onChangeText={setPhoneSearchQuery}
+                  returnKeyType="search"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                {phoneSearchQuery?.length > 0 && (
+                  <TouchableOpacity
+                    style={styles.searchClearBtn}
+                    onPress={() => setPhoneSearchQuery('')}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text style={styles.searchClearGlyph}>✕</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
 
             <Text style={styles.sectionHeader}>
               Assigned Retailers ({phoneSearchResults.length}):
@@ -989,82 +1064,128 @@ const styles = StyleSheet.create({
     backgroundColor: '#090d16',
   },
   topBar: {
+    paddingHorizontal: 16,
+    paddingTop: 14,
+    paddingBottom: 12,
+    backgroundColor: '#090d16',
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+  },
+  topBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 14,
-    backgroundColor: '#111827',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+  },
+  logoBadgeContainer: {
+    width: 42,
+    height: 42,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    borderWidth: 1.5,
+    borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 3,
   },
   headerLogo: {
-    width: 38,
-    height: 38,
-    borderRadius: 10,
-    marginRight: 10,
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#374151',
+    width: 32,
+    height: 32,
   },
-  userRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  headerInfoCol: {
+    flex: 1,
+    justifyContent: 'center',
+    marginRight: 8,
   },
   salesmanGreeting: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
+    letterSpacing: 0.2,
+  },
+  headerMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 3,
+  },
+  cashChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cashChipLabel: {
+    fontSize: 10,
+    color: '#a7f3d0',
+    fontWeight: '600',
+  },
+  cashChipValue: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#34d399',
   },
   liveGpsBadge: {
-    backgroundColor: '#064e3b',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(16, 185, 129, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.25)',
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
   },
+  liveGpsDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#10b981',
+  },
   liveGpsText: {
     color: '#34d399',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
-  cashRow: {
+  headerActionsGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 3,
-  },
-  cashBadgeLabel: {
-    fontSize: 11,
-    color: '#94a3b8',
-  },
-  cashValue: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#34d399',
+    gap: 6,
   },
   refreshIconBtn: {
-    padding: 8,
-    backgroundColor: '#1e293b',
-    borderRadius: 8,
+    width: 34,
+    height: 34,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#334155',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   refreshIconText: {
-    fontSize: 13,
+    fontSize: 14,
   },
   logoutBtn: {
-    paddingVertical: 6,
+    paddingVertical: 7,
     paddingHorizontal: 10,
-    backgroundColor: '#1f2937',
-    borderRadius: 8,
+    backgroundColor: 'rgba(225, 29, 72, 0.12)',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: 'rgba(244, 63, 94, 0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutText: {
-    color: '#f87171',
-    fontSize: 12,
+    color: '#fb7185',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   scrollContent: {
@@ -1201,6 +1322,51 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     marginBottom: 12,
+  },
+  searchBarWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1.5,
+    borderColor: '#1e293b',
+    paddingHorizontal: 12,
+    height: 46,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIconBadge: {
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  searchIconGlyph: {
+    fontSize: 14,
+    opacity: 0.85,
+  },
+  searchInputField: {
+    flex: 1,
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '500',
+    paddingVertical: 0,
+  },
+  searchClearBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 6,
+  },
+  searchClearGlyph: {
+    color: '#94a3b8',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   searchBar: {
     backgroundColor: '#0f172a',
