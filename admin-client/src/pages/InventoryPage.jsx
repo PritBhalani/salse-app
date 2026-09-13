@@ -71,9 +71,9 @@ export const InventoryPage = () => {
     brand: 'Jaquar',
     sku: '',
     basePrice: '',
-    boxQuantity: 12,
+    boxQuantity: '',
     uom: 'Pcs',
-    stockQuantity: 100,
+    stockQuantity: '',
     imageUrl: '',
     description: '',
     hasVariants: false,
@@ -247,8 +247,8 @@ export const InventoryPage = () => {
           size: '',
           sku: '',
           basePrice: prev.basePrice || '',
-          boxQuantity: prev.boxQuantity || 1,
-          stockQuantity: 100,
+          boxQuantity: prev.boxQuantity || '',
+          stockQuantity: '',
           isOutOfStock: false,
         },
       ],
@@ -289,7 +289,7 @@ export const InventoryPage = () => {
       sku: `${formData.sku || 'SKU'}-${idx + 1}`,
       basePrice: formData.basePrice ? parseFloat(formData.basePrice) + idx * 40 : 180 + idx * 50,
       boxQuantity: Math.max(1, 20 - idx * 2),
-      stockQuantity: 100,
+      stockQuantity: '',
       isOutOfStock: false,
     }));
 
@@ -302,29 +302,73 @@ export const InventoryPage = () => {
 
   const handleSaveProduct = async (e) => {
     e.preventDefault();
+    const trimmedName = formData.name?.trim();
+    if (!trimmedName) {
+      toast.warning('Please enter a product description / master name', 'Validation Error');
+      return;
+    }
+
+    // Prevent duplicate product names (case-insensitive)
+    const duplicate = products.find(
+      (p) =>
+        p.name?.trim().toLowerCase() === trimmedName.toLowerCase() &&
+        (!editProduct || p._id !== editProduct._id)
+    );
+
+    if (duplicate) {
+      toast.error(
+        `A product with the name "${duplicate.name}" already exists in the catalog!`,
+        'Duplicate Product Name'
+      );
+      return;
+    }
+
     try {
       let finalVariants = [];
       if (formData.hasVariants && formData.variants.length > 0) {
-        finalVariants = formData.variants.map((v) => ({
-          size: v.size.trim(),
-          sku: v.sku?.trim() || `${formData.sku || 'SKU'}-${v.size.replace(/[^a-zA-Z0-9]/g, '')}`,
-          basePrice: parseFloat(v.basePrice) || 0,
-          boxQuantity: parseInt(v.boxQuantity, 10) || 1,
-          stockQuantity: parseInt(v.stockQuantity, 10) || 0,
-          isOutOfStock: Boolean(v.isOutOfStock || parseInt(v.stockQuantity, 10) <= 0),
-        }));
+        finalVariants = formData.variants.map((v) => {
+          const vStock = v.stockQuantity === '' || v.stockQuantity === null || v.stockQuantity === undefined
+            ? 0
+            : parseInt(v.stockQuantity, 10) || 0;
+          const vBox = v.boxQuantity === '' || v.boxQuantity === null || v.boxQuantity === undefined
+            ? 1
+            : parseInt(v.boxQuantity, 10) || 1;
+          const vPrice = v.basePrice === '' || v.basePrice === null || v.basePrice === undefined
+            ? 0
+            : parseFloat(v.basePrice) || 0;
+
+          return {
+            size: v.size.trim(),
+            sku: v.sku?.trim() || `${formData.sku || 'SKU'}-${v.size.replace(/[^a-zA-Z0-9]/g, '')}`,
+            basePrice: vPrice,
+            boxQuantity: vBox,
+            stockQuantity: vStock,
+            isOutOfStock: Boolean(v.isOutOfStock || vStock <= 0),
+          };
+        });
       }
+
+      const parsedBasePrice = finalVariants.length > 0
+        ? finalVariants[0].basePrice
+        : (formData.basePrice === '' || formData.basePrice === null ? 0 : parseFloat(formData.basePrice) || 0);
+
+      const parsedBoxQty = finalVariants.length > 0
+        ? finalVariants[0].boxQuantity
+        : (formData.boxQuantity === '' || formData.boxQuantity === null ? 1 : parseInt(formData.boxQuantity, 10) || 1);
+
+      const parsedStockQty = finalVariants.length > 0
+        ? finalVariants.reduce((sum, v) => sum + v.stockQuantity, 0)
+        : (formData.stockQuantity === '' || formData.stockQuantity === null ? 0 : parseInt(formData.stockQuantity, 10) || 0);
 
       const payload = {
         ...formData,
+        name: trimmedName,
         hasVariants: Boolean(formData.hasVariants && finalVariants.length > 0),
         variants: finalVariants,
-        basePrice: finalVariants.length > 0 ? finalVariants[0].basePrice : parseFloat(formData.basePrice) || 0,
-        boxQuantity: finalVariants.length > 0 ? finalVariants[0].boxQuantity : parseInt(formData.boxQuantity, 10) || 1,
-        stockQuantity:
-          finalVariants.length > 0
-            ? finalVariants.reduce((sum, v) => sum + v.stockQuantity, 0)
-            : parseInt(formData.stockQuantity, 10) || 0,
+        basePrice: parsedBasePrice,
+        boxQuantity: parsedBoxQty,
+        stockQuantity: parsedStockQty,
+        isOutOfStock: parsedStockQty <= 0,
       };
 
       if (editProduct) {
@@ -334,7 +378,7 @@ export const InventoryPage = () => {
           setEditProduct(null);
           fetchProducts();
           fetchCategories();
-          toast.success(`Product "${formData.name}" updated successfully!`, 'Product Updated');
+          toast.success(`Product "${trimmedName}" updated successfully!`, 'Product Updated');
         }
       } else {
         const res = await productsAPI.create(payload);
@@ -342,7 +386,7 @@ export const InventoryPage = () => {
           setIsAddModalOpen(false);
           fetchProducts();
           fetchCategories();
-          toast.success(`Product "${formData.name}" added to catalog!`, 'Product Added');
+          toast.success(`Product "${trimmedName}" added to catalog!`, 'Product Added');
         }
       }
     } catch (err) {
@@ -430,14 +474,19 @@ export const InventoryPage = () => {
       category: p.category || (categoriesList[0]?.name || 'Pipes & Fittings'),
       brand: p.brand || '',
       sku: p.sku || '',
-      basePrice: p.basePrice || '',
-      boxQuantity: p.boxQuantity || 1,
+      basePrice: p.basePrice !== undefined && p.basePrice !== null ? p.basePrice : '',
+      boxQuantity: p.boxQuantity !== undefined && p.boxQuantity !== null ? p.boxQuantity : '',
       uom: p.uom || 'Pcs',
-      stockQuantity: p.stockQuantity || 100,
+      stockQuantity: p.stockQuantity !== undefined && p.stockQuantity !== null ? p.stockQuantity : '',
       imageUrl: p.imageUrl || '',
       description: p.description || '',
       hasVariants: Boolean(p.hasVariants && p.variants?.length > 0),
-      variants: p.variants ? p.variants.map((v) => ({ ...v })) : [],
+      variants: p.variants ? p.variants.map((v) => ({
+        ...v,
+        basePrice: v.basePrice !== undefined && v.basePrice !== null ? v.basePrice : '',
+        boxQuantity: v.boxQuantity !== undefined && v.boxQuantity !== null ? v.boxQuantity : '',
+        stockQuantity: v.stockQuantity !== undefined && v.stockQuantity !== null ? v.stockQuantity : '',
+      })) : [],
     });
     setPhotoTab('UPLOAD');
     setPhotoError('');
@@ -498,9 +547,9 @@ export const InventoryPage = () => {
                 brand: '',
                 sku: '',
                 basePrice: '',
-                boxQuantity: 12,
+                boxQuantity: '',
                 uom: 'Pcs',
-                stockQuantity: 100,
+                stockQuantity: '',
                 imageUrl: '',
                 description: '',
                 hasVariants: false,
@@ -1244,9 +1293,9 @@ export const InventoryPage = () => {
                             <input
                               type="number"
                               required
-                              placeholder="25"
-                              value={v.boxQuantity}
-                              onChange={(e) => handleUpdateVariantField(vIdx, 'boxQuantity', parseInt(e.target.value, 10) || 1)}
+                              placeholder="e.g. 20"
+                              value={v.boxQuantity ?? ''}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'boxQuantity', e.target.value)}
                               className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs font-bold text-center focus:outline-none"
                             />
                           </div>
@@ -1257,9 +1306,9 @@ export const InventoryPage = () => {
                             </label>
                             <input
                               type="number"
-                              placeholder="100"
-                              value={v.stockQuantity}
-                              onChange={(e) => handleUpdateVariantField(vIdx, 'stockQuantity', parseInt(e.target.value, 10) || 0)}
+                              placeholder="e.g. 100"
+                              value={v.stockQuantity ?? ''}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'stockQuantity', e.target.value)}
                               className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none"
                             />
                           </div>
@@ -1308,9 +1357,9 @@ export const InventoryPage = () => {
                     <input
                       type="number"
                       required={!formData.hasVariants}
-                      placeholder="12"
-                      value={formData.boxQuantity}
-                      onChange={(e) => setFormData({ ...formData, boxQuantity: parseInt(e.target.value, 10) || 1 })}
+                      placeholder="e.g. 12"
+                      value={formData.boxQuantity ?? ''}
+                      onChange={(e) => setFormData({ ...formData, boxQuantity: e.target.value })}
                       className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-bold"
                     />
                   </div>
@@ -1319,9 +1368,9 @@ export const InventoryPage = () => {
                     <label className="block text-slate-300 font-semibold mb-1">Stock (Pcs):</label>
                     <input
                       type="number"
-                      placeholder="100"
-                      value={formData.stockQuantity}
-                      onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })}
+                      placeholder="e.g. 100"
+                      value={formData.stockQuantity ?? ''}
+                      onChange={(e) => setFormData({ ...formData, stockQuantity: e.target.value })}
                       className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
                     />
                   </div>

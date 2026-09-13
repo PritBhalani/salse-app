@@ -6,7 +6,7 @@ const variantSchema = new mongoose.Schema({
   sku: { type: String, trim: true },
   basePrice: { type: Number, required: true, min: 0 },
   boxQuantity: { type: Number, default: 1 },
-  stockQuantity: { type: Number, default: 100 },
+  stockQuantity: { type: Number, default: 0 },
   isOutOfStock: { type: Boolean, default: false },
 });
 
@@ -23,7 +23,7 @@ const productSchema = new mongoose.Schema({
   boxQuantity: { type: Number, default: 1 },
   basePrice: { type: Number, required: true, min: 0 },
   gstPercentage: { type: Number, default: 18 },
-  stockQuantity: { type: Number, default: 100 },
+  stockQuantity: { type: Number, default: 0 },
   isOutOfStock: { type: Boolean, default: false },
   imageUrl: { type: String, default: '' },
   description: { type: String, default: '' },

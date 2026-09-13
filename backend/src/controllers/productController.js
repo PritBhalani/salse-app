@@ -84,12 +84,34 @@ export const createProduct = async (req, res) => {
       variants,
     } = req.body;
 
+    const trimmedName = name?.trim();
+    if (!trimmedName) {
+      return res.status(400).json({ success: false, message: 'Product name is required' });
+    }
+
+    // Prevent duplicate product names (case-insensitive exact match)
+    const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existingProduct = await Product.findOne({
+      name: { $regex: `^${escapedName}$`, $options: 'i' },
+    });
+
+    if (existingProduct) {
+      return res.status(400).json({
+        success: false,
+        message: `A product with the name "${existingProduct.name}" already exists in the catalog!`,
+      });
+    }
+
     const parsedVariants = Array.isArray(variants) ? variants : [];
     const isVarMode = Boolean(hasVariants && parsedVariants.length > 0);
 
     let finalBasePrice = parseFloat(basePrice) || 0;
-    let finalStockQty = stockQuantity !== undefined ? parseInt(stockQuantity, 10) : 100;
-    let finalBoxQty = boxQuantity || 1;
+    let finalStockQty = stockQuantity !== undefined && stockQuantity !== '' && stockQuantity !== null
+      ? parseInt(stockQuantity, 10) || 0
+      : 0;
+    let finalBoxQty = boxQuantity !== undefined && boxQuantity !== '' && boxQuantity !== null
+      ? parseInt(boxQuantity, 10) || 1
+      : 1;
 
     if (isVarMode && parsedVariants.length > 0) {
       finalBasePrice = parsedVariants[0].basePrice || finalBasePrice;
@@ -98,7 +120,7 @@ export const createProduct = async (req, res) => {
     }
 
     const product = await Product.create({
-      name,
+      name: trimmedName,
       sku: sku || `SKU-${Date.now().toString().slice(-6)}`,
       category,
       brand,
@@ -125,13 +147,46 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const updateData = { ...req.body };
+
+    // Prevent duplicate product names (case-insensitive)
+    if (updateData.name) {
+      const trimmedName = updateData.name.trim();
+      if (!trimmedName) {
+        return res.status(400).json({ success: false, message: 'Product name cannot be empty' });
+      }
+
+      const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingProduct = await Product.findOne({
+        _id: { $ne: req.params.id },
+        name: { $regex: `^${escapedName}$`, $options: 'i' },
+      });
+
+      if (existingProduct) {
+        return res.status(400).json({
+          success: false,
+          message: `Another product with the name "${existingProduct.name}" already exists in the catalog!`,
+        });
+      }
+
+      updateData.name = trimmedName;
+    }
+
     if (updateData.hasVariants && Array.isArray(updateData.variants) && updateData.variants.length > 0) {
       updateData.stockQuantity = updateData.variants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
       updateData.basePrice = updateData.variants[0].basePrice || updateData.basePrice;
     }
 
     if (updateData.stockQuantity !== undefined) {
+      updateData.stockQuantity = updateData.stockQuantity === '' || updateData.stockQuantity === null
+        ? 0
+        : parseInt(updateData.stockQuantity, 10) || 0;
       updateData.isOutOfStock = updateData.stockQuantity <= 0;
+    }
+
+    if (updateData.boxQuantity !== undefined) {
+      updateData.boxQuantity = updateData.boxQuantity === '' || updateData.boxQuantity === null
+        ? 1
+        : parseInt(updateData.boxQuantity, 10) || 1;
     }
 
     const product = await Product.findByIdAndUpdate(req.params.id, updateData, {
