@@ -14,6 +14,7 @@ import {
   Edit2,
   Key,
   Plus,
+  Trash2,
 } from 'lucide-react';
 import { visitsAPI, authAPI, paymentsAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -37,6 +38,8 @@ export const SalesmanTrackingPage = () => {
   });
 
   const [editUserData, setEditUserData] = useState(null);
+  const [deleteConfirmSalesman, setDeleteConfirmSalesman] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -139,6 +142,28 @@ export const SalesmanTrackingPage = () => {
     }
   };
 
+  const handleDeleteSalesman = async (salesman) => {
+    if (!salesman || !salesman._id) return;
+    setIsDeleting(true);
+    try {
+      const res = await authAPI.deleteUser(salesman._id);
+      if (res.data.success) {
+        const name = salesman.name || 'Salesman';
+        setDeleteConfirmSalesman(null);
+        if (editUserData?._id === salesman._id) {
+          setEditUserData(null);
+        }
+        await fetchData();
+        toast.success(`Salesman "${name}" deleted successfully.`, 'Salesman Deleted');
+      }
+    } catch (err) {
+      console.error('Error deleting salesman:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete salesman.', 'Delete Error');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -191,9 +216,18 @@ export const SalesmanTrackingPage = () => {
                     <p className="text-xs text-slate-400 font-mono">{salesman.phone}</p>
                   </div>
                 </div>
-                <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
-                  ACTIVE
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-bold">
+                    ACTIVE
+                  </span>
+                  <button
+                    onClick={() => setDeleteConfirmSalesman(salesman)}
+                    className="p-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                    title={`Delete Salesman ${salesman.name}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
 
               {/* Cash Wallet Box */}
@@ -268,6 +302,13 @@ export const SalesmanTrackingPage = () => {
                   <Smartphone className="w-4 h-4" />
                 </button>
               )}
+              <button
+                onClick={() => setDeleteConfirmSalesman(salesman)}
+                className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 border border-rose-500/30 transition-colors"
+                title={`Delete Salesman ${salesman.name}`}
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
             </div>
           </div>
         ))}
@@ -512,20 +553,34 @@ export const SalesmanTrackingPage = () => {
                 />
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditUserData(null)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                  onClick={() => {
+                    const smToDel = salesmen.find((s) => s._id === editUserData._id) || editUserData;
+                    setEditUserData(null);
+                    setDeleteConfirmSalesman(smToDel);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center gap-1.5 transition-colors"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Salesman</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
-                >
-                  Save Changes
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditUserData(null)}
+                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
+                  >
+                    Save Changes
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -575,6 +630,97 @@ export const SalesmanTrackingPage = () => {
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow"
               >
                 Clear Cash Drawer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Salesman Confirmation Modal */}
+      {deleteConfirmSalesman && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl relative overflow-hidden">
+            {/* Background tint glow */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Salesman Account</h3>
+                <p className="text-xs text-slate-400">Revoke mobile access and staff credentials.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 mb-4 space-y-1.5 text-xs">
+              <div className="text-white font-bold text-sm">{deleteConfirmSalesman.name}</div>
+              <div className="text-slate-400">
+                Phone (Login ID): <span className="text-slate-200 font-mono font-medium">{deleteConfirmSalesman.phone}</span>
+              </div>
+              <div className="text-slate-400">
+                Active Cities:{' '}
+                <span className="text-slate-300 font-medium">
+                  {Array.isArray(deleteConfirmSalesman.activeCities)
+                    ? deleteConfirmSalesman.activeCities.join(', ')
+                    : deleteConfirmSalesman.activeCities || 'Morbi, Wankaner'}
+                </span>
+              </div>
+              <div className="text-slate-400">
+                Device Binding:{' '}
+                <span className="text-slate-300 font-mono text-[11px]">
+                  {deleteConfirmSalesman.deviceId ? 'Locked to Device' : 'No device locked'}
+                </span>
+              </div>
+            </div>
+
+            {/* Outstanding Cash Warning */}
+            {deleteConfirmSalesman.cashInHand > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-amber-300 font-bold">Unsettled Cash in Hand Warning</div>
+                  <div className="text-slate-300 mt-0.5">
+                    This salesman currently has{' '}
+                    <span className="text-white font-bold font-mono">
+                      ₹{deleteConfirmSalesman.cashInHand.toLocaleString()}
+                    </span>{' '}
+                    in collected cash in hand. Please settle this cash before deleting the account.
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              Deleting this account will immediately revoke their mobile app login and unassign them from any assigned beat routes. Historical order punches, GPS visits, and receipts remain safely archived.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmSalesman(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => handleDeleteSalesman(deleteConfirmSalesman)}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-2 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
               </button>
             </div>
           </div>

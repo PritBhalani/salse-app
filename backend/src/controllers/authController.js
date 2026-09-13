@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { User } from '../models/User.js';
 import { Shop } from '../models/Shop.js';
+import { Route } from '../models/Route.js';
 
 const generateToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET || 'wholesale_secret_key_2026', {
@@ -79,6 +80,7 @@ export const createUser = async (req, res) => {
       password,
       role: role || 'SALESMAN',
       activeCities: activeCities || [],
+      isActive: true,
     });
 
     res.status(201).json({
@@ -110,8 +112,14 @@ export const getMe = async (req, res) => {
 // @route   GET /api/auth/users
 export const getUsers = async (req, res) => {
   try {
-    const { role } = req.query;
-    const filter = role ? { role } : {};
+    const { role, includeInactive } = req.query;
+    const filter = {};
+    if (includeInactive !== 'true') {
+      filter.isActive = { $ne: false };
+    }
+    if (role) {
+      filter.role = role;
+    }
     const users = await User.find(filter).select('-password').sort({ createdAt: -1 });
     res.json({ success: true, count: users.length, users });
   } catch (error) {
@@ -165,11 +173,38 @@ export const updateUser = async (req, res) => {
 // @route   DELETE /api/auth/users/:id
 export const deleteUser = async (req, res) => {
   try {
-    const user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    // Prevent deleting logged-in user
+    if (req.user && req.user._id && req.user._id.toString() === req.params.id) {
+      return res.status(400).json({
+        success: false,
+        message: 'You cannot delete your own logged-in account',
+      });
+    }
+
+    const { permanent } = req.query;
+    let user;
+    if (permanent === 'true') {
+      user = await User.findByIdAndDelete(req.params.id);
+    } else {
+      user = await User.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    }
+
     if (!user) {
       return res.status(404).json({ success: false, message: 'User not found' });
     }
-    res.json({ success: true, message: 'User deactivated successfully' });
+
+    // Unassign salesman from any routes
+    try {
+      await Route.updateMany({ assignedSalesman: user._id }, { $set: { assignedSalesman: null } });
+    } catch (rErr) {
+      console.warn('Could not unassign salesman from routes:', rErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: `Salesman "${user.name}" deleted successfully`,
+      userName: user.name,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

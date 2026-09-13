@@ -390,7 +390,14 @@ function filterData(list, filter) {
       if (val instanceof RegExp) {
         if (!val.test(itemVal || '')) return false;
       } else if (val && typeof val === 'object' && !Array.isArray(val) && !(val instanceof Date)) {
-        if (val.$in && Array.isArray(val.$in)) {
+        if (val.$ne !== undefined) {
+          if (itemVal === val.$ne) return false;
+          if (val.$ne !== null && val.$ne !== undefined && typeof val.$ne !== 'boolean') {
+            const strItemVal = (itemVal?._id || itemVal || '').toString();
+            const strNeVal = (val.$ne?._id || val.$ne || '').toString();
+            if (strItemVal === strNeVal) return false;
+          }
+        } else if (val.$in && Array.isArray(val.$in)) {
           const strItemVal = (itemVal?._id || itemVal || '').toString();
           const inList = val.$in.map((v) => (v?._id || v || '').toString());
           if (!inList.includes(strItemVal)) return false;
