@@ -14,6 +14,8 @@ import {
   UserPlus,
   Key,
   Edit2,
+  Trash2,
+  AlertTriangle,
 } from 'lucide-react';
 import { shopsAPI, routesAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
@@ -29,6 +31,8 @@ export const ShopsLedgerPage = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState(null);
   const [editShopData, setEditShopData] = useState(null);
+  const [deleteConfirmShop, setDeleteConfirmShop] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [formData, setFormData] = useState({
     shopName: '',
@@ -78,6 +82,32 @@ export const ShopsLedgerPage = () => {
     } catch (err) {
       console.error('Error updating shop:', err);
       toast.error(err.response?.data?.message || 'Failed to update shop details.', 'Update Error');
+    }
+  };
+
+  const handleDeleteShop = async (shop) => {
+    if (!shop || !shop._id) return;
+    setIsDeleting(true);
+    try {
+      const res = await shopsAPI.delete(shop._id);
+      if (res.data.success) {
+        const deletedName = shop.shopName || 'Shop';
+        setDeleteConfirmShop(null);
+        if (selectedShop?._id === shop._id) {
+          setSelectedShop(null);
+          setShopDetailData(null);
+        }
+        if (editShopData?._id === shop._id) {
+          setEditShopData(null);
+        }
+        await fetchShops();
+        toast.success(`Shop "${deletedName}" deleted successfully!`, 'Shop Deleted');
+      }
+    } catch (err) {
+      console.error('Error deleting shop:', err);
+      toast.error(err.response?.data?.message || 'Failed to delete shop.', 'Delete Error');
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -212,6 +242,13 @@ export const ShopsLedgerPage = () => {
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
+                    <button
+                      onClick={() => setDeleteConfirmShop(shop)}
+                      className="p-1 rounded-lg bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors"
+                      title={`Delete ${shop.shopName}`}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
 
@@ -295,9 +332,17 @@ export const ShopsLedgerPage = () => {
                 <button
                   onClick={() => handleEditShopClick(shop)}
                   className="px-3 py-2 rounded-xl bg-sky-600/20 hover:bg-sky-600/30 text-sky-300 text-xs font-semibold flex items-center justify-center gap-1.5 border border-sky-500/30 transition-colors"
+                  title="Edit details or change beat"
                 >
                   <Edit2 className="w-3.5 h-3.5" />
-                  <span>Change Beat</span>
+                  <span>Edit</span>
+                </button>
+                <button
+                  onClick={() => setDeleteConfirmShop(shop)}
+                  className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 hover:text-rose-300 text-xs font-semibold flex items-center justify-center border border-rose-500/30 transition-colors"
+                  title={`Delete ${shop.shopName}`}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
@@ -322,15 +367,30 @@ export const ShopsLedgerPage = () => {
                 )}
               </div>
 
-              <button
-                onClick={() => {
-                  setSelectedShop(null);
-                  setShopDetailData(null);
-                }}
-                className="px-3 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-xs font-bold"
-              >
-                Close
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    const shopToDel = selectedShop;
+                    setSelectedShop(null);
+                    setShopDetailData(null);
+                    setDeleteConfirmShop(shopToDel);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:text-rose-300 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                  title="Delete this shop"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Shop</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedShop(null);
+                    setShopDetailData(null);
+                  }}
+                  className="px-3 py-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white text-xs font-bold"
+                >
+                  Close
+                </button>
+              </div>
             </div>
 
             {/* Balances Summary Cards */}
@@ -754,22 +814,119 @@ export const ShopsLedgerPage = () => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-800">
+              <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-800">
                 <button
                   type="button"
-                  onClick={() => setEditShopData(null)}
-                  className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                  onClick={() => {
+                    const shopToDel = shops.find((s) => s._id === editShopData._id) || editShopData;
+                    setEditShopData(null);
+                    setDeleteConfirmShop(shopToDel);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/30 text-rose-400 hover:text-rose-300 font-semibold text-xs flex items-center gap-1.5 transition-colors"
                 >
-                  Cancel
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete Shop</span>
                 </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
-                >
-                  Save & Update Beat
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditShopData(null)}
+                    className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-bold shadow"
+                  >
+                    Save & Update Beat
+                  </button>
+                </div>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Shop Confirmation Modal */}
+      {deleteConfirmShop && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-rose-500/30 rounded-2xl max-w-md w-full p-6 shadow-2xl relative overflow-hidden">
+            {/* Background tint glow */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-rose-500/10 rounded-full blur-2xl pointer-events-none" />
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center text-rose-400 shrink-0">
+                <Trash2 className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">Delete Shop</h3>
+                <p className="text-xs text-slate-400">This action will remove the shop from active operations.</p>
+              </div>
+            </div>
+
+            <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-3.5 mb-4 space-y-1.5 text-xs">
+              <div className="text-white font-bold text-sm">{deleteConfirmShop.shopName}</div>
+              <div className="text-slate-400">
+                Proprietor: <span className="text-slate-300 font-medium">{deleteConfirmShop.ownerName}</span>
+              </div>
+              <div className="text-slate-400">
+                City / Region: <span className="text-slate-300 font-medium">{deleteConfirmShop.city}</span>
+              </div>
+              <div className="text-slate-400 font-mono">
+                Phone: {deleteConfirmShop.phone}
+              </div>
+            </div>
+
+            {/* Outstanding Balance Warning */}
+            {((deleteConfirmShop.gstBalance || 0) + (deleteConfirmShop.nonGstBalance || 0) > 0) && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 mb-4 flex items-start gap-2.5 text-xs">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <div className="text-amber-300 font-bold">Outstanding Ledger Dues Warning</div>
+                  <div className="text-slate-300 mt-0.5">
+                    This shop currently has an unpaid balance of{' '}
+                    <span className="text-white font-bold font-mono">
+                      ₹{((deleteConfirmShop.gstBalance || 0) + (deleteConfirmShop.nonGstBalance || 0)).toLocaleString()}
+                    </span>{' '}
+                    (GST: ₹{(deleteConfirmShop.gstBalance || 0).toLocaleString()} • Rough: ₹{(deleteConfirmShop.nonGstBalance || 0).toLocaleString()}).
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <p className="text-xs text-slate-400 mb-5 leading-relaxed">
+              Deleting this shop will remove it from salesmen's beat visits, order-taking catalogs, and deactivate the shop owner's mobile login. Historical orders and payment receipts will remain safely archived.
+            </p>
+
+            <div className="flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setDeleteConfirmShop(null)}
+                className="px-4 py-2 rounded-xl text-slate-400 hover:text-white font-semibold text-xs transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => handleDeleteShop(deleteConfirmShop)}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 active:scale-95 text-white font-bold text-xs shadow-lg shadow-rose-950/50 flex items-center gap-2 transition-all disabled:opacity-50"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <span>Deleting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Confirm Delete</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

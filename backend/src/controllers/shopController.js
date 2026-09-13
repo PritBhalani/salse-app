@@ -193,7 +193,19 @@ export const deleteShop = async (req, res) => {
     if (!shop) {
       return res.status(404).json({ success: false, message: 'Shop not found' });
     }
-    res.json({ success: true, message: 'Shop deactivated successfully' });
+
+    // Also deactivate the shop owner account so they can no longer log in
+    try {
+      await User.updateMany({ shopId: shop._id }, { $set: { isActive: false } });
+    } catch (uErr) {
+      console.warn('Could not deactivate shop user account:', uErr.message);
+    }
+
+    res.json({
+      success: true,
+      message: `Shop "${shop.shopName}" deleted successfully`,
+      shopName: shop.shopName,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

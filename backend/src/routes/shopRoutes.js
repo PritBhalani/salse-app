@@ -19,6 +19,6 @@ router
   .route('/:id')
   .get(protect, getShopById)
   .put(protect, authorize('ADMIN', 'WAREHOUSE', 'SALESMAN'), updateShop)
-  .delete(protect, authorize('ADMIN'), deleteShop);
+  .delete(protect, authorize('ADMIN', 'WAREHOUSE'), deleteShop);
 
 export default router;
