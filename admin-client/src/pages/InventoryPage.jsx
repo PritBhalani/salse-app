@@ -250,8 +250,10 @@ export const InventoryPage = () => {
       });
 
       if (res.data.success) {
+        const createdCatName = newCatName.trim();
         setNewCatName('');
         setNewCatDescription('');
+        setFormData((prev) => ({ ...prev, category: createdCatName }));
         await fetchCategories();
       }
     } catch (err) {
@@ -355,8 +357,8 @@ export const InventoryPage = () => {
               setEditProduct(null);
               setFormData({
                 name: '',
-                category: categoriesList[0]?.name || 'Brass C.P. Fittings',
-                brand: 'Jaquar',
+                category: selectedCategory !== 'ALL' ? selectedCategory : (categoriesList[0]?.name || 'Brass C.P. Fittings'),
+                brand: '',
                 sku: '',
                 basePrice: '',
                 boxQuantity: 12,
@@ -878,6 +880,9 @@ export const InventoryPage = () => {
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
                   >
+                    {formData.category && !categoriesList.some((c) => c.name === formData.category) && (
+                      <option value={formData.category}>{formData.category}</option>
+                    )}
                     {categoriesList.map((c) => (
                       <option key={c._id || c.name} value={c.name}>
                         {c.name}

@@ -7,15 +7,7 @@ const productSchema = new mongoose.Schema({
   category: {
     type: String,
     required: true,
-    enum: [
-      'Pipes & Fittings',
-      'Brass C.P. Fittings',
-      'Sanitaryware',
-      'Bath Accessories',
-      'Valves & Diverters',
-      'Sinks & Drainage',
-    ],
-    default: 'Brass C.P. Fittings',
+    trim: true,
   },
   brand: { type: String, required: true, trim: true },
   uom: { type: String, enum: ['Pcs', 'Box', 'Bundle', 'Meter', 'Set'], default: 'Pcs' },
