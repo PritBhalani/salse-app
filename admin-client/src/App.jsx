@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { SocketProvider, useSocket } from './context/SocketContext';
+import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { LoginPage } from './pages/LoginPage';
@@ -173,10 +174,12 @@ const MainLayout = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <MainLayout />
-      </SocketProvider>
-    </AuthProvider>
+    <ToastProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <MainLayout />
+        </SocketProvider>
+      </AuthProvider>
+    </ToastProvider>
   );
 }

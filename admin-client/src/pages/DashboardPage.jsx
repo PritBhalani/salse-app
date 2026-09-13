@@ -17,9 +17,11 @@ import {
 } from 'lucide-react';
 import { ordersAPI, shopsAPI, routesAPI, authAPI, paymentsAPI } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 
 export const DashboardPage = ({ onNavigate }) => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [stats, setStats] = useState({
     totalGstTurnover: 0,
     totalNonGstTurnover: 0,
@@ -121,7 +123,10 @@ export const DashboardPage = ({ onNavigate }) => {
             <span>Pre-Visit Call Sheet</span>
           </button>
           <button
-            onClick={fetchDashboardData}
+            onClick={() => {
+              fetchDashboardData();
+              toast.info('Wholesale dashboard metrics refreshed', 'Metrics Updated');
+            }}
             className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition-colors"
             title="Refresh metrics"
           >

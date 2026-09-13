@@ -1,5 +1,6 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useToast } from '../context/ToastContext';
 import {
   Building2,
   Lock,
@@ -14,6 +15,7 @@ import {
 
 export const LoginPage = () => {
   const { login, loading, error } = useAuth();
+  const { toast } = useToast();
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -23,12 +25,18 @@ export const LoginPage = () => {
     e.preventDefault();
     setLocalError('');
     if (!phone || !password) {
-      setLocalError('Please enter both phone number and password');
+      const msg = 'Please enter both phone number and password';
+      setLocalError(msg);
+      toast.warning(msg, 'Input Required');
       return;
     }
     const success = await login(phone, password);
     if (!success) {
-      setLocalError('Invalid phone number or password. Please check your credentials.');
+      const msg = 'Invalid phone number or password. Please check your credentials.';
+      setLocalError(msg);
+      toast.error(msg, 'Login Failed');
+    } else {
+      toast.success('Welcome to Salase Admin Portal!', 'Logged In');
     }
   };
 

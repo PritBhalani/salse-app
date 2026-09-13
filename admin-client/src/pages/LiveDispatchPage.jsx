@@ -13,8 +13,10 @@ import {
   Send,
 } from 'lucide-react';
 import { ordersAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const LiveDispatchPage = () => {
+  const { toast } = useToast();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedOrderId, setExpandedOrderId] = useState(null);
@@ -46,9 +48,21 @@ export const LiveDispatchPage = () => {
       await fetchOrders();
       setDispatchModalOrder(null);
       setDispatchNotes('');
+
+      const statusLabels = {
+        PACKED: 'Order marked as Packed (Ready for loading)',
+        DISPATCHED: 'Order dispatched on delivery route',
+        DELIVERED: 'Order marked as Delivered & Completed',
+        CANCELLED: 'Order marked as Cancelled',
+      };
+
+      toast.success(
+        statusLabels[status] || `Order status updated to ${status}!`,
+        'Dispatch Updated'
+      );
     } catch (err) {
       console.error('Error updating order status:', err);
-      alert(err.response?.data?.message || 'Failed to update order status');
+      toast.error(err.response?.data?.message || 'Failed to update order status', 'Dispatch Error');
     }
   };
 

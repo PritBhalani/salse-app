@@ -11,8 +11,10 @@ import {
   Building2,
 } from 'lucide-react';
 import { routesAPI, authAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const RoutePlannerPage = ({ onNavigateToCallSheet }) => {
+  const { toast } = useToast();
   const [routes, setRoutes] = useState([]);
   const [salesmen, setSalesmen] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -62,6 +64,7 @@ export const RoutePlannerPage = ({ onNavigateToCallSheet }) => {
         nextVisitDate: formData.nextVisitDate || null,
       };
 
+      const isEdit = Boolean(editRoute);
       if (editRoute) {
         await routesAPI.update(editRoute._id, payload);
       } else {
@@ -71,10 +74,15 @@ export const RoutePlannerPage = ({ onNavigateToCallSheet }) => {
       setIsModalOpen(false);
       setEditRoute(null);
       await fetchRoutesAndSalesmen();
-      alert('✅ Beat / Route saved successfully!');
+      toast.success(
+        isEdit
+          ? `Beat "${formData.name}" updated successfully!`
+          : `Beat "${formData.name}" created successfully!`,
+        isEdit ? 'Beat Updated' : 'Beat Created'
+      );
     } catch (err) {
       console.error('Error saving route:', err);
-      alert(err.response?.data?.message || 'Failed to save route. Please check inputs.');
+      toast.error(err.response?.data?.message || 'Failed to save route. Please check inputs.', 'Save Error');
     }
   };
 

@@ -26,8 +26,10 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { productsAPI, uploadAPI, categoriesAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const InventoryPage = () => {
+  const { toast } = useToast();
   const [products, setProducts] = useState([]);
   const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -118,8 +120,13 @@ export const InventoryPage = () => {
         prev.map((p) => (p._id === id ? { ...p, isOutOfStock: !currentStatus } : p))
       );
       await productsAPI.toggleStock(id);
+      toast.info(
+        !currentStatus ? 'Product marked as Out of Stock' : 'Product marked as In Stock',
+        'Stock Updated'
+      );
     } catch (err) {
       console.error('Error toggling stock status:', err);
+      toast.error('Failed to update stock status', 'Update Error');
       fetchProducts();
     }
   };
@@ -183,6 +190,7 @@ export const InventoryPage = () => {
 
     if (!file.type.startsWith('image/')) {
       setPhotoError('Please select a valid image file (JPG, PNG, WEBP).');
+      toast.warning('Please select a valid image file (JPG, PNG, WEBP).', 'Invalid Image');
       return;
     }
 
@@ -212,8 +220,10 @@ export const InventoryPage = () => {
             }));
           }
         }
+        toast.success('Product photo uploaded successfully!', 'Photo Attached');
       } catch (uploadErr) {
         console.warn('Backend upload failed, retained local base64 photo preview:', uploadErr);
+        toast.info('Local photo preview attached', 'Photo Ready');
       }
     } catch (err) {
       console.error('Photo processing error:', err);
@@ -324,6 +334,7 @@ export const InventoryPage = () => {
           setEditProduct(null);
           fetchProducts();
           fetchCategories();
+          toast.success(`Product "${formData.name}" updated successfully!`, 'Product Updated');
         }
       } else {
         const res = await productsAPI.create(payload);
@@ -331,22 +342,25 @@ export const InventoryPage = () => {
           setIsAddModalOpen(false);
           fetchProducts();
           fetchCategories();
+          toast.success(`Product "${formData.name}" added to catalog!`, 'Product Added');
         }
       }
     } catch (err) {
       console.error('Error saving product:', err);
-      alert('Failed to save product: ' + (err.response?.data?.message || err.message));
+      toast.error(err.response?.data?.message || err.message || 'Failed to save product', 'Save Failed');
     }
   };
 
-  const handleDeleteProduct = async (id) => {
-    if (window.confirm('Are you sure you want to delete this product from the inventory catalog?')) {
+  const handleDeleteProduct = async (id, productName = 'Product') => {
+    if (window.confirm(`Are you sure you want to delete "${productName}" from the inventory catalog?`)) {
       try {
         await productsAPI.delete(id);
         fetchProducts();
         fetchCategories();
+        toast.success(`Product "${productName}" deleted from catalog.`, 'Product Deleted');
       } catch (err) {
         console.error('Error deleting product:', err);
+        toast.error(err.response?.data?.message || 'Failed to delete product', 'Delete Error');
       }
     }
   };
@@ -356,6 +370,7 @@ export const InventoryPage = () => {
     e.preventDefault();
     if (!newCatName.trim()) {
       setCategoryError('Please enter a category name');
+      toast.warning('Please enter a category name', 'Validation Error');
       return;
     }
 
@@ -374,9 +389,12 @@ export const InventoryPage = () => {
         setNewCatDescription('');
         setFormData((prev) => ({ ...prev, category: createdCatName }));
         await fetchCategories();
+        toast.success(`Category "${createdCatName}" created successfully!`, 'Category Added');
       }
     } catch (err) {
-      setCategoryError(err.response?.data?.message || 'Failed to add category');
+      const errMsg = err.response?.data?.message || 'Failed to add category';
+      setCategoryError(errMsg);
+      toast.error(errMsg, 'Category Failed');
     } finally {
       setSavingCategory(false);
     }
@@ -398,8 +416,9 @@ export const InventoryPage = () => {
           setSelectedCategory('ALL');
         }
         await fetchCategories();
+        toast.success(`Category "${catName}" removed.`, 'Category Deleted');
       } catch (err) {
-        alert('Failed to delete category: ' + (err.response?.data?.message || err.message));
+        toast.error(err.response?.data?.message || err.message || 'Failed to delete category', 'Delete Error');
       }
     }
   };
@@ -763,7 +782,7 @@ export const InventoryPage = () => {
                             <Edit2 className="w-3.5 h-3.5" />
                           </button>
                           <button
-                            onClick={() => handleDeleteProduct(p._id)}
+                            onClick={() => handleDeleteProduct(p._id, p.name)}
                             className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
                             title="Delete"
                           >

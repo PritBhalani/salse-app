@@ -16,8 +16,10 @@ import {
   Edit2,
 } from 'lucide-react';
 import { shopsAPI, routesAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const ShopsLedgerPage = () => {
+  const { toast } = useToast();
   const [shops, setShops] = useState([]);
   const [routes, setRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -68,13 +70,14 @@ export const ShopsLedgerPage = () => {
       };
       const res = await shopsAPI.update(editShopData._id, payload);
       if (res.data.success) {
+        const name = editShopData.shopName;
         setEditShopData(null);
         await fetchShops();
-        alert('✅ Shop details & Beat assignment updated successfully!');
+        toast.success(`Shop "${name}" details & beat updated successfully!`, 'Shop Updated');
       }
     } catch (err) {
       console.error('Error updating shop:', err);
-      alert(err.response?.data?.message || 'Failed to update shop details.');
+      toast.error(err.response?.data?.message || 'Failed to update shop details.', 'Update Error');
     }
   };
 
@@ -124,10 +127,11 @@ export const ShopsLedgerPage = () => {
       if (res.data.success) {
         setCreatedCredentials(res.data.credentials);
         await fetchShops();
+        toast.success(`Shop "${formData.shopName}" registered successfully!`, 'Shop Registered');
       }
     } catch (err) {
       console.error('Error creating shop:', err);
-      alert(err.response?.data?.message || 'Failed to register shop. Check if phone number already exists.');
+      toast.error(err.response?.data?.message || 'Failed to register shop. Check if phone number already exists.', 'Registration Error');
     }
   };
 

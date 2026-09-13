@@ -13,8 +13,10 @@ import {
   ExternalLink,
 } from 'lucide-react';
 import { callingSheetAPI, routesAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const CallingSheetPage = () => {
+  const { toast } = useToast();
   const [routesData, setRoutesData] = useState([]);
   const [selectedRouteId, setSelectedRouteId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -58,8 +60,10 @@ export const CallingSheetPage = () => {
       });
       // Refresh calling sheet
       await fetchCallingSheet(selectedRouteId);
+      toast.success(`Call status updated for ${shop.shopName}!`, 'Call Logged');
     } catch (err) {
       console.error('Error logging call note:', err);
+      toast.error(err.response?.data?.message || 'Failed to update call status', 'Call Error');
     } finally {
       setSavingNoteId(null);
     }

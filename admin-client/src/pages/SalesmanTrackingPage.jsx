@@ -16,8 +16,10 @@ import {
   Plus,
 } from 'lucide-react';
 import { visitsAPI, authAPI, paymentsAPI } from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 export const SalesmanTrackingPage = () => {
+  const { toast } = useToast();
   const [salesmen, setSalesmen] = useState([]);
   const [visits, setVisits] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -67,6 +69,7 @@ export const SalesmanTrackingPage = () => {
       };
       const res = await authAPI.createUser(payload);
       if (res.data.success) {
+        const name = newUserData.name;
         setIsAddModalOpen(false);
         setNewUserData({
           name: '',
@@ -76,11 +79,11 @@ export const SalesmanTrackingPage = () => {
           activeCities: 'Morbi, Wankaner',
         });
         await fetchData();
-        alert('✅ Salesman created successfully! They can now log in via the mobile app.');
+        toast.success(`Salesman "${name}" created successfully! They can now log in via the mobile app.`, 'Salesman Created');
       }
     } catch (err) {
       console.error('Error creating user:', err);
-      alert(err.response?.data?.message || 'Failed to create user. Check if phone number already exists.');
+      toast.error(err.response?.data?.message || 'Failed to create user. Check if phone number already exists.', 'Creation Error');
     }
   };
 
@@ -99,13 +102,14 @@ export const SalesmanTrackingPage = () => {
       }
       const res = await authAPI.updateUser(editUserData._id, payload);
       if (res.data.success) {
+        const name = editUserData.name;
         setEditUserData(null);
         await fetchData();
-        alert('✅ Salesman credentials updated successfully!');
+        toast.success(`Salesman "${name}" credentials updated successfully!`, 'Salesman Updated');
       }
     } catch (err) {
       console.error('Error updating salesman:', err);
-      alert(err.response?.data?.message || 'Failed to update credentials.');
+      toast.error(err.response?.data?.message || 'Failed to update credentials.', 'Update Error');
     }
   };
 
@@ -115,9 +119,10 @@ export const SalesmanTrackingPage = () => {
       setSettleModalSalesman(null);
       setSettleAmount('');
       await fetchData();
+      toast.success('Salesman cash collected & settled with warehouse desk!', 'Cash Settled');
     } catch (err) {
       console.error('Error settling cash:', err);
-      alert(err.response?.data?.message || 'Failed to settle salesman cash');
+      toast.error(err.response?.data?.message || 'Failed to settle salesman cash', 'Settlement Error');
     }
   };
 
@@ -126,9 +131,10 @@ export const SalesmanTrackingPage = () => {
       try {
         await authAPI.resetDevice(userId);
         await fetchData();
-        alert('✅ Device binding cleared. Salesman can now log in on a new phone.');
+        toast.success('Device binding cleared. Salesman can now log in on a new phone.', 'Device Reset');
       } catch (err) {
         console.error('Error resetting device binding:', err);
+        toast.error('Failed to reset device binding.', 'Reset Error');
       }
     }
   };
