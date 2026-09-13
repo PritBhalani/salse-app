@@ -336,41 +336,51 @@ export const TodayBeatScreen = ({
               </View>
             )}
 
-            {/* Current Beat Info Card */}
+            {/* Current Beat Info Card (Simulator Style) */}
             <View style={styles.routeCard}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                <Text style={styles.routeTitle}>
-                  {selectedRouteId === 'ALL' ? '🌐 All Assigned Territory' : routeData ? routeData.name : 'Today Beat'}
-                </Text>
+              <View style={styles.routeHeaderRow}>
+                <View style={styles.routeTitleGroup}>
+                  <Text style={styles.routeIcon}>🧭</Text>
+                  <Text style={styles.routeTitle}>
+                    {selectedRouteId === 'ALL' ? 'All Assigned Territory' : routeData ? routeData.name : 'Today Beat'}
+                  </Text>
+                </View>
                 <View style={styles.shopCountBadge}>
                   <Text style={styles.shopCountText}>{filteredShops.length} Shops</Text>
                 </View>
               </View>
               <Text style={styles.routeMeta}>
-                Coverage Cities: {routeData?.cities?.join(', ') || 'Morbi, Wankaner, Rajkot'}
+                Coverage Cities: <Text style={styles.routeMetaBold}>{routeData?.cities?.join(', ') || 'Morbi, Wankaner, Rajkot'}</Text>
               </Text>
+              <View style={styles.routeDivider} />
+              <View style={styles.routeStatsRow}>
+                <Text style={styles.routeVisitsText}>
+                  Visits Done: <Text style={styles.routeVisitsBold}>4 / {filteredShops.length}</Text>
+                </Text>
+                <Text style={styles.routeCollectedText}>
+                  Collected: ₹{user?.cashInHand ? user.cashInHand.toLocaleString() : '35,000'}
+                </Text>
+              </View>
+            </View>
+
+            {/* Sub-header with Title & Onboard Button */}
+            <View style={styles.beatHeaderActionRow}>
+              <Text style={styles.beatSectionHeading}>BEAT SHOPS LIST</Text>
+              <TouchableOpacity style={styles.onboardBtn} onPress={onOpenRegisterShop}>
+                <Text style={styles.onboardBtnText}>👤 + Onboard Shop</Text>
+              </TouchableOpacity>
             </View>
 
             {/* Quick Search & Filter Bar */}
             <View style={styles.searchContainer}>
               <TextInput
                 style={styles.searchBar}
-                placeholder="🔍 Search shop name, owner, phone number..."
+                placeholder="🔍 Search shop, owner, mobile, or city..."
                 placeholderTextColor="#64748b"
                 value={searchQuery}
                 onChangeText={setSearchQuery}
               />
             </View>
-
-            {/* Action Bar: Register New Shop */}
-            <TouchableOpacity style={styles.registerShopBtn} onPress={onOpenRegisterShop}>
-              <Text style={styles.registerShopBtnText}>➕ Onboard New Retail Shop in Field</Text>
-            </TouchableOpacity>
-
-            {/* Retail Shops List */}
-            <Text style={styles.sectionHeader}>
-              {searchQuery ? `Search Results (${filteredShops.length})` : 'Shops on Route:'}
-            </Text>
 
             {loading && !refreshing ? (
               <View style={{ alignItems: 'center', paddingVertical: 40 }}>
@@ -397,68 +407,55 @@ export const TodayBeatScreen = ({
 
                 return (
                   <View key={s._id} style={styles.shopCard}>
-                    {/* Header with Distance Badge */}
+                    {/* Header with Shop Name and City Pill */}
                     <View style={styles.shopCardHeader}>
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                          <Text style={styles.shopIndex}>#{index + 1}</Text>
-                          <Text style={styles.shopName} numberOfLines={1}>
-                            {s.shopName}
-                          </Text>
-                        </View>
+                      <View style={{ flex: 1, paddingRight: 8 }}>
+                        <Text style={styles.shopName} numberOfLines={1}>
+                          {s.shopName}
+                        </Text>
                         <Text style={styles.ownerText}>
-                          👤 {s.ownerName || 'Proprietor'} • 📞 {s.phone}
-                        </Text>
-                        <Text style={styles.addressText} numberOfLines={1}>
-                          📍 {s.address || 'Main Market'}, {s.city || 'Morbi'}
+                          {s.ownerName || 'Proprietor'} • {s.city || 'Morbi'}
                         </Text>
                       </View>
-
-                      {/* Geofence Distance Pill */}
-                      <View style={[styles.distancePill, isInsideGeofence ? styles.distanceInside : styles.distanceOutside]}>
-                        <Text style={[styles.distancePillText, isInsideGeofence ? styles.textInside : styles.textOutside]}>
-                          {distance > 1000 ? `${(distance / 1000).toFixed(1)} km` : `${distance}m`}
-                        </Text>
-                        <Text style={styles.geofenceLabel}>
-                          {isInsideGeofence ? '✓ Geofence OK' : '⚠️ Off-Site'}
-                        </Text>
+                      <View style={styles.cityPill}>
+                        <Text style={styles.cityPillText}>{s.city || 'Morbi'}</Text>
                       </View>
                     </View>
 
-                    {/* Ledger Balance Pill */}
-                    <View style={styles.ledgerRow}>
-                      <View style={styles.ledgerItem}>
-                        <Text style={styles.ledgerLabel}>GST Due:</Text>
-                        <Text style={styles.ledgerGst}>₹{s.gstBalance?.toLocaleString() || 0}</Text>
+                    {/* Proximity Pill & Google Maps Directions Link */}
+                    <View style={styles.proximityRow}>
+                      <View style={styles.proximityGroup}>
+                        <Text style={isInsideGeofence ? styles.proximityDotNear : styles.proximityDotFar}>
+                          {isInsideGeofence ? '🟢' : '🟡'}
+                        </Text>
+                        <Text style={[styles.proximityText, isInsideGeofence ? styles.textNear : styles.textFar]}>
+                          {isInsideGeofence ? '28m away (At Shop)' : `${distance > 1000 ? (distance / 1000).toFixed(1) + 'km' : distance + 'm'} away`}
+                        </Text>
                       </View>
-                      <View style={styles.ledgerDivider} />
-                      <View style={styles.ledgerItem}>
-                        <Text style={styles.ledgerLabel}>Rough Cash Due:</Text>
-                        <Text style={styles.ledgerNonGst}>₹{s.nonGstBalance?.toLocaleString() || 0}</Text>
-                      </View>
-                      <View style={styles.ledgerDivider} />
-                      <View style={styles.ledgerItem}>
-                        <Text style={styles.ledgerLabel}>Total Due:</Text>
-                        <Text style={styles.ledgerTotal}>₹{totalDue.toLocaleString()}</Text>
-                      </View>
-                    </View>
-
-                    {/* Quick Action Icons: Call, WhatsApp, Navigation */}
-                    <View style={styles.quickContactRow}>
-                      <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleCall(s.phone)}>
-                        <Text style={styles.quickContactText}>📞 Call Owner</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleWhatsApp(s)}>
-                        <Text style={styles.quickContactText}>📲 WhatsApp</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleOpenMap(s)}>
-                        <Text style={styles.quickContactText}>🗺️ Maps Nav</Text>
+                      <TouchableOpacity onPress={() => handleOpenMap(s)}>
+                        <Text style={styles.directionsLink}>🗺️ Directions</Text>
                       </TouchableOpacity>
                     </View>
 
-                    {/* Card Action Buttons */}
+                    {/* Dual Balance Matrix (3 Columns in slate-950) */}
+                    <View style={styles.balanceMatrix}>
+                      <View style={styles.balanceCol}>
+                        <Text style={styles.balanceLabel}>GST Due</Text>
+                        <Text style={styles.balanceValGst}>₹{(s.gstBalance || 0).toLocaleString()}</Text>
+                      </View>
+                      <View style={styles.balanceColDivider} />
+                      <View style={styles.balanceCol}>
+                        <Text style={styles.balanceLabel}>Rough Due</Text>
+                        <Text style={styles.balanceValRough}>₹{(s.nonGstBalance || 0).toLocaleString()}</Text>
+                      </View>
+                      <View style={styles.balanceColDivider} />
+                      <View style={styles.balanceCol}>
+                        <Text style={styles.balanceLabel}>Total Due</Text>
+                        <Text style={styles.balanceValTotal}>₹{totalDue.toLocaleString()}</Text>
+                      </View>
+                    </View>
+
+                    {/* Primary Field Action Buttons (GPS Check-In & Visit Shop) */}
                     <View style={styles.actionButtonRow}>
                       <TouchableOpacity
                         style={styles.checkInBtn}
@@ -466,17 +463,27 @@ export const TodayBeatScreen = ({
                         disabled={checkInLoading === s._id}
                       >
                         {checkInLoading === s._id ? (
-                          <ActivityIndicator color="#ffffff" size="small" />
+                          <ActivityIndicator color="#34d399" size="small" />
                         ) : (
                           <Text style={styles.checkInBtnText}>📍 GPS Check-In</Text>
                         )}
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.detailBtn}
+                        style={styles.visitShopBtn}
                         onPress={() => onSelectShop(s)}
                       >
-                        <Text style={styles.detailBtnText}>Open Shop &rarr;</Text>
+                        <Text style={styles.visitShopBtnText}>Visit Shop &rarr;</Text>
+                      </TouchableOpacity>
+                    </View>
+
+                    {/* Quick Contact Icons Row */}
+                    <View style={styles.quickContactRow}>
+                      <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleCall(s.phone)}>
+                        <Text style={styles.quickContactText}>📞 Call Owner</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity style={styles.quickContactBtn} onPress={() => handleWhatsApp(s)}>
+                        <Text style={styles.quickContactText}>📲 WhatsApp</Text>
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -487,7 +494,7 @@ export const TodayBeatScreen = ({
         )}
 
         {/* ========================================================================= */}
-        {/* TAB 2: VISUAL WHOLESALE CATALOG (Blinkit / Flipkart Style) */}
+        {/* TAB 2: VISUAL WHOLESALE CATALOG (2-COLUMN FLIPKART / BLINKIT GRID) */}
         {/* ========================================================================= */}
         {activeTab === 'CATALOG' && (
           <View>
@@ -530,106 +537,132 @@ export const TodayBeatScreen = ({
               ))}
             </ScrollView>
 
-            {/* Product Cards */}
-            {filteredProducts.map((p) => {
-              const qtyInCart = cart[p._id] || 0;
-              const isOutOfStock = p.isOutOfStock;
-              const boxCount = Math.floor(qtyInCart / (p.boxQuantity || 1));
-              const looseCount = qtyInCart % (p.boxQuantity || 1);
+            {/* 2-Column Product Catalog Grid (Flipkart / Blinkit Style) */}
+            <View style={styles.catalogGrid}>
+              {filteredProducts.map((p) => {
+                const hasVars = Boolean(p.hasVariants && p.variants?.length > 0);
+                const currentVarIdx = selectedVariants[p._id] ?? 0;
+                const activeVar = hasVars ? p.variants[currentVarIdx] || p.variants[0] : null;
 
-              return (
-                <View
-                  key={p._id}
-                  style={[styles.catalogCard, isOutOfStock && styles.catalogCardDisabled]}
-                >
-                  <View style={styles.catalogMainRow}>
-                    {/* Photo thumbnail */}
-                    <TouchableOpacity
-                      style={styles.imageContainer}
-                      activeOpacity={p.imageUrl ? 0.75 : 1}
-                      onPress={() => {
-                        if (p.imageUrl) {
-                          setZoomPhoto({
-                            url: p.imageUrl,
-                            name: p.name,
-                            brand: p.brand,
-                            price: p.basePrice,
-                          });
-                        }
-                      }}
-                    >
-                      {p.imageUrl ? (
-                        <Image source={{ uri: p.imageUrl }} style={styles.productImage} resizeMode="cover" />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Text style={styles.placeholderEmoji}>🚿</Text>
-                        </View>
-                      )}
-                      {p.brand && (
-                        <View style={styles.brandBadge}>
-                          <Text style={styles.brandBadgeText}>{p.brand}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
+                const activePrice = activeVar ? activeVar.basePrice : p.basePrice || 0;
+                const activeBoxQty = activeVar ? activeVar.boxQuantity : p.boxQuantity || 1;
+                const isOutOfStock = activeVar ? activeVar.isOutOfStock : p.isOutOfStock;
 
-                    {/* Details */}
-                    <View style={styles.catalogDetails}>
-                      <Text style={styles.prodName}>{p.name}</Text>
-                      <Text style={styles.prodCategory}>{p.category || 'Hardware'}</Text>
-                      <View style={styles.boxTag}>
-                        <Text style={styles.boxTagText}>
-                          📦 Master Box: {p.boxQuantity || 1} {p.uom || 'pcs'} • ₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()}
-                        </Text>
-                      </View>
-                      <Text style={styles.prodPrice}>
-                        ₹{p.basePrice?.toLocaleString()} <Text style={styles.prodPriceUnit}>/ {p.uom || 'pc'}</Text>
-                      </Text>
-                    </View>
-                  </View>
+                const itemKey = activeVar ? `${p._id}___${activeVar.size}` : p._id;
+                const qtyInCart = cart[itemKey]?.quantity || 0;
 
-                  {/* Stepper / Controls */}
-                  {isOutOfStock ? (
-                    <View style={styles.outOfStockBanner}>
-                      <Text style={styles.outOfStockText}>⚠️ Out of Stock at Morbi Warehouse</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.catalogQtyControls}>
+                return (
+                  <View
+                    key={p._id}
+                    style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}
+                  >
+                    <View>
+                      {/* Square Photo Container with Tap to Zoom & Brand Tag */}
                       <TouchableOpacity
-                        style={styles.boxBtn}
-                        onPress={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
+                        style={styles.gridImageContainer}
+                        activeOpacity={p.imageUrl ? 0.75 : 1}
+                        onPress={() => {
+                          if (p.imageUrl) {
+                            setZoomPhoto({
+                              url: p.imageUrl,
+                              name: p.name,
+                              brand: p.brand,
+                              price: activePrice,
+                            });
+                          }
+                        }}
                       >
-                        <Text style={styles.boxBtnText}>+1 Box ({p.boxQuantity || 1} pcs)</Text>
+                        {p.imageUrl ? (
+                          <Image source={{ uri: p.imageUrl }} style={styles.gridImage} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.imagePlaceholder}>
+                            <Text style={styles.placeholderEmoji}>🚿</Text>
+                          </View>
+                        )}
+                        {p.brand ? (
+                          <View style={styles.gridBrandBadge}>
+                            <Text style={styles.gridBrandBadgeText}>{p.brand}</Text>
+                          </View>
+                        ) : null}
                       </TouchableOpacity>
 
-                      <View style={styles.stepper}>
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(p._id, -1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>-</Text>
-                        </TouchableOpacity>
+                      {/* Title & Category */}
+                      <Text style={styles.gridProdName} numberOfLines={2}>
+                        {p.name}
+                      </Text>
+                      <Text style={styles.gridProdCategory} numberOfLines={1}>
+                        {p.category || 'Hardware'}
+                      </Text>
 
-                        <View style={styles.stepperQtyContainer}>
-                          <Text style={styles.stepperQty}>{qtyInCart} pcs</Text>
-                          {qtyInCart > 0 && (
-                            <Text style={styles.stepperSubtext}>
-                              ({boxCount}b {looseCount > 0 ? `+${looseCount}p` : ''})
-                            </Text>
-                          )}
-                        </View>
+                      {/* Size Variant Chips */}
+                      {hasVars && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridVariantScroll}>
+                          {p.variants.map((v, vIdx) => {
+                            const isSelected = currentVarIdx === vIdx;
+                            return (
+                              <TouchableOpacity
+                                key={v.size || vIdx}
+                                style={[styles.gridVarChip, isSelected && styles.gridVarChipActive]}
+                                onPress={() => setSelectedVariants((prev) => ({ ...prev, [p._id]: vIdx }))}
+                              >
+                                <Text style={[styles.gridVarChipText, isSelected && styles.gridVarChipTextActive]}>
+                                  {v.size}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      )}
 
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(p._id, 1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>+</Text>
-                        </TouchableOpacity>
+                      {/* Master Box Info & Price */}
+                      <View style={styles.gridBoxTag}>
+                        <Text style={styles.gridBoxTagText}>
+                          📦 Box: {activeBoxQty} pcs • ₹{((activePrice || 0) * activeBoxQty).toLocaleString()}
+                        </Text>
+                      </View>
+                      <View style={styles.gridPriceRow}>
+                        <Text style={styles.gridPrice}>₹{activePrice?.toLocaleString()}</Text>
+                        <Text style={styles.gridPriceUnit}> / {p.uom || 'pc'}</Text>
                       </View>
                     </View>
-                  )}
-                </View>
-              );
-            })}
+
+                    {/* Stepper / Controls */}
+                    {isOutOfStock ? (
+                      <View style={styles.gridOutOfStockBanner}>
+                        <Text style={styles.gridOutOfStockText}>Out of Stock</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.gridActionContainer}>
+                        <TouchableOpacity
+                          style={styles.gridBoxBtn}
+                          onPress={() => handleUpdateCart(p, activeVar, 1, activeBoxQty)}
+                        >
+                          <Text style={styles.gridBoxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.gridStepper}>
+                          <TouchableOpacity
+                            style={styles.gridStepperBtn}
+                            onPress={() => handleUpdateCart(p, activeVar, -1, 1)}
+                          >
+                            <Text style={styles.gridStepperBtnText}>-</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.gridStepperQty}>
+                            {qtyInCart} pcs
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.gridStepperBtn}
+                            onPress={() => handleUpdateCart(p, activeVar, 1, 1)}
+                          >
+                            <Text style={styles.gridStepperBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -1074,67 +1107,110 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   routeCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
+    backgroundColor: '#081e36',
+    borderRadius: 18,
     padding: 14,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(56, 189, 248, 0.35)',
+  },
+  routeHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  routeTitleGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  routeIcon: {
+    fontSize: 14,
   },
   routeTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#38bdf8',
+    color: '#ffffff',
   },
   shopCountBadge: {
-    backgroundColor: '#0c4a6e',
+    backgroundColor: '#0284c7',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 6,
+    borderRadius: 12,
   },
   shopCountText: {
-    color: '#38bdf8',
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: 'bold',
   },
   routeMeta: {
     fontSize: 11,
     color: '#94a3b8',
+    marginBottom: 8,
+  },
+  routeMetaBold: {
+    color: '#e2e8f0',
+    fontWeight: 'bold',
+  },
+  routeDivider: {
+    height: 1,
+    backgroundColor: 'rgba(51, 65, 85, 0.6)',
+    marginVertical: 8,
+  },
+  routeStatsRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  routeVisitsText: {
+    fontSize: 11,
+    color: '#94a3b8',
+  },
+  routeVisitsBold: {
+    color: '#ffffff',
+    fontWeight: 'bold',
+  },
+  routeCollectedText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  beatHeaderActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingHorizontal: 2,
+  },
+  beatSectionHeading: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    letterSpacing: 0.8,
+  },
+  onboardBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  onboardBtnText: {
+    color: '#38bdf8',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   searchContainer: {
     marginBottom: 12,
   },
   searchBar: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     color: '#f8fafc',
-    fontSize: 13,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  registerShopBtn: {
-    backgroundColor: '#065f46',
-    borderRadius: 12,
-    paddingVertical: 10,
-    alignItems: 'center',
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#059669',
-  },
-  registerShopBtnText: {
-    color: '#ffffff',
     fontSize: 12,
-    fontWeight: 'bold',
-  },
-  sectionHeader: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -1162,162 +1238,166 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   shopCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
-    padding: 14,
-    marginBottom: 12,
+    padding: 12,
+    marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   shopCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
-  },
-  shopIndex: {
-    fontSize: 11,
-    color: '#38bdf8',
-    fontWeight: 'bold',
+    marginBottom: 6,
   },
   shopName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#ffffff',
+    lineHeight: 18,
   },
   ownerText: {
     fontSize: 11,
-    color: '#cbd5e1',
+    color: '#94a3b8',
     marginTop: 2,
   },
-  addressText: {
-    fontSize: 10,
-    color: '#94a3b8',
-    marginTop: 1,
-  },
-  distancePill: {
+  cityPill: {
+    backgroundColor: '#1e293b',
     paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  cityPillText: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#cbd5e1',
+  },
+  proximityRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    marginBottom: 8,
   },
-  distanceInside: {
-    backgroundColor: '#064e3b',
-    borderWidth: 1,
-    borderColor: '#059669',
+  proximityGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
-  distanceOutside: {
-    backgroundColor: '#450a0a',
-    borderWidth: 1,
-    borderColor: '#991b1b',
+  proximityDotNear: {
+    fontSize: 10,
   },
-  distancePillText: {
+  proximityDotFar: {
+    fontSize: 10,
+  },
+  proximityText: {
     fontSize: 11,
     fontWeight: 'bold',
   },
-  textInside: {
+  textNear: {
     color: '#34d399',
   },
-  textOutside: {
-    color: '#f87171',
+  textFar: {
+    color: '#fbbf24',
   },
-  geofenceLabel: {
-    fontSize: 8,
-    color: '#cbd5e1',
-    marginTop: 1,
+  directionsLink: {
+    color: '#38bdf8',
+    fontSize: 10,
+    fontWeight: '600',
   },
-  ledgerRow: {
+  balanceMatrix: {
     flexDirection: 'row',
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
+    backgroundColor: '#020617',
+    borderRadius: 12,
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
-  ledgerItem: {
+  balanceCol: {
     flex: 1,
     alignItems: 'center',
   },
-  ledgerDivider: {
+  balanceColDivider: {
     width: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#1e293b',
   },
-  ledgerLabel: {
+  balanceLabel: {
     fontSize: 9,
     color: '#64748b',
     marginBottom: 2,
   },
-  ledgerGst: {
+  balanceValGst: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#34d399',
   },
-  ledgerNonGst: {
+  balanceValRough: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#fbbf24',
   },
-  ledgerTotal: {
+  balanceValTotal: {
     fontSize: 11,
     fontWeight: 'bold',
-    color: '#f87171',
+    color: '#ffffff',
+  },
+  actionButtonRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  checkInBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: 'rgba(5, 150, 105, 0.18)',
+    borderRadius: 10,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+  },
+  checkInBtnText: {
+    color: '#34d399',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  visitShopBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    backgroundColor: '#0284c7',
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  visitShopBtnText: {
+    color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
   },
   quickContactRow: {
     flexDirection: 'row',
     gap: 6,
-    marginBottom: 10,
   },
   quickContactBtn: {
     flex: 1,
-    paddingVertical: 6,
+    paddingVertical: 5,
     backgroundColor: '#0f172a',
     borderRadius: 8,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   quickContactText: {
     color: '#38bdf8',
     fontSize: 10,
     fontWeight: '600',
   },
-  actionButtonRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  checkInBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    backgroundColor: '#0f172a',
-    borderRadius: 10,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#0284c7',
-  },
-  checkInBtnText: {
-    color: '#38bdf8',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  detailBtn: {
-    flex: 1,
-    paddingVertical: 10,
-    backgroundColor: '#0284c7',
-    borderRadius: 10,
-    alignItems: 'center',
-  },
-  detailBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
   catalogHeader: {
-    marginBottom: 12,
+    marginBottom: 10,
   },
   catalogTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
   },
@@ -1328,23 +1408,23 @@ const styles = StyleSheet.create({
   },
   categoryScroll: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 12,
   },
   categoryChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#334155',
-    marginRight: 8,
+    borderColor: '#1e293b',
+    marginRight: 6,
   },
   categoryChipActive: {
     backgroundColor: '#0284c7',
     borderColor: '#38bdf8',
   },
   categoryChipText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#94a3b8',
     fontWeight: '600',
   },
@@ -1352,253 +1432,289 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  catalogCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  catalogCardDisabled: {
-    opacity: 0.5,
-  },
-  catalogMainRow: {
+  catalogGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
-  imageContainer: {
-    position: 'relative',
-    width: 76,
-    height: 76,
-    borderRadius: 10,
-    overflow: 'hidden',
+  gridCard: {
+    width: '48.5%',
     backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    justifyContent: 'space-between',
   },
-  productImage: {
+  gridCardDisabled: {
+    opacity: 0.55,
+  },
+  gridImageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridImage: {
     width: '100%',
     height: '100%',
+  },
+  gridBrandBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(12, 74, 110, 0.85)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  gridBrandBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridProdName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  gridProdCategory: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  gridVariantScroll: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  gridVarChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#020617',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 4,
+  },
+  gridVarChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  gridVarChipText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+  },
+  gridVarChipTextActive: {
+    color: '#ffffff',
+  },
+  gridBoxTag: {
+    backgroundColor: '#020617',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginBottom: 4,
+  },
+  gridBoxTagText: {
+    color: '#94a3b8',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  gridPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  gridPrice: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  gridPriceUnit: {
+    fontSize: 9,
+    color: '#94a3b8',
+  },
+  gridOutOfStockBanner: {
+    backgroundColor: '#450a0a',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  gridOutOfStockText: {
+    color: '#f87171',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridActionContainer: {
+    gap: 4,
+  },
+  gridBoxBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  gridBoxBtnText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#020617',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 2,
+  },
+  gridStepperBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridStepperBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  gridStepperQty: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#020617',
   },
   placeholderEmoji: {
-    fontSize: 28,
-  },
-  brandBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  brandBadgeText: {
-    color: '#38bdf8',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  catalogDetails: {
-    flex: 1,
-  },
-  prodName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f8fafc',
-    marginBottom: 2,
-  },
-  prodCategory: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  boxTag: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-  },
-  boxTagText: {
-    color: '#a5b4fc',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  prodPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  prodPriceUnit: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: 'normal',
-  },
-  outOfStockBanner: {
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#991b1b',
-  },
-  outOfStockText: {
-    color: '#f87171',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  catalogQtyControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  boxBtn: {
-    backgroundColor: '#0c4a6e',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#0284c7',
-  },
-  boxBtnText: {
-    color: '#38bdf8',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  stepperBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  stepperBtnText: {
-    color: '#38bdf8',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  stepperQtyContainer: {
-    alignItems: 'center',
-    minWidth: 44,
-  },
-  stepperQty: {
-    color: '#f8fafc',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepperSubtext: {
-    color: '#a5b4fc',
-    fontSize: 9,
+    fontSize: 24,
   },
   phoneOrderHeader: {
+    backgroundColor: '#2e1065',
+    borderRadius: 16,
+    padding: 12,
     marginBottom: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.4)',
   },
   phoneOrderTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
-    color: '#c084fc',
+    color: '#e9d5ff',
   },
   phoneOrderSubtitle: {
-    fontSize: 11,
-    color: '#94a3b8',
+    fontSize: 10,
+    color: '#c084fc',
     marginTop: 2,
-    lineHeight: 16,
+    lineHeight: 14,
   },
   phoneShopCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 14,
     padding: 12,
-    marginBottom: 10,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   phoneShopTop: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 10,
+    marginBottom: 8,
   },
   phoneShopName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   phoneShopOwner: {
-    fontSize: 11,
-    color: '#cbd5e1',
+    fontSize: 10,
+    color: '#94a3b8',
     marginTop: 2,
   },
   phoneShopCity: {
     fontSize: 10,
-    color: '#94a3b8',
+    color: '#64748b',
     marginTop: 1,
   },
   offBeatBadge: {
     backgroundColor: '#3b0764',
     paddingHorizontal: 8,
-    paddingVertical: 3,
+    paddingVertical: 2,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#7e22ce',
   },
   offBeatBadgeText: {
     color: '#d8b4fe',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   phoneActionsRow: {
     flexDirection: 'row',
     gap: 8,
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#1e293b',
     paddingTop: 8,
   },
   phoneOrderActionBtn: {
     flex: 1,
-    backgroundColor: '#7e22ce',
-    paddingVertical: 8,
+    backgroundColor: '#9333ea',
+    paddingVertical: 7,
     borderRadius: 8,
     alignItems: 'center',
   },
   phoneOrderActionText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   phoneCollectActionBtn: {
     flex: 1,
-    backgroundColor: '#065f46',
-    paddingVertical: 8,
+    backgroundColor: 'rgba(5, 150, 105, 0.25)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+    paddingVertical: 7,
     borderRadius: 8,
     alignItems: 'center',
   },
   phoneCollectActionText: {
     color: '#34d399',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   collectionsHeaderCard: {
     backgroundColor: '#064e3b',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 16,
+    padding: 14,
+    marginBottom: 14,
     borderWidth: 1,
     borderColor: '#059669',
   },
@@ -1609,7 +1725,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   collectionsTotalCash: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#ffffff',
     marginVertical: 4,
@@ -1645,13 +1761,21 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginTop: 2,
   },
+  sectionHeader: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 8,
+    marginTop: 4,
+  },
   receiptCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 12,
-    padding: 12,
+    padding: 10,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   receiptHeader: {
     flexDirection: 'row',
@@ -1660,12 +1784,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   receiptNum: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   receiptMode: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#38bdf8',
   },
@@ -1679,7 +1803,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#1e293b',
     paddingTop: 6,
   },
   receiptStatus: {
@@ -1687,15 +1811,15 @@ const styles = StyleSheet.create({
     color: '#34d399',
   },
   receiptAmount: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 'bold',
     color: '#34d399',
   },
   kpiCard: {
     backgroundColor: '#2e1065',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 14,
+    padding: 14,
+    marginBottom: 12,
     borderWidth: 1,
     borderColor: '#581c87',
   },
@@ -1716,23 +1840,23 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   kpiProgressLabel: {
-    fontSize: 11,
+    fontSize: 10,
     color: '#c084fc',
   },
   kpiProgressValue: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   kpiProgressBarBg: {
-    height: 8,
+    height: 6,
     backgroundColor: '#1e1b4b',
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   kpiProgressBarFill: {
     height: '100%',
-    borderRadius: 4,
+    borderRadius: 3,
   },
   kpiGrid: {
     flexDirection: 'row',
@@ -1740,12 +1864,12 @@ const styles = StyleSheet.create({
   },
   kpiMetricCard: {
     flex: 1,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 14,
-    padding: 14,
+    padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   kpiMetricLabel: {
     fontSize: 10,
@@ -1753,54 +1877,61 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   kpiMetricValue: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#ffffff',
     marginTop: 4,
   },
   floatingCartBar: {
     position: 'absolute',
-    bottom: 56,
-    left: 0,
-    right: 0,
-    backgroundColor: '#064e3b',
-    borderTopWidth: 1,
-    borderTopColor: '#059669',
-    paddingHorizontal: 16,
+    bottom: 66,
+    left: 12,
+    right: 12,
+    backgroundColor: '#0284c7',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#38bdf8',
+    paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.5,
+    shadowRadius: 10,
   },
   cartBarLabel: {
     fontSize: 11,
-    color: '#a7f3d0',
+    fontWeight: 'bold',
+    color: '#e0f2fe',
   },
   cartBarTotal: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#ffffff',
   },
   cartBarBtn: {
-    backgroundColor: '#059669',
+    backgroundColor: '#ffffff',
     borderRadius: 10,
-    paddingHorizontal: 16,
+    paddingHorizontal: 14,
     paddingVertical: 8,
   },
   cartBarBtnText: {
-    color: '#ffffff',
-    fontSize: 12,
-    fontWeight: 'bold',
+    color: '#0369a1',
+    fontSize: 11,
+    fontWeight: '800',
   },
   bottomNavBar: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    height: 56,
-    backgroundColor: '#111827',
+    height: 58,
+    backgroundColor: '#0f172a',
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: '#1e293b',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',

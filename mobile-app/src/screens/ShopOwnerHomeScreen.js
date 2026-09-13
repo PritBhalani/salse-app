@@ -269,145 +269,132 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               ))}
             </ScrollView>
 
-            {/* Catalog Grid */}
-            {filteredCatalog.map((prod) => {
-              const hasVars = Boolean(prod.hasVariants && prod.variants?.length > 0);
-              const currentVarIdx = selectedVariants[prod._id] ?? 0;
-              const activeVar = hasVars ? prod.variants[currentVarIdx] || prod.variants[0] : null;
+            {/* 2-Column Product Catalog Grid (Flipkart / Blinkit Style) */}
+            <View style={styles.catalogGrid}>
+              {filteredCatalog.map((prod) => {
+                const hasVars = Boolean(prod.hasVariants && prod.variants?.length > 0);
+                const currentVarIdx = selectedVariants[prod._id] ?? 0;
+                const activeVar = hasVars ? prod.variants[currentVarIdx] || prod.variants[0] : null;
 
-              const activePrice = activeVar ? activeVar.basePrice : prod.basePrice || 0;
-              const activeBoxQty = activeVar ? activeVar.boxQuantity : prod.boxQuantity || 1;
-              const activeSku = activeVar ? activeVar.sku : prod.sku || '';
-              const isOutOfStock = activeVar ? activeVar.isOutOfStock : prod.isOutOfStock;
+                const activePrice = activeVar ? activeVar.basePrice : prod.basePrice || 0;
+                const activeBoxQty = activeVar ? activeVar.boxQuantity : prod.boxQuantity || 1;
+                const isOutOfStock = activeVar ? activeVar.isOutOfStock : prod.isOutOfStock;
 
-              const itemKey = activeVar ? `${prod._id}___${activeVar.size}` : prod._id;
-              const qtyInCart = cart[itemKey]?.quantity || 0;
-              const boxCount = Math.floor(qtyInCart / (activeBoxQty || 1));
-              const looseCount = qtyInCart % (activeBoxQty || 1);
+                const itemKey = activeVar ? `${prod._id}___${activeVar.size}` : prod._id;
+                const qtyInCart = cart[itemKey]?.quantity || 0;
 
-              return (
-                <View key={prod._id} style={[styles.catalogCard, isOutOfStock && styles.catalogCardDisabled]}>
-                  <View style={styles.catalogMainRow}>
-                    {/* Photo thumbnail */}
-                    <TouchableOpacity
-                      style={styles.imageContainer}
-                      activeOpacity={prod.imageUrl ? 0.75 : 1}
-                      onPress={() => {
-                        if (prod.imageUrl) {
-                          setZoomPhoto({
-                            url: prod.imageUrl,
-                            name: prod.name,
-                            brand: prod.brand,
-                            price: activePrice || prod.basePrice,
-                          });
-                        }
-                      }}
-                    >
-                      {prod.imageUrl ? (
-                        <Image source={{ uri: prod.imageUrl }} style={styles.productImage} resizeMode="cover" />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Text style={styles.placeholderEmoji}>📦</Text>
-                        </View>
-                      )}
-                      {prod.brand && (
-                        <View style={styles.brandBadge}>
-                          <Text style={styles.brandBadgeText}>{prod.brand}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-
-                    {/* Details */}
-                    <View style={styles.catalogDetails}>
-                      <Text style={styles.prodName}>{prod.name}</Text>
-                      <Text style={styles.prodCategory}>{prod.category || 'Hardware'}</Text>
-                      <View style={styles.boxTag}>
-                        <Text style={styles.boxTagText}>
-                          📦 Master Box: {activeBoxQty} {prod.uom || 'pcs'} • ₹{(activePrice * activeBoxQty).toLocaleString()}
-                        </Text>
-                      </View>
-                      <Text style={styles.prodPrice}>
-                        ₹{activePrice?.toLocaleString()} <Text style={styles.prodPriceUnit}>/ {prod.uom || 'pc'}</Text>
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Size Variant Selector Chips (Flipkart Style) */}
-                  {hasVars && (
-                    <View style={styles.variantContainer}>
-                      <Text style={styles.variantLabel}>⚡ Select Size / Specification:</Text>
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.variantScroll}>
-                        {prod.variants.map((v, vIdx) => {
-                          const isSelected = currentVarIdx === vIdx;
-                          const vItemKey = `${prod._id}___${v.size}`;
-                          const vQty = cart[vItemKey]?.quantity || 0;
-                          return (
-                            <TouchableOpacity
-                              key={v.size || vIdx}
-                              style={[styles.variantChip, isSelected && styles.variantChipActive]}
-                              onPress={() => setSelectedVariants((prev) => ({ ...prev, [prod._id]: vIdx }))}
-                            >
-                              <Text style={[styles.variantChipText, isSelected && styles.variantChipTextActive]}>
-                                {v.size}
-                              </Text>
-                              <Text style={[styles.variantChipPrice, isSelected && styles.variantChipPriceActive]}>
-                                ₹{v.basePrice}
-                              </Text>
-                              {vQty > 0 && (
-                                <View style={styles.variantBadge}>
-                                  <Text style={styles.variantBadgeText}>{vQty}</Text>
-                                </View>
-                              )}
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    </View>
-                  )}
-
-                  {/* Stepper / Controls */}
-                  {isOutOfStock ? (
-                    <View style={styles.outOfStockBanner}>
-                      <Text style={styles.outOfStockText}>⚠️ Out of Stock at Morbi Warehouse</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.catalogQtyControls}>
+                return (
+                  <View
+                    key={prod._id}
+                    style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}
+                  >
+                    <View>
+                      {/* Square Photo Container with Tap to Zoom & Brand Tag */}
                       <TouchableOpacity
-                        style={styles.boxBtn}
-                        onPress={() => handleUpdateCart(prod, activeVar, 1, activeBoxQty)}
+                        style={styles.gridImageContainer}
+                        activeOpacity={prod.imageUrl ? 0.75 : 1}
+                        onPress={() => {
+                          if (prod.imageUrl) {
+                            setZoomPhoto({
+                              url: prod.imageUrl,
+                              name: prod.name,
+                              brand: prod.brand,
+                              price: activePrice || prod.basePrice,
+                            });
+                          }
+                        }}
                       >
-                        <Text style={styles.boxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
+                        {prod.imageUrl ? (
+                          <Image source={{ uri: prod.imageUrl }} style={styles.gridImage} resizeMode="cover" />
+                        ) : (
+                          <View style={styles.imagePlaceholder}>
+                            <Text style={styles.placeholderEmoji}>📦</Text>
+                          </View>
+                        )}
+                        {prod.brand ? (
+                          <View style={styles.gridBrandBadge}>
+                            <Text style={styles.gridBrandBadgeText}>{prod.brand}</Text>
+                          </View>
+                        ) : null}
                       </TouchableOpacity>
 
-                      <View style={styles.stepper}>
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(prod, activeVar, -1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>-</Text>
-                        </TouchableOpacity>
+                      {/* Title & Category */}
+                      <Text style={styles.gridProdName} numberOfLines={2}>
+                        {prod.name}
+                      </Text>
+                      <Text style={styles.gridProdCategory} numberOfLines={1}>
+                        {prod.category || 'Hardware'}
+                      </Text>
 
-                        <View style={styles.stepperQtyContainer}>
-                          <Text style={styles.stepperQty}>{qtyInCart} pcs</Text>
-                          {qtyInCart > 0 && (
-                            <Text style={styles.stepperSubtext}>
-                              ({boxCount}b {looseCount > 0 ? `+${looseCount}p` : ''})
-                            </Text>
-                          )}
-                        </View>
+                      {/* Size Variant Chips */}
+                      {hasVars && (
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridVariantScroll}>
+                          {prod.variants.map((v, vIdx) => {
+                            const isSelected = currentVarIdx === vIdx;
+                            return (
+                              <TouchableOpacity
+                                key={v.size || vIdx}
+                                style={[styles.gridVarChip, isSelected && styles.gridVarChipActive]}
+                                onPress={() => setSelectedVariants((prev) => ({ ...prev, [prod._id]: vIdx }))}
+                              >
+                                <Text style={[styles.gridVarChipText, isSelected && styles.gridVarChipTextActive]}>
+                                  {v.size}
+                                </Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        </ScrollView>
+                      )}
 
-                        <TouchableOpacity
-                          style={styles.stepperBtn}
-                          onPress={() => handleUpdateCart(prod, activeVar, 1, 1)}
-                        >
-                          <Text style={styles.stepperBtnText}>+</Text>
-                        </TouchableOpacity>
+                      {/* Master Box Info & Price */}
+                      <View style={styles.gridBoxTag}>
+                        <Text style={styles.gridBoxTagText}>
+                          📦 Box: {activeBoxQty} pcs • ₹{((activePrice || 0) * activeBoxQty).toLocaleString()}
+                        </Text>
+                      </View>
+                      <View style={styles.gridPriceRow}>
+                        <Text style={styles.gridPrice}>₹{activePrice?.toLocaleString()}</Text>
+                        <Text style={styles.gridPriceUnit}> / {prod.uom || 'pc'}</Text>
                       </View>
                     </View>
-                  )}
-                </View>
-              );
-            })}
+
+                    {/* Stepper / Controls */}
+                    {isOutOfStock ? (
+                      <View style={styles.gridOutOfStockBanner}>
+                        <Text style={styles.gridOutOfStockText}>Out of Stock</Text>
+                      </View>
+                    ) : (
+                      <View style={styles.gridActionContainer}>
+                        <TouchableOpacity
+                          style={styles.gridBoxBtn}
+                          onPress={() => handleUpdateCart(prod, activeVar, 1, activeBoxQty)}
+                        >
+                          <Text style={styles.gridBoxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
+                        </TouchableOpacity>
+
+                        <View style={styles.gridStepper}>
+                          <TouchableOpacity
+                            style={styles.gridStepperBtn}
+                            onPress={() => handleUpdateCart(prod, activeVar, -1, 1)}
+                          >
+                            <Text style={styles.gridStepperBtnText}>-</Text>
+                          </TouchableOpacity>
+                          <Text style={styles.gridStepperQty}>
+                            {qtyInCart} pcs
+                          </Text>
+                          <TouchableOpacity
+                            style={styles.gridStepperBtn}
+                            onPress={() => handleUpdateCart(prod, activeVar, 1, 1)}
+                          >
+                            <Text style={styles.gridStepperBtnText}>+</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -517,23 +504,28 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
               </View>
             </View>
 
-            {/* Outstanding Balances Card */}
+            {/* Outstanding Balances Card (Dual Balance Matrix) */}
             <View style={styles.duesCard}>
-              <Text style={styles.duesHeaderTitle}>Account Statement & Outstanding Balance</Text>
-              <View style={styles.duesRow}>
-                <View style={styles.dueCol}>
-                  <Text style={styles.dueLabel}>GST Tax Due</Text>
-                  <Text style={styles.dueGst}>₹{shop?.gstBalance?.toLocaleString() || 0}</Text>
+              <View style={styles.duesHeaderRow}>
+                <Text style={styles.duesHeaderTitle}>Account Statement & Outstanding Balance</Text>
+                <View style={styles.ledgerBadge}>
+                  <Text style={styles.ledgerBadgeText}>DUAL LEDGER</Text>
                 </View>
-                <View style={styles.dueDivider} />
-                <View style={styles.dueCol}>
-                  <Text style={styles.dueLabel}>Rough / Cash Due</Text>
-                  <Text style={styles.dueNonGst}>₹{shop?.nonGstBalance?.toLocaleString() || 0}</Text>
+              </View>
+              <View style={styles.matrixBox}>
+                <View style={styles.matrixCol}>
+                  <Text style={styles.matrixLabel}>GST Tax Due</Text>
+                  <Text style={styles.matrixGst}>₹{shop?.gstBalance?.toLocaleString() || 0}</Text>
                 </View>
-                <View style={styles.dueDivider} />
-                <View style={styles.dueCol}>
-                  <Text style={styles.dueLabel}>Total Outstanding</Text>
-                  <Text style={styles.dueTotal}>₹{totalDue.toLocaleString()}</Text>
+                <View style={styles.matrixDivider} />
+                <View style={styles.matrixCol}>
+                  <Text style={styles.matrixLabel}>Rough / Cash Due</Text>
+                  <Text style={styles.matrixRough}>₹{shop?.nonGstBalance?.toLocaleString() || 0}</Text>
+                </View>
+                <View style={styles.matrixDivider} />
+                <View style={styles.matrixCol}>
+                  <Text style={styles.matrixLabel}>Total Outstanding</Text>
+                  <Text style={styles.matrixTotal}>₹{totalDue.toLocaleString()}</Text>
                 </View>
               </View>
             </View>
@@ -707,9 +699,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#1e293b',
   },
   headerLogo: {
     width: 38,
@@ -797,168 +789,197 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  catalogCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  catalogCardDisabled: {
-    opacity: 0.5,
-  },
-  catalogMainRow: {
+  catalogGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
-  imageContainer: {
-    position: 'relative',
-    width: 76,
-    height: 76,
-    borderRadius: 10,
-    overflow: 'hidden',
+  gridCard: {
+    width: '48.5%',
     backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    justifyContent: 'space-between',
   },
-  productImage: {
+  gridCardDisabled: {
+    opacity: 0.55,
+  },
+  gridImageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridImage: {
     width: '100%',
     height: '100%',
+  },
+  gridBrandBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(12, 74, 110, 0.85)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  gridBrandBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridProdName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  gridProdCategory: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  gridVariantScroll: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  gridVarChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#020617',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 4,
+  },
+  gridVarChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  gridVarChipText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+  },
+  gridVarChipTextActive: {
+    color: '#ffffff',
+  },
+  gridBoxTag: {
+    backgroundColor: '#020617',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginBottom: 4,
+  },
+  gridBoxTagText: {
+    color: '#94a3b8',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  gridPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  gridPrice: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  gridPriceUnit: {
+    fontSize: 9,
+    color: '#94a3b8',
+  },
+  gridOutOfStockBanner: {
+    backgroundColor: '#450a0a',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  gridOutOfStockText: {
+    color: '#f87171',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridActionContainer: {
+    gap: 4,
+  },
+  gridBoxBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  gridBoxBtnText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#020617',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 2,
+  },
+  gridStepperBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridStepperBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  gridStepperQty: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#020617',
   },
   placeholderEmoji: {
-    fontSize: 28,
-  },
-  brandBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  brandBadgeText: {
-    color: '#38bdf8',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  catalogDetails: {
-    flex: 1,
-  },
-  prodName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f8fafc',
-    marginBottom: 2,
-  },
-  prodCategory: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  boxTag: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-  },
-  boxTagText: {
-    color: '#a5b4fc',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  prodPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  prodPriceUnit: {
-    fontSize: 11,
-    color: '#94a3b8',
-    fontWeight: 'normal',
-  },
-  outOfStockBanner: {
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#991b1b',
-  },
-  outOfStockText: {
-    color: '#f87171',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  catalogQtyControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  boxBtn: {
-    backgroundColor: '#312e81',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#4338ca',
-  },
-  boxBtnText: {
-    color: '#a5b4fc',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  stepperBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  stepperBtnText: {
-    color: '#818cf8',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  stepperQtyContainer: {
-    alignItems: 'center',
-    minWidth: 44,
-  },
-  stepperQty: {
-    color: '#f8fafc',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepperSubtext: {
-    color: '#a5b4fc',
-    fontSize: 9,
+    fontSize: 24,
   },
   dispatchCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   dispatchTitle: {
     fontSize: 12,
@@ -1048,12 +1069,12 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   orderCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 14,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   orderHeader: {
     flexDirection: 'row',
@@ -1087,7 +1108,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderTopWidth: 1,
-    borderTopColor: '#334155',
+    borderTopColor: '#1e293b',
     paddingTop: 8,
   },
   orderItems: {
@@ -1100,17 +1121,17 @@ const styles = StyleSheet.create({
     color: '#34d399',
   },
   creditCard: {
-    backgroundColor: '#1e1b4b',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#4338ca',
+    borderColor: '#1e293b',
   },
   creditTitle: {
     fontSize: 12,
     fontWeight: 'bold',
-    color: '#c7d2fe',
+    color: '#38bdf8',
     textTransform: 'uppercase',
   },
   creditLimitTotal: {
@@ -1120,13 +1141,16 @@ const styles = StyleSheet.create({
   },
   progressBarBg: {
     height: 8,
-    backgroundColor: '#312e81',
+    backgroundColor: '#020617',
     borderRadius: 4,
     overflow: 'hidden',
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: '#1e293b',
   },
   progressBarFill: {
     height: '100%',
-    backgroundColor: '#818cf8',
+    backgroundColor: '#0284c7',
     borderRadius: 4,
   },
   creditMeta: {
@@ -1139,47 +1163,70 @@ const styles = StyleSheet.create({
     color: '#34d399',
   },
   duesCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 16,
     padding: 14,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
+  },
+  duesHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
   },
   duesHeaderTitle: {
     fontSize: 11,
     fontWeight: 'bold',
     color: '#94a3b8',
-    marginBottom: 10,
     textTransform: 'uppercase',
   },
-  duesRow: {
-    flexDirection: 'row',
+  ledgerBadge: {
+    backgroundColor: '#020617',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
-  dueCol: {
+  ledgerBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  matrixBox: {
+    flexDirection: 'row',
+    backgroundColor: '#020617',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  matrixCol: {
     flex: 1,
     alignItems: 'center',
   },
-  dueDivider: {
+  matrixDivider: {
     width: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#1e293b',
   },
-  dueLabel: {
+  matrixLabel: {
     fontSize: 10,
     color: '#64748b',
     marginBottom: 4,
   },
-  dueGst: {
-    fontSize: 13,
+  matrixGst: {
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#34d399',
   },
-  dueNonGst: {
-    fontSize: 13,
+  matrixRough: {
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#fbbf24',
   },
-  dueTotal: {
+  matrixTotal: {
     fontSize: 14,
     fontWeight: 'bold',
     color: '#f87171',
@@ -1209,9 +1256,9 @@ const styles = StyleSheet.create({
     bottom: 56,
     left: 0,
     right: 0,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: '#1e293b',
     paddingHorizontal: 16,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -1228,7 +1275,7 @@ const styles = StyleSheet.create({
     color: '#34d399',
   },
   cartBarBtn: {
-    backgroundColor: '#4f46e5',
+    backgroundColor: '#059669',
     borderRadius: 10,
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -1247,9 +1294,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: 56,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: '#1e293b',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
@@ -1275,7 +1322,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   navLabelActive: {
-    color: '#818cf8',
+    color: '#38bdf8',
     fontWeight: 'bold',
   },
 });

@@ -21,6 +21,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [refreshing, setRefreshing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [billType, setBillType] = useState('NON_GST');
+  const [orderChannel, setOrderChannel] = useState('IN_PERSON_BEAT'); // 'IN_PERSON_BEAT' or 'PHONE_ORDER'
   const [cart, setCart] = useState({});
   const [selectedVariants, setSelectedVariants] = useState({});
   const [dispatchNotes, setDispatchNotes] = useState('');
@@ -125,6 +126,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
       const res = await mobileAPI.post('/orders', {
         shopId: shop._id,
         billType,
+        channel: orderChannel,
         items,
         dispatchNotes,
       });
@@ -196,7 +198,31 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           />
         }
       >
-        {/* Bill Type Selector */}
+        {/* Order Channel Switcher (Simulator Style) */}
+        <View style={styles.channelContainer}>
+          <Text style={styles.sectionLabel}>Order Channel:</Text>
+          <View style={styles.channelRow}>
+            <TouchableOpacity
+              style={[styles.channelBtn, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnActiveBeat]}
+              onPress={() => setOrderChannel('IN_PERSON_BEAT')}
+            >
+              <Text style={[styles.channelBtnText, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnTextActive]}>
+                📍 Beat Visit
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.channelBtn, orderChannel === 'PHONE_ORDER' && styles.channelBtnActivePhone]}
+              onPress={() => setOrderChannel('PHONE_ORDER')}
+            >
+              <Text style={[styles.channelBtnText, orderChannel === 'PHONE_ORDER' && styles.channelBtnTextActive]}>
+                📞 Phone (No Visit)
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Bill Type Selector (Simulator Style) */}
         <View style={styles.billTypeContainer}>
           <Text style={styles.sectionLabel}>Select Billing Mode:</Text>
           <View style={styles.pillRow}>
@@ -252,7 +278,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           ))}
         </ScrollView>
 
-        {/* Product Catalog Grid */}
+        {/* 2-Column Product Catalog Grid (Flipkart / Blinkit Style) */}
         {loading ? (
           <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
         ) : filteredProducts.length === 0 ? (
@@ -261,115 +287,131 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
             <Text style={styles.emptyText}>No matching wholesale products found.</Text>
           </View>
         ) : (
-          filteredProducts.map((p) => {
-            const qtyInCart = cart[p._id] || 0;
-            const isOutOfStock = p.isOutOfStock;
-            const boxCount = Math.floor(qtyInCart / (p.boxQuantity || 1));
-            const looseCount = qtyInCart % (p.boxQuantity || 1);
+          <View style={styles.catalogGrid}>
+            {filteredProducts.map((p) => {
+              const hasVars = Boolean(p.hasVariants && p.variants?.length > 0);
+              const currentVarIdx = selectedVariants[p._id] ?? 0;
+              const activeVar = hasVars ? p.variants[currentVarIdx] || p.variants[0] : null;
 
-            return (
-              <View
-                key={p._id}
-                style={[styles.productCard, isOutOfStock && styles.productCardDisabled]}
-              >
-                <View style={styles.productMainRow}>
-                  {/* Product Photo Thumbnail */}
-                  <TouchableOpacity
-                    style={styles.imageContainer}
-                    activeOpacity={p.imageUrl ? 0.75 : 1}
-                    onPress={() => {
-                      if (p.imageUrl) {
-                        setZoomPhoto({
-                          url: p.imageUrl,
-                          name: p.name,
-                          brand: p.brand,
-                          price: p.basePrice,
-                        });
-                      }
-                    }}
-                  >
-                    {p.imageUrl ? (
-                      <Image source={{ uri: p.imageUrl }} style={styles.productImage} resizeMode="cover" />
-                    ) : (
-                      <View style={styles.imagePlaceholder}>
-                        <Text style={styles.placeholderEmoji}>🚿</Text>
-                      </View>
-                    )}
-                    {p.brand && (
-                      <View style={styles.brandBadge}>
-                        <Text style={styles.brandBadgeText}>{p.brand}</Text>
-                      </View>
-                    )}
-                  </TouchableOpacity>
+              const activePrice = activeVar ? activeVar.basePrice : p.basePrice || 0;
+              const activeBoxQty = activeVar ? activeVar.boxQuantity : p.boxQuantity || 1;
+              const isOutOfStock = activeVar ? activeVar.isOutOfStock : p.isOutOfStock;
 
-                  {/* Product Details */}
-                  <View style={styles.productDetails}>
-                    <Text style={styles.productName} numberOfLines={2}>
-                      {p.name}
-                    </Text>
-                    <Text style={styles.productCategory}>
-                      Category: {p.category || 'Hardware'}
-                    </Text>
+              const itemKey = activeVar ? `${p._id}___${activeVar.size}` : p._id;
+              const qtyInCart = cart[itemKey]?.quantity || 0;
 
-                    <View style={styles.boxTag}>
-                      <Text style={styles.boxTagText}>
-                        📦 Master Box: {p.boxQuantity || 1} {p.uom || 'pcs'} (₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()})
-                      </Text>
-                    </View>
-
-                    <View style={styles.priceRow}>
-                      <Text style={styles.productPrice}>₹{p.basePrice?.toLocaleString()}</Text>
-                      <Text style={styles.priceUnit}> / {p.uom || 'pc'}</Text>
-                      <Text style={styles.taxNote}>
-                        {billType === 'GST' ? ' (+18% GST)' : ' (Net Cash)'}
-                      </Text>
-                    </View>
-                  </View>
-                </View>
-
-                {/* Stock / Stepper Controls */}
-                {isOutOfStock ? (
-                  <View style={styles.outOfStockBanner}>
-                    <Text style={styles.outOfStockText}>⚠️ Out of Stock at Warehouse</Text>
-                  </View>
-                ) : (
-                  <View style={styles.qtyControls}>
+              return (
+                <View
+                  key={p._id}
+                  style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}
+                >
+                  <View>
+                    {/* Square Photo Container with Tap to Zoom & Brand Tag */}
                     <TouchableOpacity
-                      style={styles.boxBtn}
-                      onPress={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
+                      style={styles.gridImageContainer}
+                      activeOpacity={p.imageUrl ? 0.75 : 1}
+                      onPress={() => {
+                        if (p.imageUrl) {
+                          setZoomPhoto({
+                            url: p.imageUrl,
+                            name: p.name,
+                            brand: p.brand,
+                            price: activePrice,
+                          });
+                        }
+                      }}
                     >
-                      <Text style={styles.boxBtnText}>+1 Full Box ({p.boxQuantity || 1} pcs)</Text>
+                      {p.imageUrl ? (
+                        <Image source={{ uri: p.imageUrl }} style={styles.gridImage} resizeMode="cover" />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Text style={styles.placeholderEmoji}>🚿</Text>
+                        </View>
+                      )}
+                      {p.brand ? (
+                        <View style={styles.gridBrandBadge}>
+                          <Text style={styles.gridBrandBadgeText}>{p.brand}</Text>
+                        </View>
+                      ) : null}
                     </TouchableOpacity>
 
-                    <View style={styles.stepper}>
-                      <TouchableOpacity
-                        style={styles.stepperBtn}
-                        onPress={() => handleUpdateCart(p._id, -1, 1)}
-                      >
-                        <Text style={styles.stepperBtnText}>-</Text>
-                      </TouchableOpacity>
+                    {/* Title & Category */}
+                    <Text style={styles.gridProdName} numberOfLines={2}>
+                      {p.name}
+                    </Text>
+                    <Text style={styles.gridProdCategory} numberOfLines={1}>
+                      {p.category || 'Hardware'}
+                    </Text>
 
-                      <View style={styles.stepperQtyContainer}>
-                        <Text style={styles.stepperQty}>{qtyInCart} pcs</Text>
-                        {qtyInCart > 0 && (
-                          <Text style={styles.stepperSubtext}>
-                            ({boxCount}b {looseCount > 0 ? `+${looseCount}p` : ''})
-                          </Text>
-                        )}
-                      </View>
+                    {/* Size Variant Chips */}
+                    {hasVars && (
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridVariantScroll}>
+                        {p.variants.map((v, vIdx) => {
+                          const isSelected = currentVarIdx === vIdx;
+                          return (
+                            <TouchableOpacity
+                              key={v.size || vIdx}
+                              style={[styles.gridVarChip, isSelected && styles.gridVarChipActive]}
+                              onPress={() => setSelectedVariants((prev) => ({ ...prev, [p._id]: vIdx }))}
+                            >
+                              <Text style={[styles.gridVarChipText, isSelected && styles.gridVarChipTextActive]}>
+                                {v.size}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                      </ScrollView>
+                    )}
 
-                      <TouchableOpacity
-                        style={styles.stepperBtn}
-                        onPress={() => handleUpdateCart(p._id, 1, 1)}
-                      >
-                        <Text style={styles.stepperBtnText}>+</Text>
-                      </TouchableOpacity>
+                    {/* Master Box Info & Price */}
+                    <View style={styles.gridBoxTag}>
+                      <Text style={styles.gridBoxTagText}>
+                        📦 Box: {activeBoxQty} pcs • ₹{((activePrice || 0) * activeBoxQty).toLocaleString()}
+                      </Text>
+                    </View>
+                    <View style={styles.gridPriceRow}>
+                      <Text style={styles.gridPrice}>₹{activePrice?.toLocaleString()}</Text>
+                      <Text style={styles.gridPriceUnit}> / {p.uom || 'pc'}</Text>
                     </View>
                   </View>
-                )}
-              </View>
-            );
-          })
+
+                  {/* Stepper / Controls */}
+                  {isOutOfStock ? (
+                    <View style={styles.gridOutOfStockBanner}>
+                      <Text style={styles.gridOutOfStockText}>Out of Stock</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.gridActionContainer}>
+                      <TouchableOpacity
+                        style={styles.gridBoxBtn}
+                        onPress={() => handleUpdateCart(p, activeVar, 1, activeBoxQty)}
+                      >
+                        <Text style={styles.gridBoxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
+                      </TouchableOpacity>
+
+                      <View style={styles.gridStepper}>
+                        <TouchableOpacity
+                          style={styles.gridStepperBtn}
+                          onPress={() => handleUpdateCart(p, activeVar, -1, 1)}
+                        >
+                          <Text style={styles.gridStepperBtnText}>-</Text>
+                        </TouchableOpacity>
+                        <Text style={styles.gridStepperQty}>
+                          {qtyInCart} pcs
+                        </Text>
+                        <TouchableOpacity
+                          style={styles.gridStepperBtn}
+                          onPress={() => handleUpdateCart(p, activeVar, 1, 1)}
+                        >
+                          <Text style={styles.gridStepperBtnText}>+</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         )}
 
         {/* Dispatch Instruction */}
@@ -521,6 +563,38 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingBottom: 120,
   },
+  channelContainer: {
+    marginBottom: 14,
+  },
+  channelRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  channelBtn: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 10,
+    backgroundColor: '#1e293b',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  channelBtnActiveBeat: {
+    backgroundColor: '#0c4a6e',
+    borderColor: '#0284c7',
+  },
+  channelBtnActivePhone: {
+    backgroundColor: '#3b0764',
+    borderColor: '#a855f7',
+  },
+  channelBtnText: {
+    color: '#94a3b8',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  channelBtnTextActive: {
+    color: '#ffffff',
+  },
   billTypeContainer: {
     marginBottom: 14,
   },
@@ -609,167 +683,189 @@ const styles = StyleSheet.create({
     color: '#64748b',
     fontSize: 13,
   },
-  productCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  productCardDisabled: {
-    opacity: 0.5,
-  },
-  productMainRow: {
+  catalogGrid: {
     flexDirection: 'row',
-    gap: 12,
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
-  imageContainer: {
-    position: 'relative',
-    width: 76,
-    height: 76,
-    borderRadius: 10,
-    overflow: 'hidden',
+  gridCard: {
+    width: '48.5%',
     backgroundColor: '#0f172a',
+    borderRadius: 16,
+    padding: 8,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    justifyContent: 'space-between',
   },
-  productImage: {
+  gridCardDisabled: {
+    opacity: 0.55,
+  },
+  gridImageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    backgroundColor: '#020617',
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    position: 'relative',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridImage: {
     width: '100%',
     height: '100%',
+  },
+  gridBrandBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: 'rgba(12, 74, 110, 0.85)',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.4)',
+  },
+  gridBrandBadgeText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridProdName: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#ffffff',
+    marginBottom: 2,
+    lineHeight: 16,
+  },
+  gridProdCategory: {
+    fontSize: 10,
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  gridVariantScroll: {
+    flexDirection: 'row',
+    marginBottom: 6,
+  },
+  gridVarChip: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    backgroundColor: '#020617',
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 4,
+  },
+  gridVarChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  gridVarChipText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+  },
+  gridVarChipTextActive: {
+    color: '#ffffff',
+  },
+  gridBoxTag: {
+    backgroundColor: '#020617',
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    marginBottom: 4,
+  },
+  gridBoxTagText: {
+    color: '#94a3b8',
+    fontSize: 9,
+    fontWeight: '600',
+  },
+  gridPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    marginBottom: 6,
+  },
+  gridPrice: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#34d399',
+  },
+  gridPriceUnit: {
+    fontSize: 9,
+    color: '#94a3b8',
+  },
+  gridOutOfStockBanner: {
+    backgroundColor: '#450a0a',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#991b1b',
+  },
+  gridOutOfStockText: {
+    color: '#f87171',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridActionContainer: {
+    gap: 4,
+  },
+  gridBoxBtn: {
+    width: '100%',
+    backgroundColor: 'rgba(2, 132, 199, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    paddingVertical: 4,
+    alignItems: 'center',
+  },
+  gridBoxBtnText: {
+    color: '#38bdf8',
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  gridStepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#020617',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 2,
+  },
+  gridStepperBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 6,
+    backgroundColor: '#0284c7',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  gridStepperBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: 'bold',
+  },
+  gridStepperQty: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: 'bold',
   },
   imagePlaceholder: {
     width: '100%',
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#020617',
   },
   placeholderEmoji: {
-    fontSize: 28,
-  },
-  brandBadge: {
-    position: 'absolute',
-    bottom: 2,
-    left: 2,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    paddingHorizontal: 4,
-    paddingVertical: 1,
-    borderRadius: 4,
-  },
-  brandBadgeText: {
-    color: '#38bdf8',
-    fontSize: 9,
-    fontWeight: 'bold',
-  },
-  productDetails: {
-    flex: 1,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#f8fafc',
-    marginBottom: 2,
-  },
-  productCategory: {
-    fontSize: 11,
-    color: '#64748b',
-    marginBottom: 4,
-  },
-  boxTag: {
-    backgroundColor: '#0f172a',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    alignSelf: 'flex-start',
-    marginBottom: 6,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-  },
-  boxTagText: {
-    color: '#a5b4fc',
-    fontSize: 10,
-    fontWeight: '600',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#34d399',
-  },
-  priceUnit: {
-    fontSize: 11,
-    color: '#94a3b8',
-  },
-  taxNote: {
-    fontSize: 10,
-    color: '#64748b',
-  },
-  outOfStockBanner: {
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    paddingVertical: 6,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#991b1b',
-  },
-  outOfStockText: {
-    color: '#f87171',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  qtyControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#334155',
-  },
-  boxBtn: {
-    backgroundColor: '#0c4a6e',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#0284c7',
-  },
-  boxBtnText: {
-    color: '#38bdf8',
-    fontSize: 11,
-    fontWeight: 'bold',
-  },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0f172a',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
-  stepperBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-  },
-  stepperBtnText: {
-    color: '#38bdf8',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  stepperQtyContainer: {
-    alignItems: 'center',
-    minWidth: 44,
-  },
-  stepperQty: {
-    color: '#f8fafc',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  stepperSubtext: {
-    color: '#a5b4fc',
-    fontSize: 9,
+    fontSize: 24,
   },
   notesContainer: {
     marginTop: 16,

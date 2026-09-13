@@ -160,63 +160,100 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
           />
         }
       >
-        {/* Shop Info Card */}
-        <View style={styles.infoCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.shopProprietor}>👤 Owner: {currentShop.ownerName}</Text>
-              <Text style={styles.shopPhone}>📞 Phone: {currentShop.phone} {currentShop.altPhone ? `• ${currentShop.altPhone}` : ''}</Text>
-              <Text style={styles.shopAddress}>📍 {currentShop.address || 'Market Area'}</Text>
-              {currentShop.gstNumber ? (
-                <Text style={styles.shopGstin}>🏛️ GSTIN: {currentShop.gstNumber}</Text>
-              ) : (
-                <Text style={styles.shopGstinPending}>🏛️ GSTIN: Not Provided (Rough / Cash Retailer)</Text>
-              )}
+        {/* Shop Info Card with Embedded 3-Column Balance Matrix (Simulator Style) */}
+        <View style={styles.profileCard}>
+          <View style={styles.profileTopRow}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={styles.profileShopName} numberOfLines={1}>
+                {currentShop.shopName}
+              </Text>
+              <Text style={styles.profileMeta}>
+                Prop: {currentShop.ownerName} • {currentShop.phone}
+              </Text>
+              <Text style={styles.profileAddress} numberOfLines={1}>
+                📍 {currentShop.address || 'Market Area'}, {currentShop.city || 'Morbi'}
+              </Text>
             </View>
-          </View>
-        </View>
-
-        {/* 2-Book Ledger Card */}
-        <View style={styles.duesCard}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <Text style={styles.duesHeaderTitle}>Account Statement & Outstanding</Text>
-            <TouchableOpacity onPress={handleShareLedgerWhatsApp}>
-              <Text style={styles.shareLedgerText}>📲 Share on WhatsApp</Text>
+            <TouchableOpacity style={styles.editPillBtn} onPress={handleOpenEdit}>
+              <Text style={styles.editPillText}>✏️ Edit / GPS</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.duesRow}>
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>GST Tax Due</Text>
-              <Text style={styles.dueGst}>₹{(currentShop.gstBalance || 0).toLocaleString()}</Text>
+          {/* 3-Column Dual Balance Matrix */}
+          <View style={styles.balanceMatrix}>
+            <View style={styles.balanceCol}>
+              <Text style={styles.balanceLabel}>GST Due</Text>
+              <Text style={styles.balanceValGst}>₹{(currentShop.gstBalance || 0).toLocaleString()}</Text>
             </View>
-            <View style={styles.dueDivider} />
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>Rough Cash Due</Text>
-              <Text style={styles.dueNonGst}>₹{(currentShop.nonGstBalance || 0).toLocaleString()}</Text>
+            <View style={styles.balanceColDivider} />
+            <View style={styles.balanceCol}>
+              <Text style={styles.balanceLabel}>Rough Due</Text>
+              <Text style={styles.balanceValRough}>₹{(currentShop.nonGstBalance || 0).toLocaleString()}</Text>
             </View>
-            <View style={styles.dueDivider} />
-            <View style={styles.dueCol}>
-              <Text style={styles.dueLabel}>Total Outstanding</Text>
-              <Text style={styles.dueTotal}>₹{totalDue.toLocaleString()}</Text>
+            <View style={styles.balanceColDivider} />
+            <View style={styles.balanceCol}>
+              <Text style={styles.balanceLabel}>Total Due</Text>
+              <Text style={styles.balanceValTotal}>₹{totalDue.toLocaleString()}</Text>
             </View>
           </View>
         </View>
 
-        {/* Action Buttons: Punch Order & Collect Payment */}
-        <View style={styles.primaryActionsRow}>
-          <TouchableOpacity
-            style={styles.punchOrderBtn}
-            onPress={() => onPunchOrder(currentShop)}
-          >
-            <Text style={styles.punchOrderText}>🛒 Punch New Order</Text>
+        {/* Primary Field Sales 2x2 Action Matrix (Simulator Style) */}
+        <View style={styles.actionMatrixGrid}>
+          {/* Row 1: Beat Visit Actions */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.takeOrderBtn}
+              onPress={() => onPunchOrder(currentShop)}
+            >
+              <Text style={styles.takeOrderBtnText}>🛍️ Take Order</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.collectPaymentBtn}
+              onPress={() => onCollectPayment(currentShop)}
+            >
+              <Text style={styles.collectPaymentBtnText}>💳 Collect Payment</Text>
+            </TouchableOpacity>
+          </View>
+
+          {/* Row 2: Phone / Remote Desk Actions */}
+          <View style={styles.actionRow}>
+            <TouchableOpacity
+              style={styles.phoneOrderBtn}
+              onPress={() => onPunchOrder(currentShop)}
+            >
+              <Text style={styles.phoneOrderBtnText}>📞 Phone Order (No Visit)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.remotePaymentBtn}
+              onPress={() => onCollectPayment(currentShop)}
+            >
+              <Text style={styles.remotePaymentBtnText}>💳 Remote Payment</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Quick Contact & WhatsApp Bar */}
+        <View style={styles.contactBarRow}>
+          <TouchableOpacity style={styles.contactPill} onPress={() => {
+            const cleanPhone = currentShop.phone?.replace(/[^0-9]/g, '');
+            if (cleanPhone) Linking.openURL(`tel:${cleanPhone}`);
+          }}>
+            <Text style={styles.contactPillText}>📞 Call</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.collectPaymentBtn}
-            onPress={() => onCollectPayment(currentShop)}
-          >
-            <Text style={styles.collectPaymentText}>💵 Collect Payment</Text>
+          <TouchableOpacity style={styles.contactPill} onPress={handleShareLedgerWhatsApp}>
+            <Text style={styles.contactPillText}>📲 WhatsApp</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.contactPill} onPress={() => {
+            const lat = currentShop.location?.latitude || 22.8123;
+            const lng = currentShop.location?.longitude || 70.8354;
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+          }}>
+            <Text style={styles.contactPillText}>🗺️ Maps</Text>
           </TouchableOpacity>
         </View>
 
@@ -406,21 +443,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 14,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#1e293b',
   },
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#334155',
   },
   backBtnText: {
-    color: '#94a3b8',
-    fontSize: 13,
+    color: '#38bdf8',
+    fontSize: 12,
     fontWeight: 'bold',
   },
   headerTitle: {
@@ -446,108 +483,107 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   scrollContent: {
-    padding: 16,
+    padding: 14,
     paddingBottom: 40,
   },
-  infoCard: {
-    backgroundColor: '#1e293b',
+  profileCard: {
+    backgroundColor: '#0f172a',
     borderRadius: 16,
-    padding: 14,
+    padding: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
-  shopProprietor: {
-    fontSize: 13,
+  profileTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  profileShopName: {
+    fontSize: 15,
     fontWeight: 'bold',
     color: '#ffffff',
   },
-  shopPhone: {
-    fontSize: 12,
-    color: '#38bdf8',
-    marginTop: 3,
-  },
-  shopAddress: {
+  profileMeta: {
     fontSize: 11,
     color: '#94a3b8',
     marginTop: 2,
   },
-  shopGstin: {
+  profileAddress: {
     fontSize: 11,
-    color: '#34d399',
-    marginTop: 4,
-    fontWeight: '600',
+    color: '#64748b',
+    marginTop: 2,
   },
-  shopGstinPending: {
-    fontSize: 10,
-    color: '#fbbf24',
-    marginTop: 4,
-  },
-  duesCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 16,
-    padding: 14,
-    marginBottom: 14,
+  editPillBtn: {
+    backgroundColor: 'rgba(2, 132, 199, 0.15)',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: 'rgba(56, 189, 248, 0.3)',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
-  duesHeaderTitle: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    textTransform: 'uppercase',
-  },
-  shareLedgerText: {
-    color: '#34d399',
-    fontSize: 11,
+  editPillText: {
+    color: '#38bdf8',
+    fontSize: 10,
     fontWeight: 'bold',
   },
-  duesRow: {
+  balanceMatrix: {
     flexDirection: 'row',
+    backgroundColor: '#020617',
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#1e293b',
   },
-  dueCol: {
+  balanceCol: {
     flex: 1,
     alignItems: 'center',
   },
-  dueDivider: {
+  balanceColDivider: {
     width: 1,
-    backgroundColor: '#334155',
+    backgroundColor: '#1e293b',
   },
-  dueLabel: {
-    fontSize: 10,
+  balanceLabel: {
+    fontSize: 9,
     color: '#64748b',
-    marginBottom: 4,
+    marginBottom: 2,
   },
-  dueGst: {
-    fontSize: 13,
+  balanceValGst: {
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#34d399',
   },
-  dueNonGst: {
-    fontSize: 13,
+  balanceValRough: {
+    fontSize: 12,
     fontWeight: 'bold',
     color: '#fbbf24',
   },
-  dueTotal: {
-    fontSize: 14,
+  balanceValTotal: {
+    fontSize: 12,
     fontWeight: 'bold',
-    color: '#f87171',
+    color: '#ffffff',
   },
-  primaryActionsRow: {
+  actionMatrixGrid: {
+    gap: 8,
+    marginBottom: 10,
+  },
+  actionRow: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 16,
+    gap: 8,
   },
-  punchOrderBtn: {
+  takeOrderBtn: {
     flex: 1,
     backgroundColor: '#0284c7',
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  punchOrderText: {
+  takeOrderBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
   },
   collectPaymentBtn: {
@@ -556,25 +592,75 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  collectPaymentText: {
+  collectPaymentBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  phoneOrderBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(147, 51, 234, 0.15)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(192, 132, 252, 0.35)',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  phoneOrderBtnText: {
+    color: '#c084fc',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  remotePaymentBtn: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 150, 105, 0.15)',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.35)',
+    paddingVertical: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  remotePaymentBtnText: {
+    color: '#34d399',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  contactBarRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 12,
+  },
+  contactPill: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  contactPillText: {
+    color: '#38bdf8',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   tabRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 8,
     alignItems: 'center',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   tabBtnActive: {
     backgroundColor: '#0c4a6e',
@@ -590,12 +676,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   itemCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 14,
-    padding: 14,
-    marginBottom: 10,
+    padding: 12,
+    marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   itemHeader: {
     flexDirection: 'row',
