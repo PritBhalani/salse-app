@@ -4,6 +4,7 @@ import { SocketProvider, useSocket } from './context/SocketContext';
 import { ToastProvider } from './context/ToastContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
+import { MobileDrawer } from './components/MobileDrawer';
 import { LoginPage } from './pages/LoginPage';
 
 // Pages
@@ -23,14 +24,14 @@ import {
   PhoneCall,
   LayoutDashboard,
   Boxes,
-  MapPin,
   Building2,
-  ShieldCheck,
+  Menu,
 } from 'lucide-react';
 
 const MainLayout = () => {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { alerts, dismissAlert } = useSocket();
 
   if (loading) {
@@ -55,7 +56,15 @@ const MainLayout = () => {
   return (
     <div className="min-h-screen bg-slate-950 flex flex-col">
       {/* Top Navbar */}
-      <Navbar />
+      <Navbar onOpenMobileMenu={() => setIsMobileMenuOpen(true)} />
+
+      {/* Slide-in Mobile Navigation Drawer */}
+      <MobileDrawer
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
 
       {/* Main Body with Sidebar */}
       <div className="flex-1 flex overflow-hidden">
@@ -64,8 +73,8 @@ const MainLayout = () => {
           onTabChange={setActiveTab}
         />
 
-        {/* Content Area */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 bg-slate-950 pb-20 md:pb-8">
+        {/* Content Area with Senior Responsive Padding */}
+        <main className="flex-1 overflow-y-auto p-3 sm:p-6 lg:p-8 bg-slate-950 pb-24 md:pb-8">
           <div className="max-w-7xl mx-auto">
             {activeTab === 'dashboard' && <DashboardPage onNavigate={setActiveTab} />}
             {activeTab === 'calling-sheet' && <CallingSheetPage />}
@@ -81,30 +90,21 @@ const MainLayout = () => {
         </main>
       </div>
 
-      {/* Mobile Bottom Navigation Bar */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900 border-t border-slate-800 flex items-center justify-around py-2.5 z-40">
+      {/* Mobile Bottom Navigation Bar (5 Items: CRM, Dispatch, Stock, Ledgers, More) */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex items-center justify-around py-2 px-1 z-40 shadow-2xl">
         <button
           onClick={() => setActiveTab('dashboard')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${
-            activeTab === 'dashboard' ? 'text-sky-400 font-bold' : 'text-slate-400'
+          className={`flex-1 flex flex-col items-center gap-1 py-1 text-[10px] transition-colors ${
+            activeTab === 'dashboard' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <LayoutDashboard className="w-4 h-4" />
           <span>CRM</span>
         </button>
         <button
-          onClick={() => setActiveTab('calling-sheet')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${
-            activeTab === 'calling-sheet' ? 'text-sky-400 font-bold' : 'text-slate-400'
-          }`}
-        >
-          <PhoneCall className="w-4 h-4" />
-          <span>Calls</span>
-        </button>
-        <button
           onClick={() => setActiveTab('dispatch')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${
-            activeTab === 'dispatch' ? 'text-sky-400 font-bold' : 'text-slate-400'
+          className={`flex-1 flex flex-col items-center gap-1 py-1 text-[10px] transition-colors ${
+            activeTab === 'dispatch' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Package className="w-4 h-4" />
@@ -112,8 +112,8 @@ const MainLayout = () => {
         </button>
         <button
           onClick={() => setActiveTab('inventory')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${
-            activeTab === 'inventory' ? 'text-sky-400 font-bold' : 'text-slate-400'
+          className={`flex-1 flex flex-col items-center gap-1 py-1 text-[10px] transition-colors ${
+            activeTab === 'inventory' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Boxes className="w-4 h-4" />
@@ -121,18 +121,34 @@ const MainLayout = () => {
         </button>
         <button
           onClick={() => setActiveTab('shops')}
-          className={`flex flex-col items-center gap-1 text-[10px] ${
-            activeTab === 'shops' ? 'text-sky-400 font-bold' : 'text-slate-400'
+          className={`flex-1 flex flex-col items-center gap-1 py-1 text-[10px] transition-colors ${
+            activeTab === 'shops' ? 'text-sky-400 font-bold' : 'text-slate-400 hover:text-slate-200'
           }`}
         >
           <Building2 className="w-4 h-4" />
           <span>Ledgers</span>
         </button>
+        <button
+          onClick={() => setIsMobileMenuOpen(true)}
+          className={`flex-1 flex flex-col items-center gap-1 py-1 text-[10px] transition-colors ${
+            ['calling-sheet', 'routes', 'tracking', 'simulator'].includes(activeTab)
+              ? 'text-sky-400 font-bold'
+              : 'text-slate-400 hover:text-slate-200'
+          }`}
+        >
+          <div className="relative">
+            <Menu className="w-4 h-4" />
+            {['calling-sheet', 'routes', 'tracking', 'simulator'].includes(activeTab) && (
+              <span className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-sky-400" />
+            )}
+          </div>
+          <span>More</span>
+        </button>
       </div>
 
       {/* Floating Real-Time Toast Notifications */}
       {alerts.length > 0 && (
-        <div className="fixed top-20 right-6 z-50 flex flex-col gap-2 max-w-sm w-full">
+        <div className="fixed top-20 right-4 sm:right-6 z-50 flex flex-col gap-2 max-w-sm w-full p-2">
           {alerts.map((alert) => (
             <div
               key={alert.id}

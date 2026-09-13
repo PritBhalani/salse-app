@@ -101,7 +101,7 @@ export const DashboardPage = ({ onNavigate }) => {
   return (
     <div className="space-y-6">
       {/* Top Banner & Quick Refresh */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-6 rounded-2xl border border-slate-800 shadow-sm">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 sm:p-6 rounded-2xl border border-slate-800 shadow-sm">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
             <span>Wholesale Control Center</span>
@@ -242,7 +242,7 @@ export const DashboardPage = ({ onNavigate }) => {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
+            <table className="w-full text-left text-xs min-w-[550px]">
               <thead className="bg-slate-800/60 text-slate-400 uppercase tracking-wider font-semibold">
                 <tr>
                   <th className="py-2.5 px-3 rounded-l-lg">Order #</th>

@@ -100,7 +100,7 @@ export const CollectPaymentScreen = ({ shop, onBack, onPaymentSuccess }) => {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {/* Collection Channel Switcher (Simulator Style) */}
         <View style={styles.channelCard}>
           <Text style={styles.sectionLabel}>Collection Channel:</Text>

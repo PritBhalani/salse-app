@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaView, StatusBar, StyleSheet, View, Platform } from 'react-native';
 
 // Mobile Screens
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
     backgroundColor: '#090d16',
+    paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 0 : 0,
   },
   screenContainer: {
     flex: 1,

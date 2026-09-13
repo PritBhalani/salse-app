@@ -8,6 +8,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
 } from 'react-native';
 import { mobileAPI, setAuthToken, setDeviceId } from '../config/api';
 
@@ -60,8 +63,16 @@ export const LoginScreen = ({ onLoginSuccess }) => {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.card}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.scrollContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
         <View style={styles.logoBadge}>
           <Image
             source={require('../../assets/logo.png')}
@@ -142,7 +153,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
           </Text>
         )}
       </View>
-    </View>
+    </ScrollView>
+  </KeyboardAvoidingView>
   );
 };
 
@@ -150,9 +162,13 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#090d16',
+  },
+  scrollContainer: {
+    flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     padding: 20,
+    paddingVertical: 32,
   },
   card: {
     width: '100%',
