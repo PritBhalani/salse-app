@@ -140,19 +140,23 @@ export const InventoryPage = () => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
           canvas.toBlob(
             (blob) => {
               if (blob) {
-                resolve(blob);
+                resolve({ blob, dataUrl });
               } else {
-                reject(new Error('Canvas compression failed'));
+                resolve({ blob: file, dataUrl: event.target.result });
               }
             },
             'image/jpeg',
-            0.82
+            0.85
           );
         };
-        img.onerror = (err) => reject(err);
+        img.onerror = () => {
+          resolve({ blob: file, dataUrl: event.target.result });
+        };
       };
       reader.onerror = (err) => reject(err);
     });
@@ -171,22 +175,39 @@ export const InventoryPage = () => {
     setPhotoError('');
 
     try {
-      const compressedBlob = await compressImage(file);
-      const uploadData = new FormData();
-      uploadData.append('photo', compressedBlob, file.name.replace(/\.[^/.]+$/, '') + '.jpg');
+      const { blob, dataUrl } = await compressImage(file);
 
-      const res = await uploadAPI.uploadPhoto(uploadData);
-      if (res.data.success) {
-        setFormData((prev) => ({
-          ...prev,
-          imageUrl: res.data.imageUrl,
-        }));
+      // Instant preview with compressed dataUrl
+      setFormData((prev) => ({
+        ...prev,
+        imageUrl: dataUrl,
+      }));
+
+      const uploadData = new FormData();
+      uploadData.append('photo', blob, (file.name || 'product').replace(/\.[^/.]+$/, '') + '.jpg');
+
+      try {
+        const res = await uploadAPI.uploadPhoto(uploadData);
+        if (res.data.success) {
+          const remoteUrl = res.data.imageUrl || res.data.url || res.data.relativeUrl;
+          if (remoteUrl) {
+            setFormData((prev) => ({
+              ...prev,
+              imageUrl: remoteUrl,
+            }));
+          }
+        }
+      } catch (uploadErr) {
+        console.warn('Backend upload failed, retained local base64 photo preview:', uploadErr);
       }
     } catch (err) {
-      console.error('Photo upload error:', err);
-      setPhotoError('Photo upload failed. You can paste an image URL instead.');
+      console.error('Photo processing error:', err);
+      setPhotoError('Could not process photo. You can paste an image URL instead.');
     } finally {
       setUploadingPhoto(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 

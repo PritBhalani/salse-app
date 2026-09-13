@@ -8,8 +8,8 @@ import { protect } from '../middleware/auth.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '../../../uploads');
+// Ensure uploads directory exists inside backend/uploads
+const uploadsDir = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -30,11 +30,11 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const allowed = /jpeg|jpg|png|webp|gif|svg\+xml/;
-  const isMimeOk = allowed.test(file.mimetype);
-  const isExtOk = allowed.test(path.extname(file.originalname).toLowerCase());
+  const isImage =
+    file.mimetype.startsWith('image/') ||
+    /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(file.originalname);
 
-  if (isMimeOk || isExtOk) {
+  if (isImage) {
     cb(null, true);
   } else {
     cb(new Error('Only image files (JPG, PNG, WEBP, GIF, SVG) are allowed!'));
@@ -43,7 +43,7 @@ const fileFilter = (req, file, cb) => {
 
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB limit
+  limits: { fileSize: 15 * 1024 * 1024 }, // 15MB limit
   fileFilter,
 });
 
@@ -51,18 +51,31 @@ const router = express.Router();
 
 // @desc    Upload product or receipt image directly
 // @route   POST /api/upload
-router.post('/', protect, upload.single('photo'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ success: false, message: 'No file uploaded' });
-  }
+router.post('/', protect, (req, res) => {
+  upload.single('photo')(req, res, (err) => {
+    if (err) {
+      console.error('Multer upload error:', err.message);
+      return res.status(400).json({ success: false, message: err.message || 'Image upload error' });
+    }
 
-  const relativeUrl = `/uploads/${req.file.filename}`;
-  res.json({
-    success: true,
-    message: 'Photo uploaded successfully',
-    url: relativeUrl,
-    filename: req.file.filename,
-    size: req.file.size,
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    }
+
+    const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const host = req.get('host');
+    const fullUrl = `${protocol}://${host}/uploads/${req.file.filename}`;
+    const relativeUrl = `/uploads/${req.file.filename}`;
+
+    res.json({
+      success: true,
+      message: 'Photo uploaded successfully',
+      imageUrl: fullUrl,
+      url: fullUrl,
+      relativeUrl,
+      filename: req.file.filename,
+      size: req.file.size,
+    });
   });
 });
 
