@@ -69,8 +69,8 @@ export const LoginScreen = ({ onLoginSuccess }) => {
             resizeMode="contain"
           />
         </View>
-        <Text style={styles.title}>SM BATH ACCESSORIES</Text>
-        <Text style={styles.subtitle}>Wholesale ERP Field Sales App</Text>
+        <Text style={styles.title}>SHIVAM MARKETING</Text>
+        <Text style={styles.subtitle}>Bath Accessories Wholesale & Field Sales</Text>
 
         {/* Quick Role Fill Tabs */}
         <View style={styles.tabContainer}>

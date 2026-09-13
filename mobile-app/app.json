@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Salase Wholesale",
-    "slug": "salase-wholesale",
+    "name": "Shivam Marketing",
+    "slug": "shivam-marketing",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -12,7 +12,7 @@
       "backgroundColor": "#ffffff"
     },
     "android": {
-      "package": "com.salase.wholesale",
+      "package": "com.shivammarketing.wholesale",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"

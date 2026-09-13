@@ -80,7 +80,7 @@ export const CallingSheetPage = () => {
       : 'in 2-3 days';
 
     const text = encodeURIComponent(
-      `*Salase Plumbing & Bathware Wholesale*\n\nNamaste ${shop.ownerName || shop.shopName} ji,\n\nOur representative *${salesmanName}* will visit your shop on *${visitDateStr}* to collect pending payments and take fresh orders for pipes & bathware.\n\n*Current Due Summary:*\n- GST Bill Due: ₹${shop.gstBalance.toLocaleString()}\n- Rough/Non-GST Due: ₹${shop.nonGstBalance.toLocaleString()}\n*Total Due: ₹${shop.totalDue.toLocaleString()}*\n\nPlease keep the payment ready.\nThank you!`
+      `*Shivam Marketing - Bath Accessories Wholesale*\n\nNamaste ${shop.ownerName || shop.shopName} ji,\n\nOur representative *${salesmanName}* will visit your shop on *${visitDateStr}* to collect pending payments and take fresh orders for bath accessories & fittings.\n\n*Current Due Summary:*\n- GST Bill Due: ₹${shop.gstBalance.toLocaleString()}\n- Rough/Non-GST Due: ₹${shop.nonGstBalance.toLocaleString()}\n*Total Due: ₹${shop.totalDue.toLocaleString()}*\n\nPlease keep the payment ready.\nThank you!`
     );
     return `https://wa.me/91${shop.phone}?text=${text}`;
   };

@@ -21,17 +21,17 @@ export const Navbar = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
         {/* Brand & Logo */}
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-sky-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-sky-900/30">
-            <Building2 className="w-6 h-6 text-white" />
+          <div className="w-10 h-10 rounded-xl bg-white p-1 flex items-center justify-center shadow-lg shadow-sky-950/40 border border-slate-700 overflow-hidden shrink-0">
+            <img src="/logo.png" alt="Shivam Marketing Logo" className="w-full h-full object-contain" />
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <span className="font-bold text-lg text-white tracking-tight">SALASE PLUMBING</span>
+              <span className="font-bold text-lg text-white tracking-tight">SHIVAM MARKETING</span>
               <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
                 B2B CRM & ERP
               </span>
             </div>
-            <p className="text-xs text-slate-400">Wholesale Bathware & Fittings Distribution</p>
+            <p className="text-xs text-slate-400">Bath Accessories & Wholesale Portal</p>
           </div>
         </div>
 
@@ -85,7 +85,7 @@ export const Navbar = () => {
             </div>
             <button
               onClick={() => {
-                if (window.confirm('Log out from Salase Wholesale CRM?')) {
+                if (window.confirm('Log out from Shivam Marketing CRM?')) {
                   logout();
                 }
               }}

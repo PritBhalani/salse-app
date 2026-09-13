@@ -36,10 +36,10 @@ const MainLayout = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-white">
-        <div className="w-12 h-12 rounded-2xl bg-sky-500/20 border border-sky-500/40 flex items-center justify-center animate-pulse mb-3">
-          <Building2 className="w-6 h-6 text-sky-400" />
+        <div className="w-14 h-14 rounded-2xl bg-white p-1.5 border border-slate-700 flex items-center justify-center shadow-xl shadow-sky-950/60 mb-3 overflow-hidden animate-pulse">
+          <img src="/logo.png" alt="Shivam Marketing Logo" className="w-full h-full object-contain" />
         </div>
-        <div className="text-sm font-bold text-slate-300">Loading Salase Wholesale CRM...</div>
+        <div className="text-sm font-bold text-slate-300">Loading Shivam Marketing CRM...</div>
       </div>
     );
   }

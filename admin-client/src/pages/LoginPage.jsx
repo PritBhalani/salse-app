@@ -36,7 +36,7 @@ export const LoginPage = () => {
       setLocalError(msg);
       toast.error(msg, 'Login Failed');
     } else {
-      toast.success('Welcome to Salase Admin Portal!', 'Logged In');
+      toast.success('Welcome to Shivam Marketing Admin Portal!', 'Logged In');
     }
   };
 
@@ -54,15 +54,15 @@ export const LoginPage = () => {
 
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center z-10">
         {/* Brand Icon */}
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-sky-600 via-sky-500 to-cyan-400 mx-auto flex items-center justify-center shadow-xl shadow-sky-950/80 border border-sky-400/30 mb-4">
-          <Building2 className="w-9 h-9 text-white" />
+        <div className="w-20 h-20 rounded-2xl bg-white p-2 mx-auto flex items-center justify-center shadow-2xl shadow-sky-950/80 border border-slate-700 overflow-hidden mb-4">
+          <img src="/logo.png" alt="Shivam Marketing Logo" className="w-full h-full object-contain" />
         </div>
 
         <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-          SALASE PLUMBING & BATHWARE
+          SHIVAM MARKETING
         </h2>
         <p className="mt-1.5 text-xs text-sky-400 font-semibold tracking-wider uppercase">
-          Wholesale B2B ERP & Field Sales Platform
+          Bath Accessories & Wholesale ERP Portal
         </p>
       </div>
 
