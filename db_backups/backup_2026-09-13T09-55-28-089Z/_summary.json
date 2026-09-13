@@ -1,0 +1,16 @@
+{
+  "backupTimestamp": "2026-09-13T09:55:28.113Z",
+  "databaseName": "salase_wholesale",
+  "collections": {
+    "routes": 2,
+    "orders": 5,
+    "callingsheetnotes": 2,
+    "categories": 7,
+    "payments": 3,
+    "visitlogs": 3,
+    "products": 20,
+    "users": 7,
+    "shops": 7
+  },
+  "totalRecords": 56
+}

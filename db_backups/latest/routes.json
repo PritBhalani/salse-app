@@ -1,0 +1,40 @@
+[
+  {
+    "_id": "6aa57ec376a18b01d001814d",
+    "name": "Morbi - Wankaner Ceramic Beat",
+    "cities": [
+      "Morbi",
+      "Wankaner"
+    ],
+    "assignedSalesman": "6aa57ec376a18b01d0018146",
+    "scheduleDays": [
+      "Monday",
+      "Thursday"
+    ],
+    "nextVisitDate": "2026-09-14T16:33:08.754Z",
+    "description": "Major hardware, sanitary and ceramic distributor strip along NH-8A",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.867Z",
+    "updatedAt": "2026-09-12T16:33:08.867Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d001814e",
+    "name": "Rajkot - Gondal Industrial Beat",
+    "cities": [
+      "Rajkot",
+      "Gondal"
+    ],
+    "assignedSalesman": "6aa57ec376a18b01d0018147",
+    "scheduleDays": [
+      "Tuesday",
+      "Friday"
+    ],
+    "nextVisitDate": "2026-09-15T16:33:08.755Z",
+    "description": "Dhebar Road plumbing dealers and Gondal bypass retail shops",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.867Z",
+    "updatedAt": "2026-09-12T16:33:08.867Z"
+  }
+]

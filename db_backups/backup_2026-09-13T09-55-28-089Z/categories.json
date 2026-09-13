@@ -1,0 +1,67 @@
+[
+  {
+    "_id": "6aa6551064c64efb7c7b7154",
+    "name": "Pipes & Fittings",
+    "description": "",
+    "order": 0,
+    "__v": 0,
+    "createdAt": "2026-09-13T07:47:28.099Z",
+    "updatedAt": "2026-09-13T07:47:28.099Z"
+  },
+  {
+    "_id": "6aa6551064c64efb7c7b7155",
+    "name": "Brass C.P. Fittings",
+    "description": "",
+    "order": 1,
+    "__v": 0,
+    "createdAt": "2026-09-13T07:47:28.099Z",
+    "updatedAt": "2026-09-13T07:47:28.099Z"
+  },
+  {
+    "_id": "6aa6551064c64efb7c7b7156",
+    "name": "Valves & Diverters",
+    "description": "",
+    "order": 2,
+    "__v": 0,
+    "createdAt": "2026-09-13T07:47:28.099Z",
+    "updatedAt": "2026-09-13T07:47:28.099Z"
+  },
+  {
+    "_id": "6aa6551064c64efb7c7b7157",
+    "name": "Sanitaryware",
+    "description": "",
+    "order": 3,
+    "__v": 0,
+    "createdAt": "2026-09-13T07:47:28.099Z",
+    "updatedAt": "2026-09-13T07:47:28.099Z"
+  },
+  {
+    "_id": "6aa6551064c64efb7c7b7158",
+    "name": "Bath Accessories",
+    "description": "",
+    "order": 4,
+    "__v": 0,
+    "createdAt": "2026-09-13T07:47:28.099Z",
+    "updatedAt": "2026-09-13T07:47:28.099Z"
+  },
+  {
+    "_id": "6aa6557b64c64efb7c7b7181",
+    "name": "S.S.ITEM",
+    "description": "",
+    "order": 0,
+    "createdBy": "6aa57ec376a18b01d0018144",
+    "createdAt": "2026-09-13T07:49:15.008Z",
+    "updatedAt": "2026-09-13T07:49:15.008Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa66c34393407524a5dd3c3",
+    "name": "PPCP",
+    "description": "",
+    "order": 0,
+    "createdBy": "6aa57ec376a18b01d0018144",
+    "createdAt": "2026-09-13T09:26:12.800Z",
+    "updatedAt": "2026-09-13T09:26:12.800Z",
+    "__v": 0
+  }
+]

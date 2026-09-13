@@ -1,0 +1,232 @@
+[
+  {
+    "_id": "6aa57ec476a18b01d001815b",
+    "orderNumber": "ORD-2026-0001",
+    "shop": "6aa57ec376a18b01d0018148",
+    "salesman": "6aa57ec376a18b01d0018146",
+    "billType": "GST",
+    "items": [
+      {
+        "product": "6aa57ec476a18b01d0018150",
+        "name": "CPVC Heavy Pipe 1 inch SDR 11 (3m)",
+        "quantity": 40,
+        "boxCount": 2,
+        "price": 340,
+        "gstPercentage": 18,
+        "gstAmount": 2448,
+        "subtotal": 16048,
+        "_id": "6aa57ec576a18b01d001817d"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018152",
+        "name": "Brass Bib Cock with Wall Flange (Heavy Chrome)",
+        "quantity": 24,
+        "boxCount": 2,
+        "price": 480,
+        "gstPercentage": 18,
+        "gstAmount": 2074,
+        "subtotal": 13594,
+        "_id": "6aa57ec576a18b01d001817e"
+      }
+    ],
+    "subtotal": 25120,
+    "gstTotal": 4522,
+    "totalAmount": 29642,
+    "status": "PACKED",
+    "dispatchNotes": "Pack in double bubble wrap for ceramic fittings. Urgent delivery.",
+    "orderChannel": "IN_PERSON_BEAT",
+    "isWithoutVisit": false,
+    "createdAt": "2026-09-11T16:33:08.756Z",
+    "__v": 0,
+    "updatedAt": "2026-09-12T16:33:09.026Z"
+  },
+  {
+    "_id": "6aa57ec476a18b01d001815c",
+    "orderNumber": "ORD-2026-0002",
+    "shop": "6aa57ec376a18b01d0018149",
+    "salesman": "6aa57ec376a18b01d0018146",
+    "billType": "NON_GST",
+    "items": [
+      {
+        "product": "6aa57ec476a18b01d0018153",
+        "name": "Two-Way Bib Cock with Wall Flange",
+        "quantity": 20,
+        "boxCount": 2,
+        "price": 750,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 15000,
+        "_id": "6aa57ec576a18b01d0018180"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018157",
+        "name": "Stainless Steel Health Faucet Set with 1.2m Hose",
+        "quantity": 30,
+        "boxCount": 2,
+        "price": 380,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 11400,
+        "_id": "6aa57ec576a18b01d0018181"
+      }
+    ],
+    "subtotal": 26400,
+    "gstTotal": 0,
+    "totalAmount": 26400,
+    "status": "DISPATCHED",
+    "dispatchNotes": "Tempo vehicle GJ-03-BW-4521 driver Nareshbhai.",
+    "orderChannel": "IN_PERSON_BEAT",
+    "isWithoutVisit": false,
+    "dispatchedAt": "2026-09-12T16:33:08.756Z",
+    "createdAt": "2026-09-10T16:33:08.756Z",
+    "__v": 0,
+    "updatedAt": "2026-09-12T16:33:09.027Z"
+  },
+  {
+    "_id": "6aa586d7c1d5f1c7f37103c8",
+    "orderNumber": "ORD-2026-0003",
+    "shop": "6aa57ec376a18b01d0018149",
+    "salesman": "6aa57ec376a18b01d0018144",
+    "billType": "NON_GST",
+    "items": [
+      {
+        "product": "6aa57ec476a18b01d0018157",
+        "name": "Stainless Steel Health Faucet Set with 1.2m Hose",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 380,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 380,
+        "_id": "6aa586d7c1d5f1c7f37103c9"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018152",
+        "name": "Brass Bib Cock with Wall Flange (Heavy Chrome)",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 480,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 480,
+        "_id": "6aa586d7c1d5f1c7f37103ca"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018155",
+        "name": "Single Lever Basin Mixer (Tall Boy)",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 2450,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 2450,
+        "_id": "6aa586d7c1d5f1c7f37103cb"
+      }
+    ],
+    "subtotal": 3310,
+    "gstTotal": 0,
+    "totalAmount": 3310,
+    "status": "PENDING",
+    "dispatchNotes": "5 tarikhe pugadvano che",
+    "orderChannel": "IN_PERSON_BEAT",
+    "isWithoutVisit": false,
+    "createdAt": "2026-09-12T17:07:35.448Z",
+    "updatedAt": "2026-09-12T17:07:35.448Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa586d9c1d5f1c7f37103e5",
+    "orderNumber": "ORD-2026-0004",
+    "shop": "6aa57ec376a18b01d0018149",
+    "salesman": "6aa57ec376a18b01d0018144",
+    "billType": "NON_GST",
+    "items": [
+      {
+        "product": "6aa57ec476a18b01d0018157",
+        "name": "Stainless Steel Health Faucet Set with 1.2m Hose",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 380,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 380,
+        "_id": "6aa586d9c1d5f1c7f37103e6"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018152",
+        "name": "Brass Bib Cock with Wall Flange (Heavy Chrome)",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 480,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 480,
+        "_id": "6aa586d9c1d5f1c7f37103e7"
+      },
+      {
+        "product": "6aa57ec476a18b01d0018155",
+        "name": "Single Lever Basin Mixer (Tall Boy)",
+        "quantity": 1,
+        "boxCount": 1,
+        "price": 2450,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 2450,
+        "_id": "6aa586d9c1d5f1c7f37103e8"
+      }
+    ],
+    "subtotal": 3310,
+    "gstTotal": 0,
+    "totalAmount": 3310,
+    "status": "DISPATCHED",
+    "dispatchNotes": "om trasport ",
+    "orderChannel": "IN_PERSON_BEAT",
+    "isWithoutVisit": false,
+    "createdAt": "2026-09-12T17:07:37.668Z",
+    "updatedAt": "2026-09-12T17:09:17.996Z",
+    "__v": 0,
+    "dispatchedAt": "2026-09-12T17:09:17.995Z"
+  },
+  {
+    "_id": "6aa6666e35fcc52f7638d9d5",
+    "orderNumber": "ORD-2026-0005",
+    "shop": "6aa57ec376a18b01d0018148",
+    "salesman": "6aa57ec376a18b01d0018144",
+    "billType": "NON_GST",
+    "items": [
+      {
+        "product": "6aa659b264c64efb7c7b71ef",
+        "name": "S.S. 1 EXTENTION NIPPEL",
+        "quantity": 10,
+        "boxCount": 10,
+        "price": 17,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 170,
+        "_id": "6aa6666e35fcc52f7638d9d6"
+      },
+      {
+        "product": "6aa659fa64c64efb7c7b71f7",
+        "name": "S.S. 1.5 EXTENTION NIPPEL",
+        "quantity": 14,
+        "boxCount": 14,
+        "price": 22,
+        "gstPercentage": 0,
+        "gstAmount": 0,
+        "subtotal": 308,
+        "_id": "6aa6666e35fcc52f7638d9d7"
+      }
+    ],
+    "subtotal": 478,
+    "gstTotal": 0,
+    "totalAmount": 478,
+    "status": "DISPATCHED",
+    "dispatchNotes": "Loaded in Delivery Vehicle",
+    "orderChannel": "IN_PERSON_BEAT",
+    "isWithoutVisit": false,
+    "createdAt": "2026-09-13T09:01:34.004Z",
+    "updatedAt": "2026-09-13T09:02:44.366Z",
+    "__v": 0,
+    "dispatchedAt": "2026-09-13T09:02:44.365Z"
+  }
+]

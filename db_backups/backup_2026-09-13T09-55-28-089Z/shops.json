@@ -1,0 +1,161 @@
+[
+  {
+    "_id": "6aa57ec376a18b01d0018148",
+    "shopName": "Shri Krishna Hardware & Bath",
+    "ownerName": "Jayeshbhai Shah",
+    "phone": "9898055555",
+    "altPhone": "9825012345",
+    "city": "Morbi",
+    "address": "Shop No 14, Patel Complex, Sanala Road, Morbi",
+    "location": {
+      "latitude": 22.8123,
+      "longitude": 70.8354
+    },
+    "routeId": "6aa57ec376a18b01d001814d",
+    "gstNumber": "24AAACP1234F1Z8",
+    "gstBalance": 24500,
+    "nonGstBalance": 45478,
+    "creditLimit": 200000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "lastVisitedAt": "2026-09-13T09:01:34.241Z",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.912Z",
+    "updatedAt": "2026-09-13T09:01:34.242Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d0018149",
+    "shopName": "Om Sanitations & Plumbers Hub",
+    "ownerName": "Bhavinbhai Patel",
+    "phone": "9898066666",
+    "city": "Morbi",
+    "address": "Near Old Bus Stand, Ceramic Plaza, Morbi",
+    "location": {
+      "latitude": 22.819,
+      "longitude": 70.841
+    },
+    "routeId": "6aa57ec376a18b01d001814d",
+    "gstNumber": "24BCDE9876H2Z1",
+    "gstBalance": 12000,
+    "nonGstBalance": 26120,
+    "creditLimit": 150000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "lastVisitedAt": "2026-09-12T20:10:55.085Z",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.913Z",
+    "updatedAt": "2026-09-12T20:10:55.085Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d001814a",
+    "shopName": "Patel Bathware & Tiles Gallery",
+    "ownerName": "Hareshbhai Vaghani",
+    "phone": "9898077777",
+    "city": "Wankaner",
+    "address": "Main Bazaar, Opp. Town Hall, Wankaner",
+    "location": {
+      "latitude": 22.6105,
+      "longitude": 70.9388
+    },
+    "routeId": "6aa57ec376a18b01d001814d",
+    "gstNumber": "24XYZK5555M1Z9",
+    "gstBalance": 0,
+    "nonGstBalance": 18200,
+    "creditLimit": 100000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "lastVisitedAt": "2026-09-05T16:33:08.755Z",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.914Z",
+    "updatedAt": "2026-09-12T16:33:08.914Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d001814b",
+    "shopName": "Maruti Plumbing Solutions",
+    "ownerName": "Dineshbhai Prajapati",
+    "phone": "9898088888",
+    "city": "Wankaner",
+    "address": "Near Railway Crossing, Mill Road, Wankaner",
+    "location": {
+      "latitude": 22.615,
+      "longitude": 70.942
+    },
+    "routeId": "6aa57ec376a18b01d001814d",
+    "gstNumber": "24QWER1122P1Z0",
+    "gstBalance": 38900,
+    "nonGstBalance": 22000,
+    "creditLimit": 150000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "lastVisitedAt": "2026-09-04T16:33:08.755Z",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.914Z",
+    "updatedAt": "2026-09-12T16:33:08.914Z"
+  },
+  {
+    "_id": "6aa57ec376a18b01d001814c",
+    "shopName": "Ambica Sanitary & Hardware Mart",
+    "ownerName": "Mukeshbhai Doshi",
+    "phone": "9898099999",
+    "city": "Rajkot",
+    "address": "Shop 8, Dhebar Road South, Rajkot",
+    "location": {
+      "latitude": 22.3039,
+      "longitude": 70.8022
+    },
+    "routeId": "6aa57ec376a18b01d001814e",
+    "gstNumber": "24LKJH4321A1Z5",
+    "gstBalance": 15000,
+    "nonGstBalance": 55000,
+    "creditLimit": 250000,
+    "onboardedBy": "6aa57ec376a18b01d0018147",
+    "lastVisitedAt": "2026-09-08T16:33:08.755Z",
+    "isActive": true,
+    "__v": 0,
+    "createdAt": "2026-09-12T16:33:08.914Z",
+    "updatedAt": "2026-09-12T16:33:08.914Z"
+  },
+  {
+    "_id": "6aa5a2d97f50052048d07879",
+    "shopName": "Vishva",
+    "ownerName": "Raju",
+    "phone": "9635865236",
+    "city": "Morbi",
+    "address": "Shop 50",
+    "location": {
+      "latitude": 22.813,
+      "longitude": 70.836
+    },
+    "routeId": null,
+    "gstBalance": 0,
+    "nonGstBalance": 0,
+    "creditLimit": 150000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "isActive": true,
+    "createdAt": "2026-09-12T19:07:05.086Z",
+    "updatedAt": "2026-09-12T19:07:05.086Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa5b09b76e85a05443f5b60",
+    "shopName": "Any",
+    "ownerName": "Any",
+    "phone": "6464646644",
+    "city": "Morbi",
+    "address": "Jaja",
+    "location": {
+      "latitude": 22.813,
+      "longitude": 70.836
+    },
+    "routeId": null,
+    "gstBalance": 0,
+    "nonGstBalance": 0,
+    "creditLimit": 150000,
+    "onboardedBy": "6aa57ec376a18b01d0018146",
+    "isActive": true,
+    "createdAt": "2026-09-12T20:05:47.535Z",
+    "updatedAt": "2026-09-12T20:10:41.183Z",
+    "__v": 0,
+    "lastVisitedAt": "2026-09-12T20:10:41.182Z"
+  }
+]
