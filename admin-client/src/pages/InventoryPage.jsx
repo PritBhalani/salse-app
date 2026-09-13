@@ -18,16 +18,27 @@ import {
   Link2,
   X,
   RefreshCw,
+  Tags,
+  FolderPlus,
+  Settings2,
 } from 'lucide-react';
-import { productsAPI, uploadAPI } from '../services/api';
+import { productsAPI, uploadAPI, categoriesAPI } from '../services/api';
 
 export const InventoryPage = () => {
   const [products, setProducts] = useState([]);
+  const [categoriesList, setCategoriesList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+
+  // Category Manager Modal state
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [newCatDescription, setNewCatDescription] = useState('');
+  const [savingCategory, setSavingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState('');
 
   // Photo upload state
   const [photoTab, setPhotoTab] = useState('UPLOAD'); // 'UPLOAD' or 'LINK'
@@ -49,14 +60,20 @@ export const InventoryPage = () => {
     description: '',
   });
 
-  const categories = [
-    'ALL',
-    'Pipes & Fittings',
-    'Brass C.P. Fittings',
-    'Valves & Diverters',
-    'Sanitaryware',
-    'Bath Accessories',
-  ];
+  const fetchCategories = async () => {
+    try {
+      const res = await categoriesAPI.getAll();
+      if (res.data.success) {
+        setCategoriesList(res.data.categories || []);
+        // Set default category if form category not initialized
+        if (res.data.categories?.length > 0 && !formData.category) {
+          setFormData((prev) => ({ ...prev, category: res.data.categories[0].name }));
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching categories:', err);
+    }
+  };
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -74,6 +91,7 @@ export const InventoryPage = () => {
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
 
   const handleToggleStock = async (id, currentStatus) => {
@@ -119,8 +137,18 @@ export const InventoryPage = () => {
           canvas.height = height;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          resolve(dataUrl);
+
+          canvas.toBlob(
+            (blob) => {
+              if (blob) {
+                resolve(blob);
+              } else {
+                reject(new Error('Canvas compression failed'));
+              }
+            },
+            'image/jpeg',
+            0.82
+          );
         };
         img.onerror = (err) => reject(err);
       };
@@ -132,30 +160,29 @@ export const InventoryPage = () => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!file.type.startsWith('image/')) {
+      setPhotoError('Please select a valid image file (JPG, PNG, WEBP).');
+      return;
+    }
+
     setUploadingPhoto(true);
     setPhotoError('');
 
     try {
-      // 1. Instant client-side compression for smooth preview
-      const compressedDataUrl = await compressImage(file);
-      setFormData((prev) => ({ ...prev, imageUrl: compressedDataUrl }));
+      const compressedBlob = await compressImage(file);
+      const uploadData = new FormData();
+      uploadData.append('photo', compressedBlob, file.name.replace(/\.[^/.]+$/, '') + '.jpg');
 
-      // 2. Upload file to backend server storage
-      const uploadFormData = new FormData();
-      uploadFormData.append('photo', file);
-
-      try {
-        const res = await uploadAPI.uploadPhoto(uploadFormData);
-        if (res.data?.success && res.data?.url) {
-          setFormData((prev) => ({ ...prev, imageUrl: res.data.url }));
-        }
-      } catch (uploadErr) {
-        console.warn('Server upload fallback to optimized Base64 image:', uploadErr);
-        // Keeps the optimized base64 image which works completely in DB & all apps
+      const res = await uploadAPI.uploadPhoto(uploadData);
+      if (res.data.success) {
+        setFormData((prev) => ({
+          ...prev,
+          imageUrl: res.data.imageUrl,
+        }));
       }
     } catch (err) {
-      console.error('Image processing error:', err);
-      setPhotoError('Failed to process selected image file.');
+      console.error('Photo upload error:', err);
+      setPhotoError('Photo upload failed. You can paste an image URL instead.');
     } finally {
       setUploadingPhoto(false);
     }
@@ -164,39 +191,106 @@ export const InventoryPage = () => {
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     try {
+      const payload = {
+        ...formData,
+        basePrice: parseFloat(formData.basePrice) || 0,
+        boxQuantity: parseInt(formData.boxQuantity, 10) || 1,
+        stockQuantity: parseInt(formData.stockQuantity, 10) || 0,
+      };
+
       if (editProduct) {
-        await productsAPI.update(editProduct._id, formData);
+        const res = await productsAPI.update(editProduct._id, payload);
+        if (res.data.success) {
+          setIsAddModalOpen(false);
+          setEditProduct(null);
+          fetchProducts();
+          fetchCategories();
+        }
       } else {
-        await productsAPI.create(formData);
+        const res = await productsAPI.create(payload);
+        if (res.data.success) {
+          setIsAddModalOpen(false);
+          fetchProducts();
+          fetchCategories();
+        }
       }
-      setIsAddModalOpen(false);
-      setEditProduct(null);
-      fetchProducts();
     } catch (err) {
       console.error('Error saving product:', err);
-      alert(err.response?.data?.message || 'Error saving product');
+      alert('Failed to save product: ' + (err.response?.data?.message || err.message));
     }
   };
 
   const handleDeleteProduct = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this product SKU?')) return;
+    if (window.confirm('Are you sure you want to delete this product from the inventory catalog?')) {
+      try {
+        await productsAPI.delete(id);
+        fetchProducts();
+        fetchCategories();
+      } catch (err) {
+        console.error('Error deleting product:', err);
+      }
+    }
+  };
+
+  // Category Manager Handlers
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCatName.trim()) {
+      setCategoryError('Please enter a category name');
+      return;
+    }
+
+    setSavingCategory(true);
+    setCategoryError('');
+
     try {
-      await productsAPI.delete(id);
-      fetchProducts();
+      const res = await categoriesAPI.create({
+        name: newCatName.trim(),
+        description: newCatDescription.trim(),
+      });
+
+      if (res.data.success) {
+        setNewCatName('');
+        setNewCatDescription('');
+        await fetchCategories();
+      }
     } catch (err) {
-      console.error('Error deleting product:', err);
-      alert('Error deleting product');
+      setCategoryError(err.response?.data?.message || 'Failed to add category');
+    } finally {
+      setSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId, catName) => {
+    const catObj = categoriesList.find((c) => c._id === catId || c.name === catName);
+    const prodCount = catObj?.productCount || 0;
+
+    let confirmMsg = `Are you sure you want to remove the category "${catName}"?`;
+    if (prodCount > 0) {
+      confirmMsg += `\n\n⚠️ Warning: ${prodCount} product(s) are currently under this category.`;
+    }
+
+    if (window.confirm(confirmMsg)) {
+      try {
+        await categoriesAPI.delete(catId);
+        if (selectedCategory === catName) {
+          setSelectedCategory('ALL');
+        }
+        await fetchCategories();
+      } catch (err) {
+        alert('Failed to delete category: ' + (err.response?.data?.message || err.message));
+      }
     }
   };
 
   const openEditModal = (p) => {
     setEditProduct(p);
     setFormData({
-      name: p.name,
-      category: p.category,
-      brand: p.brand,
+      name: p.name || '',
+      category: p.category || (categoriesList[0]?.name || 'Pipes & Fittings'),
+      brand: p.brand || '',
       sku: p.sku || '',
-      basePrice: p.basePrice,
+      basePrice: p.basePrice || '',
       boxQuantity: p.boxQuantity || 1,
       uom: p.uom || 'Pcs',
       stockQuantity: p.stockQuantity || 100,
@@ -212,10 +306,14 @@ export const InventoryPage = () => {
     const matchesSearch =
       p.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.brand?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(searchQuery.toLowerCase());
+      p.sku?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      p.category?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCat = selectedCategory === 'ALL' || p.category === selectedCategory;
     return matchesSearch && matchesCat;
   });
+
+  // Unique list of category names for filter pills
+  const allCategoryNames = categoriesList.map((c) => c.name);
 
   return (
     <div className="space-y-6">
@@ -231,39 +329,57 @@ export const InventoryPage = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Upload product photos directly from your device, manage wholesale pricing, packaging box quantities, and toggle out-of-stock items.
+            Upload product photos directly from your device, manage wholesale pricing, packaging box quantities, and add/remove catalog categories.
           </p>
         </div>
 
-        <button
-          onClick={() => {
-            setEditProduct(null);
-            setFormData({
-              name: '',
-              category: 'Brass C.P. Fittings',
-              brand: 'Jaquar',
-              sku: '',
-              basePrice: '',
-              boxQuantity: 12,
-              uom: 'Pcs',
-              stockQuantity: 100,
-              imageUrl: '',
-              description: '',
-            });
-            setPhotoTab('UPLOAD');
-            setPhotoError('');
-            setIsAddModalOpen(true);
-          }}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-900/20 transition-all active:scale-95 self-start sm:self-auto"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Add New Product</span>
-        </button>
+        <div className="flex items-center gap-2.5">
+          {/* Manage Categories Button */}
+          <button
+            onClick={() => {
+              setCategoryError('');
+              setIsCategoryModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 text-xs font-bold transition-all active:scale-95"
+          >
+            <Tags className="w-4 h-4 text-sky-400" />
+            <span>Manage Categories</span>
+            <span className="px-1.5 py-0.5 rounded-md bg-slate-900 text-sky-400 text-[10px] font-bold">
+              {categoriesList.length}
+            </span>
+          </button>
+
+          {/* Add New Product Button */}
+          <button
+            onClick={() => {
+              setEditProduct(null);
+              setFormData({
+                name: '',
+                category: categoriesList[0]?.name || 'Brass C.P. Fittings',
+                brand: 'Jaquar',
+                sku: '',
+                basePrice: '',
+                boxQuantity: 12,
+                uom: 'Pcs',
+                stockQuantity: 100,
+                imageUrl: '',
+                description: '',
+              });
+              setPhotoTab('UPLOAD');
+              setPhotoError('');
+              setIsAddModalOpen(true);
+            }}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow-lg shadow-sky-900/20 transition-all active:scale-95"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Add New Product</span>
+          </button>
+        </div>
       </div>
 
       {/* Filter and Search Bar */}
-      <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-        <div className="relative w-full md:w-80">
+      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
+        <div className="relative w-full lg:w-80">
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
           <input
             type="text"
@@ -274,21 +390,59 @@ export const InventoryPage = () => {
           />
         </div>
 
-        {/* Category Pills */}
+        {/* Category Pills Bar */}
         <div className="flex items-center gap-1.5 overflow-x-auto pb-1 max-w-full no-scrollbar">
-          {categories.map((c) => (
-            <button
-              key={c}
-              onClick={() => setSelectedCategory(c)}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                selectedCategory === c
-                  ? 'bg-sky-600 text-white shadow'
-                  : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
-              }`}
-            >
-              {c}
-            </button>
-          ))}
+          {/* ALL Pill */}
+          <button
+            onClick={() => setSelectedCategory('ALL')}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+              selectedCategory === 'ALL'
+                ? 'bg-sky-600 text-white shadow'
+                : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            🌟 ALL ({products.length})
+          </button>
+
+          {/* Dynamic Categories */}
+          {categoriesList.map((cat) => {
+            const count = cat.productCount ?? products.filter((p) => p.category === cat.name).length;
+            return (
+              <button
+                key={cat._id || cat.name}
+                onClick={() => setSelectedCategory(cat.name)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 ${
+                  selectedCategory === cat.name
+                    ? 'bg-sky-600 text-white shadow'
+                    : 'bg-slate-900 border border-slate-800 text-slate-400 hover:text-slate-200'
+                }`}
+              >
+                <span>{cat.name}</span>
+                <span
+                  className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                    selectedCategory === cat.name
+                      ? 'bg-sky-700/80 text-white'
+                      : 'bg-slate-800 text-slate-400'
+                  }`}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+
+          {/* Quick Add Category Pill */}
+          <button
+            onClick={() => {
+              setCategoryError('');
+              setIsCategoryModalOpen(true);
+            }}
+            className="px-2.5 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap bg-slate-900/60 border border-dashed border-slate-700 hover:border-sky-500 text-sky-400 hover:text-sky-300 transition-all flex items-center gap-1"
+            title="Add or Remove Category"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Category</span>
+          </button>
         </div>
       </div>
 
@@ -309,122 +463,252 @@ export const InventoryPage = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-800 text-slate-300">
-              {filteredProducts.map((p) => (
-                <tr
-                  key={p._id}
-                  className={`hover:bg-slate-800/40 transition-colors ${
-                    p.isOutOfStock ? 'opacity-65 bg-slate-950/30' : ''
-                  }`}
-                >
-                  {/* Photo Thumbnail */}
-                  <td className="py-3 px-4">
-                    {p.imageUrl ? (
-                      <img
-                        src={p.imageUrl}
-                        alt={p.name}
-                        className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                    ) : (
-                      <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-500">
-                        <ImageIcon className="w-5 h-5" />
-                      </div>
-                    )}
-                  </td>
-
-                  {/* Name */}
-                  <td className="py-3.5 px-4">
-                    <div className="font-bold text-white text-sm">{p.name}</div>
-                    <div className="text-[11px] font-mono text-slate-500">{p.sku || 'N/A'}</div>
-                  </td>
-
-                  {/* Brand & Category */}
-                  <td className="py-3.5 px-3">
-                    <span className="font-semibold text-sky-400 block">{p.brand}</span>
-                    <span className="text-[11px] text-slate-400">{p.category}</span>
-                  </td>
-
-                  {/* Packaging */}
-                  <td className="py-3.5 px-3 text-center">
-                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-950/60 border border-indigo-800/50 text-indigo-300 font-bold">
-                      <Package className="w-3.5 h-3.5" />
-                      <span>{p.boxQuantity} {p.uom || 'Pcs'}/box</span>
-                    </div>
-                  </td>
-
-                  {/* Price */}
-                  <td className="py-3.5 px-4 text-right font-bold text-emerald-400 text-sm">
-                    ₹{p.basePrice?.toLocaleString()}
-                    <span className="text-[10px] text-slate-500 font-normal block">
-                      (₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()} / box)
-                    </span>
-                  </td>
-
-                  {/* Stock */}
-                  <td className="py-3.5 px-3 text-center">
-                    <span
-                      className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                        p.isOutOfStock || p.stockQuantity <= 0
-                          ? 'bg-rose-950 text-rose-400 border border-rose-800'
-                          : p.stockQuantity < 20
-                          ? 'bg-amber-950 text-amber-400 border border-amber-800'
-                          : 'bg-emerald-950 text-emerald-400 border border-emerald-800'
-                      }`}
-                    >
-                      {p.isOutOfStock ? '0 (Out of Stock)' : `${p.stockQuantity} Pcs`}
-                    </span>
-                  </td>
-
-                  {/* Stock Toggle Switch */}
-                  <td className="py-3.5 px-4 text-center">
-                    <button
-                      onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
-                      className="inline-flex items-center gap-1.5 transition-transform active:scale-90"
-                      title={p.isOutOfStock ? 'Click to mark IN STOCK' : 'Click to mark OUT OF STOCK'}
-                    >
-                      {p.isOutOfStock ? (
-                        <div className="flex items-center gap-1 text-rose-400 bg-rose-950/50 border border-rose-800/60 px-2 py-1 rounded-lg">
-                          <ToggleLeft className="w-4 h-4 text-rose-500" />
-                          <span className="text-[10px] font-bold">OUT OF STOCK</span>
-                        </div>
-                      ) : (
-                        <div className="flex items-center gap-1 text-emerald-400 bg-emerald-950/50 border border-emerald-800/60 px-2 py-1 rounded-lg">
-                          <ToggleRight className="w-4 h-4 text-emerald-500" />
-                          <span className="text-[10px] font-bold">IN STOCK</span>
-                        </div>
-                      )}
-                    </button>
-                  </td>
-
-                  {/* Actions */}
-                  <td className="py-3.5 px-4 text-right">
-                    <div className="flex items-center justify-end gap-1.5">
-                      <button
-                        onClick={() => openEditModal(p)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-sky-950 text-slate-400 hover:text-sky-400 transition-colors"
-                        title="Edit Price, Photo & Specs"
-                      >
-                        <Edit2 className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteProduct(p._id)}
-                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
+              {filteredProducts.length === 0 ? (
+                <tr>
+                  <td colSpan="8" className="py-10 text-center text-slate-500">
+                    <Package className="w-10 h-10 mx-auto mb-2 text-slate-600 opacity-50" />
+                    <p className="text-sm font-semibold">No products found in this category.</p>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      Click "Add New Product" to add items to "{selectedCategory}".
+                    </p>
                   </td>
                 </tr>
-              ))}
+              ) : (
+                filteredProducts.map((p) => (
+                  <tr
+                    key={p._id}
+                    className={`hover:bg-slate-800/40 transition-colors ${
+                      p.isOutOfStock ? 'opacity-65 bg-slate-950/30' : ''
+                    }`}
+                  >
+                    {/* Photo Thumbnail */}
+                    <td className="py-3 px-4">
+                      {p.imageUrl ? (
+                        <img
+                          src={p.imageUrl}
+                          alt={p.name}
+                          className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg">
+                          📦
+                        </div>
+                      )}
+                    </td>
+
+                    {/* Name & SKU */}
+                    <td className="py-3.5 px-4">
+                      <p className="font-bold text-white text-xs">{p.name}</p>
+                      <span className="text-[10px] text-slate-400 font-mono">SKU: {p.sku || 'N/A'}</span>
+                    </td>
+
+                    {/* Brand & Category */}
+                    <td className="py-3.5 px-3">
+                      <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold border border-sky-500/20 mr-1.5">
+                        {p.brand || 'Unbranded'}
+                      </span>
+                      <span className="text-slate-400 text-[11px] block mt-0.5">{p.category}</span>
+                    </td>
+
+                    {/* Packaging */}
+                    <td className="py-3.5 px-3 text-center">
+                      <span className="font-semibold text-slate-300">
+                        {p.boxQuantity || 1} {p.uom || 'Pcs'}/box
+                      </span>
+                    </td>
+
+                    {/* Wholesale Price */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="font-bold text-white">₹{p.basePrice?.toLocaleString()}</div>
+                      <span className="text-[10px] text-slate-400">
+                        ₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()} / box
+                      </span>
+                    </td>
+
+                    {/* Stock Level */}
+                    <td className="py-3.5 px-3 text-center">
+                      <span
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
+                          p.stockQuantity > 50
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                            : p.stockQuantity > 0
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                        }`}
+                      >
+                        {p.stockQuantity || 0} Pcs
+                      </span>
+                    </td>
+
+                    {/* Out of Stock Toggle */}
+                    <td className="py-3.5 px-4 text-center">
+                      <button
+                        onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
+                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
+                          p.isOutOfStock
+                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
+                            : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                        }`}
+                      >
+                        {p.isOutOfStock ? (
+                          <>
+                            <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />
+                            <span>OUT OF STOCK</span>
+                          </>
+                        ) : (
+                          <>
+                            <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
+                            <span>IN STOCK</span>
+                          </>
+                        )}
+                      </button>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-3.5 px-4 text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => openEditModal(p)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-sky-950 text-slate-400 hover:text-sky-400 transition-colors"
+                          title="Edit Price, Photo & Specs"
+                        >
+                          <Edit2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteProduct(p._id)}
+                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Add / Edit Product Modal */}
+      {/* ========================================================================= */}
+      {/* MANAGE CATEGORIES MODAL (ADD & REMOVE CATEGORIES) */}
+      {/* ========================================================================= */}
+      {isCategoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  <Tags className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Manage Catalog Categories</h3>
+                  <p className="text-[11px] text-slate-400">
+                    Add new product categories or remove unused ones across the ERP
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="p-1.5 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Add New Category Box */}
+            <form onSubmit={handleAddCategory} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-5 space-y-3">
+              <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                <FolderPlus className="w-4 h-4 text-sky-400" />
+                <span>Add New Category</span>
+              </h4>
+
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. CPVC Solvents, Water Tanks, Kitchen Sinks"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className="flex-1 bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-sky-500"
+                />
+                <button
+                  type="submit"
+                  disabled={savingCategory}
+                  className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold shadow transition-all disabled:opacity-50 flex items-center gap-1"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{savingCategory ? 'Adding...' : 'Add'}</span>
+                </button>
+              </div>
+
+              {categoryError && (
+                <p className="text-rose-400 text-[11px] font-semibold">{categoryError}</p>
+              )}
+            </form>
+
+            {/* Existing Categories List */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-xs font-bold text-slate-300">
+                  Existing Categories ({categoriesList.length}):
+                </h4>
+                <span className="text-[10px] text-slate-500">Live synchronized</span>
+              </div>
+
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                {categoriesList.map((cat) => {
+                  const pCount = cat.productCount ?? products.filter((p) => p.category === cat.name).length;
+                  return (
+                    <div
+                      key={cat._id || cat.name}
+                      className="flex items-center justify-between p-3 rounded-xl bg-slate-950/60 border border-slate-800/80 hover:border-slate-700 transition-colors"
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-sm">🏷️</span>
+                        <div>
+                          <p className="text-xs font-bold text-white">{cat.name}</p>
+                          <span className="text-[10px] text-slate-400">
+                            {pCount} product{pCount !== 1 ? 's' : ''} in catalog
+                          </span>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => handleDeleteCategory(cat._id, cat.name)}
+                        className="p-1.5 rounded-lg bg-slate-900 hover:bg-rose-950/80 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors"
+                        title={`Remove category "${cat.name}"`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setIsCategoryModalOpen(false)}
+                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* ADD / EDIT PRODUCT MODAL */}
+      {/* ========================================================================= */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
@@ -445,7 +729,7 @@ export const InventoryPage = () => {
                 />
               </div>
 
-              {/* Direct Photo Upload / Camera Section */}
+              {/* Direct Photo Upload Section */}
               <div className="bg-slate-950 border border-slate-800 rounded-2xl p-3.5 space-y-2.5">
                 <div className="flex items-center justify-between">
                   <label className="text-slate-300 font-bold flex items-center gap-1.5">
@@ -576,17 +860,29 @@ export const InventoryPage = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Category *:</label>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-slate-300 font-semibold">Category *:</label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCategoryError('');
+                        setIsCategoryModalOpen(true);
+                      }}
+                      className="text-[10px] text-sky-400 hover:underline font-bold"
+                    >
+                      + Manage
+                    </button>
+                  </div>
                   <select
                     value={formData.category}
                     onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                     className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
                   >
-                    <option value="Pipes & Fittings">Pipes & Fittings</option>
-                    <option value="Brass C.P. Fittings">Brass C.P. Fittings</option>
-                    <option value="Valves & Diverters">Valves & Diverters</option>
-                    <option value="Sanitaryware">Sanitaryware</option>
-                    <option value="Bath Accessories">Bath Accessories</option>
+                    {categoriesList.map((c) => (
+                      <option key={c._id || c.name} value={c.name}>
+                        {c.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 

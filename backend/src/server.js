@@ -15,6 +15,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import visitRoutes from './routes/visitRoutes.js';
 import callingSheetRoutes from './routes/callingSheetRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
+import categoryRoutes from './routes/categoryRoutes.js';
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use('/api/payments', paymentRoutes);
 app.use('/api/visits', visitRoutes);
 app.use('/api/calling-sheet', callingSheetRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/categories', categoryRoutes);
 
 // Socket.io connection logic
 io.on('connection', (socket) => {
