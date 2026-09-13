@@ -7,6 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Alert,
+  Image,
 } from 'react-native';
 import { mobileAPI, setAuthToken, setDeviceId } from '../config/api';
 
@@ -62,10 +63,14 @@ export const LoginScreen = ({ onLoginSuccess }) => {
     <View style={styles.container}>
       <View style={styles.card}>
         <View style={styles.logoBadge}>
-          <Text style={styles.logoIcon}>🚿</Text>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logoImage}
+            resizeMode="contain"
+          />
         </View>
-        <Text style={styles.title}>SHIVAM WHOLESALE</Text>
-        <Text style={styles.subtitle}>Plumbing & Bathware ERP Field App</Text>
+        <Text style={styles.title}>SM BATH ACCESSORIES</Text>
+        <Text style={styles.subtitle}>Wholesale ERP Field Sales App</Text>
 
         {/* Quick Role Fill Tabs */}
         <View style={styles.tabContainer}>
@@ -160,18 +165,26 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   logoBadge: {
-    width: 64,
-    height: 64,
-    borderRadius: 20,
-    backgroundColor: '#0c4a6e',
+    width: 88,
+    height: 88,
+    borderRadius: 22,
+    backgroundColor: '#ffffff',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: '#0284c7',
+    marginBottom: 14,
+    borderWidth: 2,
+    borderColor: '#e2e8f0',
+    overflow: 'hidden',
+    padding: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  logoIcon: {
-    fontSize: 32,
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   title: {
     fontSize: 20,

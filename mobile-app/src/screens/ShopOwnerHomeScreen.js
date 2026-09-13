@@ -196,6 +196,11 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
+        <Image
+          source={require('../../assets/logo.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
         <View style={{ flex: 1 }}>
           <Text style={styles.shopName} numberOfLines={1}>
             🏪 {shop?.shopName || 'Shri Krishna Hardware'}
@@ -684,6 +689,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
+  },
+  headerLogo: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    marginRight: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   shopName: {
     fontSize: 16,

@@ -9,13 +9,13 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#0284c7"
+      "backgroundColor": "#ffffff"
     },
     "android": {
       "package": "com.salase.wholesale",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#0284c7"
+        "backgroundColor": "#ffffff"
       },
       "usesCleartextTraffic": true,
       "permissions": [

@@ -261,6 +261,11 @@ export const TodayBeatScreen = ({
     <View style={styles.container}>
       {/* Top Header Bar */}
       <View style={styles.topBar}>
+        <Image
+          source={require('../../assets/logo.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
         <View style={{ flex: 1 }}>
           <View style={styles.userRow}>
             <Text style={styles.salesmanGreeting}>Namaste, {user?.name?.split(' ')[0] || 'Sales Executive'}</Text>
@@ -939,6 +944,15 @@ const styles = StyleSheet.create({
     backgroundColor: '#111827',
     borderBottomWidth: 1,
     borderBottomColor: '#1f2937',
+  },
+  headerLogo: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    marginRight: 10,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#374151',
   },
   userRow: {
     flexDirection: 'row',
