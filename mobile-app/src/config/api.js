@@ -12,7 +12,7 @@ export const mobileAPI = axios.create({
 });
 
 let authToken = null;
-let activeDeviceId = 'ANDROID_DEVICE_SALES_01';
+let activeDeviceId = 'DEVICE_ANDROID_SM_G998B';
 
 export const setAuthToken = (token) => {
   authToken = token;
@@ -24,7 +24,9 @@ export const setAuthToken = (token) => {
 };
 
 export const setDeviceId = (id) => {
-  activeDeviceId = id;
+  if (id) {
+    activeDeviceId = id;
+  }
 };
 
 // Request Interceptor: Guarantees token is always attached to every request
@@ -33,7 +35,9 @@ mobileAPI.interceptors.request.use(
     if (authToken) {
       config.headers['Authorization'] = `Bearer ${authToken}`;
     }
-    config.headers['x-device-id'] = activeDeviceId;
+    if (activeDeviceId) {
+      config.headers['x-device-id'] = activeDeviceId;
+    }
     return config;
   },
   (error) => Promise.reject(error)

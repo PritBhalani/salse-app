@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { mobileAPI, setAuthToken } from '../config/api';
+import { mobileAPI, setAuthToken, setDeviceId } from '../config/api';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const [phone, setPhone] = useState('9898033333'); // Default Ramesh Salesman
@@ -43,6 +43,11 @@ export const LoginScreen = ({ onLoginSuccess }) => {
 
       if (res.data.success) {
         setAuthToken(res.data.token);
+        if (res.data.user?.deviceId) {
+          setDeviceId(res.data.user.deviceId);
+        } else {
+          setDeviceId('DEVICE_ANDROID_SM_G998B');
+        }
         onLoginSuccess(res.data.user);
       }
     } catch (err) {

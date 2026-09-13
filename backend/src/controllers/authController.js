@@ -33,18 +33,10 @@ export const loginUser = async (req, res) => {
       return res.status(403).json({ success: false, message: 'Account is deactivated' });
     }
 
-    // Handle Salesman Device Binding
+    // Handle Salesman Device Binding (auto-binds/updates on valid login)
     if (user.role === 'SALESMAN' && deviceId) {
-      if (!user.deviceId) {
-        // First login binds the device
-        user.deviceId = deviceId;
-        await user.save();
-      } else if (user.deviceId !== deviceId) {
-        return res.status(403).json({
-          success: false,
-          message: 'Device mismatch. Bound to another registered device. Contact Admin to reset.',
-        });
-      }
+      user.deviceId = deviceId;
+      await user.save();
     }
 
     const token = generateToken(user._id);
@@ -59,6 +51,7 @@ export const loginUser = async (req, res) => {
         email: user.email,
         role: user.role,
         shopId: user.shopId,
+        deviceId: user.deviceId,
         cashInHand: user.cashInHand,
         activeCities: user.activeCities,
       },

@@ -24,11 +24,9 @@ export const protect = async (req, res, next) => {
       // Check device ID binding for SALESMAN if present
       if (req.user.role === 'SALESMAN' && req.headers['x-device-id']) {
         const clientDeviceId = req.headers['x-device-id'];
-        if (req.user.deviceId && req.user.deviceId !== clientDeviceId) {
-          return res.status(403).json({
-            success: false,
-            message: 'Device mismatch. This account is bound to another registered device.',
-          });
+        if (!req.user.deviceId) {
+          req.user.deviceId = clientDeviceId;
+          await req.user.save();
         }
       }
 
