@@ -35,6 +35,7 @@ export const routesAPI = {
   getById: (id) => api.get(`/routes/${id}`),
   create: (data) => api.post('/routes', data),
   update: (id, data) => api.put(`/routes/${id}`, data),
+  delete: (id) => api.delete(`/routes/${id}`),
 };
 
 export const productsAPI = {

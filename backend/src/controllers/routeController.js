@@ -114,9 +114,27 @@ export const createRoute = async (req, res) => {
   try {
     const { name, cities, assignedSalesman, scheduleDays, nextVisitDate, description } = req.body;
 
+    const trimmedName = name?.trim();
+    if (!trimmedName) {
+      return res.status(400).json({ success: false, message: 'Beat name is required' });
+    }
+
+    const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const existingRoute = await Route.findOne({
+      name: { $regex: `^${escapedName}$`, $options: 'i' },
+      isActive: true,
+    });
+
+    if (existingRoute) {
+      return res.status(400).json({
+        success: false,
+        message: `A beat with the name "${existingRoute.name}" already exists!`,
+      });
+    }
+
     const route = await Route.create({
-      name,
-      cities: Array.isArray(cities) ? cities : cities.split(',').map((c) => c.trim()),
+      name: trimmedName,
+      cities: Array.isArray(cities) ? cities : cities.split(',').map((c) => c.trim()).filter(Boolean),
       assignedSalesman: assignedSalesman || null,
       scheduleDays: scheduleDays || [],
       nextVisitDate: nextVisitDate || null,
@@ -133,7 +151,35 @@ export const createRoute = async (req, res) => {
 // @route   PUT /api/routes/:id
 export const updateRoute = async (req, res) => {
   try {
-    const route = await Route.findByIdAndUpdate(req.params.id, req.body, {
+    const updateData = { ...req.body };
+
+    if (updateData.name) {
+      const trimmedName = updateData.name.trim();
+      if (!trimmedName) {
+        return res.status(400).json({ success: false, message: 'Beat name cannot be empty' });
+      }
+
+      const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const existingRoute = await Route.findOne({
+        _id: { $ne: req.params.id },
+        name: { $regex: `^${escapedName}$`, $options: 'i' },
+        isActive: true,
+      });
+
+      if (existingRoute) {
+        return res.status(400).json({
+          success: false,
+          message: `Another beat with the name "${existingRoute.name}" already exists!`,
+        });
+      }
+      updateData.name = trimmedName;
+    }
+
+    if (updateData.cities && typeof updateData.cities === 'string') {
+      updateData.cities = updateData.cities.split(',').map((c) => c.trim()).filter(Boolean);
+    }
+
+    const route = await Route.findByIdAndUpdate(req.params.id, updateData, {
       new: true,
       runValidators: true,
     }).populate('assignedSalesman', 'name phone');
@@ -156,7 +202,9 @@ export const deleteRoute = async (req, res) => {
     if (!route) {
       return res.status(404).json({ success: false, message: 'Route not found' });
     }
-    res.json({ success: true, message: 'Route deleted' });
+    // Also unassign route from any shops that explicitly referenced this routeId
+    await Shop.updateMany({ routeId: route._id }, { $set: { routeId: null } });
+    res.json({ success: true, message: `Beat "${route.name}" deleted successfully` });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
