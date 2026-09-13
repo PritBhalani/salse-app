@@ -13,6 +13,7 @@ import {
   Linking,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
+import { ImageZoomModal } from '../components/ImageZoomModal';
 
 export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [products, setProducts] = useState([]);
@@ -25,6 +26,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [zoomPhoto, setZoomPhoto] = useState(null);
 
   const fetchProducts = async () => {
     try {
@@ -272,7 +274,20 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
               >
                 <View style={styles.productMainRow}>
                   {/* Product Photo Thumbnail */}
-                  <View style={styles.imageContainer}>
+                  <TouchableOpacity
+                    style={styles.imageContainer}
+                    activeOpacity={p.imageUrl ? 0.75 : 1}
+                    onPress={() => {
+                      if (p.imageUrl) {
+                        setZoomPhoto({
+                          url: p.imageUrl,
+                          name: p.name,
+                          brand: p.brand,
+                          price: p.basePrice,
+                        });
+                      }
+                    }}
+                  >
                     {p.imageUrl ? (
                       <Image source={{ uri: p.imageUrl }} style={styles.productImage} resizeMode="cover" />
                     ) : (
@@ -285,7 +300,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
                         <Text style={styles.brandBadgeText}>{p.brand}</Text>
                       </View>
                     )}
-                  </View>
+                  </TouchableOpacity>
 
                   {/* Product Details */}
                   <View style={styles.productDetails}>
@@ -391,6 +406,12 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           )}
         </TouchableOpacity>
       </View>
+
+      <ImageZoomModal
+        visible={!!zoomPhoto}
+        photo={zoomPhoto}
+        onClose={() => setZoomPhoto(null)}
+      />
     </View>
   );
 };

@@ -12,6 +12,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
+import { ImageZoomModal } from '../components/ImageZoomModal';
 
 export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const [shop, setShop] = useState(null);
@@ -27,6 +28,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
   const [submittingOrder, setSubmittingOrder] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState(null);
+  const [zoomPhoto, setZoomPhoto] = useState(null);
 
   const fetchData = async () => {
     setLoading(true);
@@ -287,7 +289,20 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
                 <View key={prod._id} style={[styles.catalogCard, isOutOfStock && styles.catalogCardDisabled]}>
                   <View style={styles.catalogMainRow}>
                     {/* Photo thumbnail */}
-                    <View style={styles.imageContainer}>
+                    <TouchableOpacity
+                      style={styles.imageContainer}
+                      activeOpacity={prod.imageUrl ? 0.75 : 1}
+                      onPress={() => {
+                        if (prod.imageUrl) {
+                          setZoomPhoto({
+                            url: prod.imageUrl,
+                            name: prod.name,
+                            brand: prod.brand,
+                            price: activePrice || prod.basePrice,
+                          });
+                        }
+                      }}
+                    >
                       {prod.imageUrl ? (
                         <Image source={{ uri: prod.imageUrl }} style={styles.productImage} resizeMode="cover" />
                       ) : (
@@ -300,7 +315,7 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
                           <Text style={styles.brandBadgeText}>{prod.brand}</Text>
                         </View>
                       )}
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Details */}
                     <View style={styles.catalogDetails}>
@@ -606,6 +621,12 @@ export const ShopOwnerHomeScreen = ({ user, onLogout }) => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      <ImageZoomModal
+        visible={!!zoomPhoto}
+        photo={zoomPhoto}
+        onClose={() => setZoomPhoto(null)}
+      />
     </View>
   );
 };

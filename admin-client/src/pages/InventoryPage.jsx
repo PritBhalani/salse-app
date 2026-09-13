@@ -22,6 +22,8 @@ import {
   FolderPlus,
   Layers,
   Sparkles,
+  Maximize2,
+  ExternalLink,
 } from 'lucide-react';
 import { productsAPI, uploadAPI, categoriesAPI } from '../services/api';
 
@@ -33,6 +35,19 @@ export const InventoryPage = () => {
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [editProduct, setEditProduct] = useState(null);
+
+  // Photo Zoom Lightbox state
+  const [zoomPhoto, setZoomPhoto] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && zoomPhoto) {
+        setZoomPhoto(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomPhoto]);
 
   // Category Manager Modal state
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -596,18 +611,36 @@ export const InventoryPage = () => {
                         p.isOutOfStock ? 'opacity-65 bg-slate-950/30' : ''
                       }`}
                     >
-                      {/* Photo Thumbnail */}
+                      {/* Photo Thumbnail with Click to Zoom */}
                       <td className="py-3 px-4">
                         {p.imageUrl ? (
-                          <img
-                            src={p.imageUrl}
-                            alt={p.name}
-                            className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
-                            onError={(e) => {
-                              e.currentTarget.onerror = null;
-                              e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
-                            }}
-                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setZoomPhoto({
+                                url: p.imageUrl,
+                                name: p.name,
+                                brand: p.brand,
+                                category: p.category,
+                                price: p.basePrice,
+                              })
+                            }
+                            className="group relative block w-12 h-12 rounded-xl overflow-hidden focus:outline-none focus:ring-2 focus:ring-sky-500"
+                            title="Click to view full photo"
+                          >
+                            <img
+                              src={p.imageUrl}
+                              alt={p.name}
+                              className="w-full h-full object-cover border border-slate-700/80 rounded-xl group-hover:scale-110 transition-transform cursor-zoom-in"
+                              onError={(e) => {
+                                e.currentTarget.onerror = null;
+                                e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                              }}
+                            />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                              <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                            </div>
+                          </button>
                         ) : (
                           <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg">
                             📦
@@ -935,15 +968,33 @@ export const InventoryPage = () => {
 
                     {formData.imageUrl ? (
                       <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800 flex items-center gap-3">
-                        <img
-                          src={formData.imageUrl}
-                          alt="Uploaded Preview"
-                          className="w-16 h-16 rounded-xl object-cover border border-slate-700 shadow-md"
-                          onError={(e) => {
-                            e.currentTarget.onerror = null;
-                            e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
-                          }}
-                        />
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setZoomPhoto({
+                              url: formData.imageUrl,
+                              name: formData.name || 'Product Photo Preview',
+                              brand: formData.brand,
+                              category: formData.category,
+                              price: formData.basePrice,
+                            })
+                          }
+                          className="relative group shrink-0 rounded-xl overflow-hidden focus:outline-none"
+                          title="Click to view full photo"
+                        >
+                          <img
+                            src={formData.imageUrl}
+                            alt="Uploaded Preview"
+                            className="w-16 h-16 rounded-xl object-cover border border-slate-700 shadow-md group-hover:scale-105 transition-transform cursor-zoom-in"
+                            onError={(e) => {
+                              e.currentTarget.onerror = null;
+                              e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <Maximize2 className="w-4 h-4 text-white drop-shadow" />
+                          </div>
+                        </button>
                         <div className="flex-1 min-w-0">
                           <span className="text-emerald-400 font-bold text-xs flex items-center gap-1">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 inline" />
@@ -1289,6 +1340,78 @@ export const InventoryPage = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Full-Screen Photo Zoom Lightbox Modal */}
+      {zoomPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setZoomPhoto(null)}
+        >
+          <div
+            className="relative max-w-2xl w-full bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/80">
+              <div className="min-w-0 pr-4">
+                <h3 className="font-bold text-white text-base truncate">{zoomPhoto.name}</h3>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                  {zoomPhoto.brand && (
+                    <span className="px-2 py-0.5 rounded-full bg-sky-950 border border-sky-800 text-sky-400 font-bold text-[10px]">
+                      {zoomPhoto.brand}
+                    </span>
+                  )}
+                  {zoomPhoto.category && <span>{zoomPhoto.category}</span>}
+                  {zoomPhoto.price ? (
+                    <span className="font-bold text-emerald-400">• ₹{zoomPhoto.price}</span>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoomPhoto(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* High-Resolution Image Box */}
+            <div className="p-4 bg-slate-950 flex items-center justify-center min-h-[360px] max-h-[70vh]">
+              <img
+                src={zoomPhoto.url}
+                alt={zoomPhoto.name}
+                className="max-h-[65vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src =
+                    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                }}
+              />
+            </div>
+
+            {/* Footer with Hint and Direct Link */}
+            <div className="px-6 py-3 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
+              <span>
+                Click outside or press{' '}
+                <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">
+                  Esc
+                </kbd>{' '}
+                to close
+              </span>
+              <a
+                href={zoomPhoto.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sky-400 hover:text-sky-300 font-semibold flex items-center gap-1 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Open original
+              </a>
+            </div>
           </div>
         </div>
       )}

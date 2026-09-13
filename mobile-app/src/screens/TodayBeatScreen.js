@@ -13,6 +13,7 @@ import {
   Alert,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
+import { ImageZoomModal } from '../components/ImageZoomModal';
 
 export const TodayBeatScreen = ({
   user,
@@ -39,6 +40,7 @@ export const TodayBeatScreen = ({
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
   const [fetchError, setFetchError] = useState(null);
+  const [zoomPhoto, setZoomPhoto] = useState(null);
 
   // Cart state for standalone Catalog tab
   const [cart, setCart] = useState({});
@@ -542,7 +544,20 @@ export const TodayBeatScreen = ({
                 >
                   <View style={styles.catalogMainRow}>
                     {/* Photo thumbnail */}
-                    <View style={styles.imageContainer}>
+                    <TouchableOpacity
+                      style={styles.imageContainer}
+                      activeOpacity={p.imageUrl ? 0.75 : 1}
+                      onPress={() => {
+                        if (p.imageUrl) {
+                          setZoomPhoto({
+                            url: p.imageUrl,
+                            name: p.name,
+                            brand: p.brand,
+                            price: p.basePrice,
+                          });
+                        }
+                      }}
+                    >
                       {p.imageUrl ? (
                         <Image source={{ uri: p.imageUrl }} style={styles.productImage} resizeMode="cover" />
                       ) : (
@@ -555,7 +570,7 @@ export const TodayBeatScreen = ({
                           <Text style={styles.brandBadgeText}>{p.brand}</Text>
                         </View>
                       )}
-                    </View>
+                    </TouchableOpacity>
 
                     {/* Details */}
                     <View style={styles.catalogDetails}>
@@ -861,6 +876,12 @@ export const TodayBeatScreen = ({
           </Text>
         </TouchableOpacity>
       </View>
+
+      <ImageZoomModal
+        visible={!!zoomPhoto}
+        photo={zoomPhoto}
+        onClose={() => setZoomPhoto(null)}
+      />
     </View>
   );
 };

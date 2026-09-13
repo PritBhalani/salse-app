@@ -78,6 +78,19 @@ export const MobileSimulatorPage = () => {
   const [cart, setCart] = useState({});
   const [selectedVariants, setSelectedVariants] = useState({});
   const [dynamicCategories, setDynamicCategories] = useState([]);
+
+  // Photo Zoom Lightbox state
+  const [zoomPhoto, setZoomPhoto] = useState(null);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape' && zoomPhoto) {
+        setZoomPhoto(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [zoomPhoto]);
   const [billType, setBillType] = useState('NON_GST');
   const [orderChannel, setOrderChannel] = useState('IN_PERSON_BEAT'); // 'IN_PERSON_BEAT' or 'PHONE_ORDER'
   const [orderNotes, setOrderNotes] = useState('');
@@ -914,12 +927,26 @@ export const MobileSimulatorPage = () => {
                               >
                                 <div>
                                   {/* Product Image */}
-                                  <div className="relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center">
+                                  <div
+                                    onClick={() =>
+                                      p.imageUrl &&
+                                      setZoomPhoto({
+                                        url: p.imageUrl,
+                                        name: p.name,
+                                        brand: p.brand,
+                                        price: p.basePrice,
+                                      })
+                                    }
+                                    className={`relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center ${
+                                      p.imageUrl ? 'cursor-zoom-in group/img hover:border-sky-500/60 transition-colors' : ''
+                                    }`}
+                                    title={p.imageUrl ? 'Click to view photo larger' : undefined}
+                                  >
                                     {p.imageUrl ? (
                                       <img
                                         src={p.imageUrl}
                                         alt={p.name}
-                                        className="w-full h-full object-cover"
+                                        className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                                         onError={(e) => {
                                           e.currentTarget.onerror = null;
                                           e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
@@ -1371,7 +1398,16 @@ export const MobileSimulatorPage = () => {
                                   <img
                                     src={prod.imageUrl}
                                     alt={prod.name}
-                                    className="w-11 h-11 rounded-lg object-cover border border-slate-800 shrink-0"
+                                    onClick={() =>
+                                      setZoomPhoto({
+                                        url: prod.imageUrl,
+                                        name: prod.name,
+                                        brand: prod.brand,
+                                        price: prod.basePrice,
+                                      })
+                                    }
+                                    className="w-11 h-11 rounded-lg object-cover border border-slate-800 shrink-0 cursor-zoom-in hover:scale-105 hover:border-sky-500 transition-all"
+                                    title="Click to view photo larger"
                                     onError={(e) => {
                                       e.currentTarget.onerror = null;
                                       e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
@@ -1998,16 +2034,31 @@ export const MobileSimulatorPage = () => {
                             }`}
                           >
                             <div>
-                              <div className="relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center">
+                              <div
+                                onClick={() =>
+                                  p.imageUrl &&
+                                  setZoomPhoto({
+                                    url: p.imageUrl,
+                                    name: p.name,
+                                    brand: p.brand,
+                                    price: p.basePrice,
+                                  })
+                                }
+                                className={`relative w-full aspect-square bg-slate-950 rounded-xl overflow-hidden mb-2 border border-slate-800 flex items-center justify-center ${
+                                  p.imageUrl ? 'cursor-zoom-in group/img hover:border-indigo-500/60 transition-colors' : ''
+                                }`}
+                                title={p.imageUrl ? 'Click to view photo larger' : undefined}
+                              >
                                 {p.imageUrl ? (
                                   <img
                                     src={p.imageUrl}
                                     alt={p.name}
-                                    className="w-full h-full object-cover"
+                                    className="w-full h-full object-cover group-hover/img:scale-105 transition-transform"
                                     onError={(e) => {
-                                   e.currentTarget.onerror = null;
-                                   e.currentTarget.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
-                                 }}
+                                      e.currentTarget.onerror = null;
+                                      e.currentTarget.src =
+                                        'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="%23334155" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                                    }}
                                   />
                                 ) : (
                                   <ImageIcon className="w-8 h-8 text-slate-700" />
@@ -2162,6 +2213,71 @@ export const MobileSimulatorPage = () => {
           </div>
         </div>
       </div>
+
+      {/* Full-Screen Photo Zoom Lightbox Modal */}
+      {zoomPhoto && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-4 animate-in fade-in duration-200"
+          onClick={() => setZoomPhoto(null)}
+        >
+          <div
+            className="relative max-w-xl w-full bg-slate-900 border border-slate-700/80 rounded-3xl overflow-hidden shadow-2xl flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/80">
+              <div className="min-w-0 pr-4">
+                <h3 className="font-bold text-white text-base truncate">{zoomPhoto.name}</h3>
+                <div className="flex items-center gap-2 text-xs text-slate-400 mt-1">
+                  {zoomPhoto.brand && (
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-950 border border-indigo-800 text-indigo-400 font-bold text-[10px]">
+                      {zoomPhoto.brand}
+                    </span>
+                  )}
+                  {zoomPhoto.price ? (
+                    <span className="font-bold text-emerald-400">• ₹{zoomPhoto.price}</span>
+                  ) : null}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setZoomPhoto(null)}
+                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                title="Close (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* High-Resolution Image Box */}
+            <div className="p-4 bg-slate-950 flex items-center justify-center min-h-[300px] max-h-[65vh]">
+              <img
+                src={zoomPhoto.url}
+                alt={zoomPhoto.name}
+                className="max-h-[60vh] w-auto max-w-full object-contain rounded-xl shadow-lg"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src =
+                    'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="%2364748b" stroke-width="1.5"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>';
+                }}
+              />
+            </div>
+
+            {/* Footer */}
+            <div className="px-6 py-3 border-t border-slate-800/80 bg-slate-900/60 flex items-center justify-between text-xs text-slate-400">
+              <span>Click outside or press <kbd className="px-1.5 py-0.5 rounded bg-slate-800 border border-slate-700 text-slate-300 font-mono text-[10px]">Esc</kbd> to close</span>
+              <a
+                href={zoomPhoto.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-indigo-400 hover:text-indigo-300 font-semibold flex items-center gap-1 transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" /> Full size
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
