@@ -50,9 +50,14 @@ export const createOrder = async (req, res) => {
       subtotal += itemSubtotal;
       gstTotal += itemGst;
 
+      const variantName = item.variantName || '';
+      const itemSku = item.sku || product.sku || '';
+
       orderItems.push({
         product: product._id,
         name: product.name,
+        variantName,
+        sku: itemSku,
         quantity,
         boxCount,
         price,
@@ -61,8 +66,15 @@ export const createOrder = async (req, res) => {
         subtotal: itemSubtotal + itemGst,
       });
 
-      // Deduct stock quantity
+      // Deduct stock quantity (and variant stock if present)
       product.stockQuantity = Math.max(0, product.stockQuantity - quantity);
+      if (product.hasVariants && variantName && product.variants?.length > 0) {
+        const v = product.variants.find((vr) => vr.size === variantName);
+        if (v) {
+          v.stockQuantity = Math.max(0, (v.stockQuantity || 0) - quantity);
+          if (v.stockQuantity === 0) v.isOutOfStock = true;
+        }
+      }
       if (product.stockQuantity === 0) {
         product.isOutOfStock = true;
       }

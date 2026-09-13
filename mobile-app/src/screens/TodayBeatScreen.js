@@ -42,6 +42,7 @@ export const TodayBeatScreen = ({
 
   // Cart state for standalone Catalog tab
   const [cart, setCart] = useState({});
+  const [selectedVariants, setSelectedVariants] = useState({});
 
   // Simulated salesman current coordinates (Morbi market: 22.8125, 70.8355)
   const currentSalesmanCoords = {
@@ -161,27 +162,41 @@ export const TodayBeatScreen = ({
     return matchesSearch && matchesCat;
   });
 
-  const handleUpdateCart = (productId, delta, boxQty = 1) => {
+  const handleUpdateCart = (p, variant, delta, boxMultiplier = 1) => {
+    const varName = variant ? variant.size : '';
+    const itemKey = varName ? `${p._id}___${varName}` : p._id;
+    const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
+    const itemBoxQty = variant ? variant.boxQuantity : p.boxQuantity || 1;
+    const itemSku = variant ? variant.sku : p.sku || '';
+
     setCart((prev) => {
-      const current = prev[productId] || 0;
-      const next = Math.max(0, current + delta * boxQty);
+      const current = prev[itemKey]?.quantity || 0;
+      const next = Math.max(0, current + delta * boxMultiplier);
       if (next === 0) {
         const copy = { ...prev };
-        delete copy[productId];
+        delete copy[itemKey];
         return copy;
       }
-      return { ...prev, [productId]: next };
+      return {
+        ...prev,
+        [itemKey]: {
+          productId: p._id,
+          productName: p.name,
+          variantName: varName,
+          sku: itemSku,
+          price: itemPrice,
+          boxQuantity: itemBoxQty,
+          quantity: next,
+        },
+      };
     });
   };
 
   let cartTotalAmount = 0;
   let cartTotalPcs = 0;
-  Object.entries(cart).forEach(([prodId, qty]) => {
-    const p = products.find((prod) => prod._id === prodId);
-    if (p) {
-      cartTotalAmount += (p.basePrice || 0) * qty;
-      cartTotalPcs += qty;
-    }
+  Object.values(cart).forEach((item) => {
+    cartTotalAmount += (item.price || 0) * (item.quantity || 0);
+    cartTotalPcs += item.quantity || 0;
   });
   const cartSkuCount = Object.keys(cart).length;
 
@@ -846,6 +861,70 @@ export const TodayBeatScreen = ({
 };
 
 const styles = StyleSheet.create({
+  variantContainer: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+  },
+  variantLabel: {
+    fontSize: 10,
+    color: '#38bdf8',
+    fontWeight: 'bold',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  variantScroll: {
+    flexDirection: 'row',
+  },
+  variantChip: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  variantChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  variantChipText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#cbd5e1',
+  },
+  variantChipTextActive: {
+    color: '#ffffff',
+  },
+  variantChipPrice: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#34d399',
+    marginTop: 2,
+  },
+  variantChipPriceActive: {
+    color: '#e0f2fe',
+  },
+  variantBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  variantBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#090d16',

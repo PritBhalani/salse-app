@@ -61,7 +61,22 @@ export const createProduct = async (req, res) => {
       stockQuantity,
       imageUrl,
       description,
+      hasVariants,
+      variants,
     } = req.body;
+
+    const parsedVariants = Array.isArray(variants) ? variants : [];
+    const isVarMode = Boolean(hasVariants && parsedVariants.length > 0);
+
+    let finalBasePrice = parseFloat(basePrice) || 0;
+    let finalStockQty = stockQuantity !== undefined ? parseInt(stockQuantity, 10) : 100;
+    let finalBoxQty = boxQuantity || 1;
+
+    if (isVarMode && parsedVariants.length > 0) {
+      finalBasePrice = parsedVariants[0].basePrice || finalBasePrice;
+      finalBoxQty = parsedVariants[0].boxQuantity || finalBoxQty;
+      finalStockQty = parsedVariants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
+    }
 
     const product = await Product.create({
       name,
@@ -69,13 +84,15 @@ export const createProduct = async (req, res) => {
       category,
       brand,
       uom: uom || 'Pcs',
-      boxQuantity: boxQuantity || 1,
-      basePrice: parseFloat(basePrice),
+      boxQuantity: finalBoxQty,
+      basePrice: finalBasePrice,
       gstPercentage: gstPercentage !== undefined ? parseFloat(gstPercentage) : 18,
-      stockQuantity: stockQuantity !== undefined ? parseInt(stockQuantity, 10) : 100,
-      isOutOfStock: stockQuantity <= 0,
+      stockQuantity: finalStockQty,
+      isOutOfStock: finalStockQty <= 0,
       imageUrl,
       description,
+      hasVariants: isVarMode,
+      variants: parsedVariants,
     });
 
     res.status(201).json({ success: true, product });
@@ -89,6 +106,11 @@ export const createProduct = async (req, res) => {
 export const updateProduct = async (req, res) => {
   try {
     const updateData = { ...req.body };
+    if (updateData.hasVariants && Array.isArray(updateData.variants) && updateData.variants.length > 0) {
+      updateData.stockQuantity = updateData.variants.reduce((sum, v) => sum + (parseInt(v.stockQuantity, 10) || 0), 0);
+      updateData.basePrice = updateData.variants[0].basePrice || updateData.basePrice;
+    }
+
     if (updateData.stockQuantity !== undefined) {
       updateData.isOutOfStock = updateData.stockQuantity <= 0;
     }

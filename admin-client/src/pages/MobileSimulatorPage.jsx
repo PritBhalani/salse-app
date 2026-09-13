@@ -49,6 +49,7 @@ import {
   routesAPI,
   authAPI,
   visitsAPI,
+  categoriesAPI,
 } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 
@@ -75,6 +76,8 @@ export const MobileSimulatorPage = () => {
 
   // Cart for ordering
   const [cart, setCart] = useState({});
+  const [selectedVariants, setSelectedVariants] = useState({});
+  const [dynamicCategories, setDynamicCategories] = useState([]);
   const [billType, setBillType] = useState('NON_GST');
   const [orderChannel, setOrderChannel] = useState('IN_PERSON_BEAT'); // 'IN_PERSON_BEAT' or 'PHONE_ORDER'
   const [orderNotes, setOrderNotes] = useState('');
@@ -134,11 +137,16 @@ export const MobileSimulatorPage = () => {
       const lat = simulatedProximity === 'NEAR' ? 22.8123 : 22.845;
       const lng = simulatedProximity === 'NEAR' ? 70.8354 : 70.89;
 
-      const [sRes, pRes, rRes] = await Promise.all([
+      const [sRes, pRes, rRes, cRes] = await Promise.all([
         shopsAPI.getAll({ salesmanLat: lat, salesmanLng: lng }),
         productsAPI.getAll(),
         routesAPI.getAll(),
+        categoriesAPI.getAll().catch(() => ({ data: { categories: [] } })),
       ]);
+
+      if (cRes.data?.success) {
+        setDynamicCategories(['ALL', ...cRes.data.categories.map((c) => c.name)]);
+      }
 
       if (sRes.data.success) {
         setShops(sRes.data.shops || []);
@@ -182,17 +190,35 @@ export const MobileSimulatorPage = () => {
     }
   };
 
-  // Cart helpers (Blinkit style)
-  const handleUpdateCart = (prodId, delta, boxQty = 1) => {
+  // Cart helpers (Blinkit / Flipkart style with Size Variants)
+  const handleUpdateCart = (p, variant, delta, boxMultiplier = 1) => {
+    const varName = variant ? variant.size : '';
+    const itemKey = varName ? `${p._id}___${varName}` : p._id;
+    const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
+    const itemBoxQty = variant ? variant.boxQuantity : p.boxQuantity || 1;
+    const itemSku = variant ? variant.sku : p.sku || '';
+
     setCart((prev) => {
-      const cur = prev[prodId] || 0;
-      const next = Math.max(0, cur + delta * boxQty);
+      const cur = prev[itemKey]?.quantity || 0;
+      const next = Math.max(0, cur + delta * boxMultiplier);
       if (next === 0) {
         const copy = { ...prev };
-        delete copy[prodId];
+        delete copy[itemKey];
         return copy;
       }
-      return { ...prev, [prodId]: next };
+      return {
+        ...prev,
+        [itemKey]: {
+          productId: p._id,
+          productName: p.name,
+          variantName: varName,
+          sku: itemSku,
+          price: itemPrice,
+          boxQuantity: itemBoxQty,
+          gstPercentage: p.gstPercentage || 18,
+          quantity: next,
+        },
+      };
     });
   };
 
@@ -201,15 +227,12 @@ export const MobileSimulatorPage = () => {
   let gstAmount = 0;
   let totalBoxes = 0;
 
-  Object.entries(cart).forEach(([pId, qty]) => {
-    const prod = products.find((p) => p._id === pId);
-    if (prod) {
-      const line = prod.basePrice * qty;
-      subtotal += line;
-      totalBoxes += Math.ceil(qty / (prod.boxQuantity || 1));
-      if (billType === 'GST') {
-        gstAmount += Math.round((line * (prod.gstPercentage || 18)) / 100);
-      }
+  Object.values(cart).forEach((item) => {
+    const line = (item.price || 0) * (item.quantity || 0);
+    subtotal += line;
+    totalBoxes += Math.ceil(item.quantity / (item.boxQuantity || 1));
+    if (billType === 'GST') {
+      gstAmount += Math.round((line * (item.gstPercentage || 18)) / 100);
     }
   });
   const totalAmount = subtotal + gstAmount;
@@ -871,8 +894,16 @@ export const MobileSimulatorPage = () => {
                         {/* Product Photo Grid (2-Columns Flipkart / Blinkit Style) */}
                         <div className="flex-1 overflow-y-auto p-3 grid grid-cols-2 gap-2.5">
                           {filteredCatalogProducts.map((p) => {
-                            const qty = cart[p._id] || 0;
-                            const isOutOfStock = p.isOutOfStock;
+                            const hasVars = Boolean(p.hasVariants && p.variants?.length > 0);
+                            const currentVarIdx = selectedVariants[p._id] ?? 0;
+                            const activeVar = hasVars ? p.variants[currentVarIdx] || p.variants[0] : null;
+
+                            const activePrice = activeVar ? activeVar.basePrice : p.basePrice || 0;
+                            const activeBoxQty = activeVar ? activeVar.boxQuantity : p.boxQuantity || 1;
+                            const isOutOfStock = activeVar ? activeVar.isOutOfStock : p.isOutOfStock;
+
+                            const itemKey = activeVar ? `${p._id}___${activeVar.size}` : p._id;
+                            const qty = cart[itemKey]?.quantity || 0;
 
                             return (
                               <div
@@ -912,23 +943,50 @@ export const MobileSimulatorPage = () => {
                                     {p.name}
                                   </div>
                                   <div className="text-[10px] text-slate-400">
-                                    Box: <b className="text-slate-200">{p.boxQuantity} {p.uom}</b>
+                                    Box: <b className="text-slate-200">{activeBoxQty} {p.uom || 'Pcs'}</b>
                                   </div>
+
+                                  {/* Size Variant Chips (Flipkart Style) */}
+                                  {hasVars && (
+                                    <div className="mt-2 pt-1.5 border-t border-slate-800">
+                                      <span className="text-[9px] text-sky-400 font-bold uppercase tracking-wider block mb-1">
+                                        Size / Spec:
+                                      </span>
+                                      <div className="flex flex-wrap gap-1">
+                                        {p.variants.map((v, vIdx) => {
+                                          const isSelected = currentVarIdx === vIdx;
+                                          return (
+                                            <button
+                                              key={v.size || vIdx}
+                                              onClick={() => setSelectedVariants((prev) => ({ ...prev, [p._id]: vIdx }))}
+                                              className={`px-1.5 py-0.5 rounded-lg text-[9px] font-bold border transition-all ${
+                                                isSelected
+                                                  ? 'bg-sky-600 border-sky-400 text-white shadow'
+                                                  : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-slate-200'
+                                              }`}
+                                            >
+                                              {v.size} (₹{v.basePrice})
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Price & Add / Stepper */}
                                 <div className="mt-2 pt-2 border-t border-slate-800/80 flex flex-col gap-1.5">
                                   <div className="flex items-baseline justify-between">
-                                    <span className="font-extrabold text-white text-xs">₹{p.basePrice}</span>
+                                    <span className="font-extrabold text-white text-xs">₹{activePrice}</span>
                                     <span className="text-[9px] text-slate-500">
-                                      ₹{(p.basePrice * (p.boxQuantity || 1)).toLocaleString()} / box
+                                      ₹{(activePrice * activeBoxQty).toLocaleString()} / box
                                     </span>
                                   </div>
 
                                   {!isOutOfStock ? (
                                     qty === 0 ? (
                                       <button
-                                        onClick={() => handleUpdateCart(p._id, 1, p.boxQuantity || 1)}
+                                        onClick={() => handleUpdateCart(p, activeVar, 1, activeBoxQty)}
                                         className="w-full py-1.5 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 text-[10px] font-extrabold flex items-center justify-center gap-1 active:scale-95"
                                       >
                                         <Plus className="w-3 h-3" />
@@ -937,7 +995,7 @@ export const MobileSimulatorPage = () => {
                                     ) : (
                                       <div className="flex items-center justify-between bg-emerald-950/80 border border-emerald-500/50 rounded-xl p-1">
                                         <button
-                                          onClick={() => handleUpdateCart(p._id, -1, 1)}
+                                          onClick={() => handleUpdateCart(p, activeVar, -1, 1)}
                                           className="w-6 h-6 rounded-lg bg-emerald-900/60 text-emerald-200 font-bold flex items-center justify-center active:scale-90"
                                         >
                                           -
@@ -946,7 +1004,7 @@ export const MobileSimulatorPage = () => {
                                           {qty}
                                         </span>
                                         <button
-                                          onClick={() => handleUpdateCart(p._id, 1, 1)}
+                                          onClick={() => handleUpdateCart(p, activeVar, 1, 1)}
                                           className="w-6 h-6 rounded-lg bg-emerald-900/60 text-emerald-200 font-bold flex items-center justify-center active:scale-90"
                                         >
                                           +

@@ -20,7 +20,8 @@ import {
   RefreshCw,
   Tags,
   FolderPlus,
-  Settings2,
+  Layers,
+  Sparkles,
 } from 'lucide-react';
 import { productsAPI, uploadAPI, categoriesAPI } from '../services/api';
 
@@ -46,7 +47,7 @@ export const InventoryPage = () => {
   const [photoError, setPhotoError] = useState('');
   const fileInputRef = useRef(null);
 
-  // Product form
+  // Product form with Variant support
   const [formData, setFormData] = useState({
     name: '',
     category: 'Brass C.P. Fittings',
@@ -58,16 +59,18 @@ export const InventoryPage = () => {
     stockQuantity: 100,
     imageUrl: '',
     description: '',
+    hasVariants: false,
+    variants: [],
   });
 
   const fetchCategories = async () => {
     try {
       const res = await categoriesAPI.getAll();
       if (res.data.success) {
-        setCategoriesList(res.data.categories || []);
-        // Set default category if form category not initialized
-        if (res.data.categories?.length > 0 && !formData.category) {
-          setFormData((prev) => ({ ...prev, category: res.data.categories[0].name }));
+        const cats = res.data.categories || [];
+        setCategoriesList(cats);
+        if (cats.length > 0 && !formData.category) {
+          setFormData((prev) => ({ ...prev, category: cats[0].name }));
         }
       }
     } catch (err) {
@@ -96,14 +99,13 @@ export const InventoryPage = () => {
 
   const handleToggleStock = async (id, currentStatus) => {
     try {
-      // Optimistic update
       setProducts((prev) =>
         prev.map((p) => (p._id === id ? { ...p, isOutOfStock: !currentStatus } : p))
       );
       await productsAPI.toggleStock(id);
     } catch (err) {
       console.error('Error toggling stock status:', err);
-      fetchProducts(); // rollback on error
+      fetchProducts();
     }
   };
 
@@ -188,14 +190,95 @@ export const InventoryPage = () => {
     }
   };
 
+  // Variant Helpers
+  const handleAddVariantRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      hasVariants: true,
+      variants: [
+        ...prev.variants,
+        {
+          size: '',
+          sku: '',
+          basePrice: prev.basePrice || '',
+          boxQuantity: prev.boxQuantity || 1,
+          stockQuantity: 100,
+          isOutOfStock: false,
+        },
+      ],
+    }));
+  };
+
+  const handleRemoveVariantRow = (index) => {
+    setFormData((prev) => {
+      const updated = prev.variants.filter((_, i) => i !== index);
+      return {
+        ...prev,
+        variants: updated,
+        hasVariants: updated.length > 0,
+      };
+    });
+  };
+
+  const handleUpdateVariantField = (index, field, value) => {
+    setFormData((prev) => {
+      const updated = [...prev.variants];
+      updated[index] = { ...updated[index], [field]: value };
+      return { ...prev, variants: updated };
+    });
+  };
+
+  const handleApplyPreset = (presetType) => {
+    let sizes = [];
+    if (presetType === 'PLUMBING') {
+      sizes = ['1/2" (15mm)', '3/4" (20mm)', '1" (25mm)', '1.25" (32mm)', '1.5" (40mm)', '2" (50mm)'];
+    } else if (presetType === 'VOLUME') {
+      sizes = ['100ml', '250ml', '500ml', '1 Ltr', '5 Ltr'];
+    } else if (presetType === 'STANDARD') {
+      sizes = ['Small', 'Medium', 'Large', 'Extra Large (XL)'];
+    }
+
+    const newVariants = sizes.map((s, idx) => ({
+      size: s,
+      sku: `${formData.sku || 'SKU'}-${idx + 1}`,
+      basePrice: formData.basePrice ? parseFloat(formData.basePrice) + idx * 40 : 180 + idx * 50,
+      boxQuantity: Math.max(1, 20 - idx * 2),
+      stockQuantity: 100,
+      isOutOfStock: false,
+    }));
+
+    setFormData((prev) => ({
+      ...prev,
+      hasVariants: true,
+      variants: newVariants,
+    }));
+  };
+
   const handleSaveProduct = async (e) => {
     e.preventDefault();
     try {
+      let finalVariants = [];
+      if (formData.hasVariants && formData.variants.length > 0) {
+        finalVariants = formData.variants.map((v) => ({
+          size: v.size.trim(),
+          sku: v.sku?.trim() || `${formData.sku || 'SKU'}-${v.size.replace(/[^a-zA-Z0-9]/g, '')}`,
+          basePrice: parseFloat(v.basePrice) || 0,
+          boxQuantity: parseInt(v.boxQuantity, 10) || 1,
+          stockQuantity: parseInt(v.stockQuantity, 10) || 0,
+          isOutOfStock: Boolean(v.isOutOfStock || parseInt(v.stockQuantity, 10) <= 0),
+        }));
+      }
+
       const payload = {
         ...formData,
-        basePrice: parseFloat(formData.basePrice) || 0,
-        boxQuantity: parseInt(formData.boxQuantity, 10) || 1,
-        stockQuantity: parseInt(formData.stockQuantity, 10) || 0,
+        hasVariants: Boolean(formData.hasVariants && finalVariants.length > 0),
+        variants: finalVariants,
+        basePrice: finalVariants.length > 0 ? finalVariants[0].basePrice : parseFloat(formData.basePrice) || 0,
+        boxQuantity: finalVariants.length > 0 ? finalVariants[0].boxQuantity : parseInt(formData.boxQuantity, 10) || 1,
+        stockQuantity:
+          finalVariants.length > 0
+            ? finalVariants.reduce((sum, v) => sum + v.stockQuantity, 0)
+            : parseInt(formData.stockQuantity, 10) || 0,
       };
 
       if (editProduct) {
@@ -298,6 +381,8 @@ export const InventoryPage = () => {
       stockQuantity: p.stockQuantity || 100,
       imageUrl: p.imageUrl || '',
       description: p.description || '',
+      hasVariants: Boolean(p.hasVariants && p.variants?.length > 0),
+      variants: p.variants ? p.variants.map((v) => ({ ...v })) : [],
     });
     setPhotoTab('UPLOAD');
     setPhotoError('');
@@ -314,9 +399,6 @@ export const InventoryPage = () => {
     return matchesSearch && matchesCat;
   });
 
-  // Unique list of category names for filter pills
-  const allCategoryNames = categoriesList.map((c) => c.name);
-
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -331,7 +413,7 @@ export const InventoryPage = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-400 mt-1">
-            Upload product photos directly from your device, manage wholesale pricing, packaging box quantities, and add/remove catalog categories.
+            Manage wholesale products with multi-size variants (Flipkart style), categories, pricing, packaging box quantities, and out-of-stock toggles.
           </p>
         </div>
 
@@ -366,6 +448,8 @@ export const InventoryPage = () => {
                 stockQuantity: 100,
                 imageUrl: '',
                 description: '',
+                hasVariants: false,
+                variants: [],
               });
               setPhotoTab('UPLOAD');
               setPhotoError('');
@@ -476,120 +560,165 @@ export const InventoryPage = () => {
                   </td>
                 </tr>
               ) : (
-                filteredProducts.map((p) => (
-                  <tr
-                    key={p._id}
-                    className={`hover:bg-slate-800/40 transition-colors ${
-                      p.isOutOfStock ? 'opacity-65 bg-slate-950/30' : ''
-                    }`}
-                  >
-                    {/* Photo Thumbnail */}
-                    <td className="py-3 px-4">
-                      {p.imageUrl ? (
-                        <img
-                          src={p.imageUrl}
-                          alt={p.name}
-                          className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                          }}
-                        />
-                      ) : (
-                        <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg">
-                          📦
-                        </div>
-                      )}
-                    </td>
+                filteredProducts.map((p) => {
+                  const hasVars = p.hasVariants && p.variants?.length > 0;
+                  const minPrice = hasVars ? Math.min(...p.variants.map((v) => v.basePrice)) : p.basePrice;
+                  const maxPrice = hasVars ? Math.max(...p.variants.map((v) => v.basePrice)) : p.basePrice;
+                  const totalStock = hasVars
+                    ? p.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0)
+                    : p.stockQuantity || 0;
 
-                    {/* Name & SKU */}
-                    <td className="py-3.5 px-4">
-                      <p className="font-bold text-white text-xs">{p.name}</p>
-                      <span className="text-[10px] text-slate-400 font-mono">SKU: {p.sku || 'N/A'}</span>
-                    </td>
-
-                    {/* Brand & Category */}
-                    <td className="py-3.5 px-3">
-                      <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold border border-sky-500/20 mr-1.5">
-                        {p.brand || 'Unbranded'}
-                      </span>
-                      <span className="text-slate-400 text-[11px] block mt-0.5">{p.category}</span>
-                    </td>
-
-                    {/* Packaging */}
-                    <td className="py-3.5 px-3 text-center">
-                      <span className="font-semibold text-slate-300">
-                        {p.boxQuantity || 1} {p.uom || 'Pcs'}/box
-                      </span>
-                    </td>
-
-                    {/* Wholesale Price */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="font-bold text-white">₹{p.basePrice?.toLocaleString()}</div>
-                      <span className="text-[10px] text-slate-400">
-                        ₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()} / box
-                      </span>
-                    </td>
-
-                    {/* Stock Level */}
-                    <td className="py-3.5 px-3 text-center">
-                      <span
-                        className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
-                          p.stockQuantity > 50
-                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                            : p.stockQuantity > 0
-                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                            : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
-                        }`}
-                      >
-                        {p.stockQuantity || 0} Pcs
-                      </span>
-                    </td>
-
-                    {/* Out of Stock Toggle */}
-                    <td className="py-3.5 px-4 text-center">
-                      <button
-                        onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
-                          p.isOutOfStock
-                            ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
-                            : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                        }`}
-                      >
-                        {p.isOutOfStock ? (
-                          <>
-                            <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />
-                            <span>OUT OF STOCK</span>
-                          </>
+                  return (
+                    <tr
+                      key={p._id}
+                      className={`hover:bg-slate-800/40 transition-colors ${
+                        p.isOutOfStock ? 'opacity-65 bg-slate-950/30' : ''
+                      }`}
+                    >
+                      {/* Photo Thumbnail */}
+                      <td className="py-3 px-4">
+                        {p.imageUrl ? (
+                          <img
+                            src={p.imageUrl}
+                            alt={p.name}
+                            className="w-12 h-12 rounded-xl object-cover border border-slate-700/80 shadow-sm"
+                            onError={(e) => {
+                              e.target.style.display = 'none';
+                            }}
+                          />
                         ) : (
-                          <>
-                            <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
-                            <span>IN STOCK</span>
-                          </>
+                          <div className="w-12 h-12 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-lg">
+                            📦
+                          </div>
                         )}
-                      </button>
-                    </td>
+                      </td>
 
-                    {/* Actions */}
-                    <td className="py-3.5 px-4 text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => openEditModal(p)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-sky-950 text-slate-400 hover:text-sky-400 transition-colors"
-                          title="Edit Price, Photo & Specs"
+                      {/* Name & SKU & Variants */}
+                      <td className="py-3.5 px-4 max-w-xs">
+                        <p className="font-bold text-white text-xs">{p.name}</p>
+                        <span className="text-[10px] text-slate-400 font-mono">SKU: {p.sku || 'N/A'}</span>
+
+                        {/* Size Variant Chips (Flipkart Style) */}
+                        {hasVars && (
+                          <div className="flex flex-wrap items-center gap-1 mt-1.5">
+                            <span className="text-[9px] text-sky-400 font-bold uppercase tracking-wider flex items-center gap-0.5">
+                              <Layers className="w-3 h-3 text-sky-400" />
+                              {p.variants.length} Sizes:
+                            </span>
+                            {p.variants.map((v) => (
+                              <span
+                                key={v.size}
+                                className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-[10px] font-semibold text-slate-300"
+                              >
+                                {v.size} (₹{v.basePrice})
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Brand & Category */}
+                      <td className="py-3.5 px-3">
+                        <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold border border-sky-500/20 mr-1.5">
+                          {p.brand || 'Unbranded'}
+                        </span>
+                        <span className="text-slate-400 text-[11px] block mt-0.5">{p.category}</span>
+                      </td>
+
+                      {/* Packaging */}
+                      <td className="py-3.5 px-3 text-center">
+                        {hasVars ? (
+                          <span className="font-semibold text-slate-300">
+                            Multi-Pack ({p.variants.map((v) => v.boxQuantity).join('/')} {p.uom || 'Pcs'})
+                          </span>
+                        ) : (
+                          <span className="font-semibold text-slate-300">
+                            {p.boxQuantity || 1} {p.uom || 'Pcs'}/box
+                          </span>
+                        )}
+                      </td>
+
+                      {/* Wholesale Price */}
+                      <td className="py-3.5 px-4 text-right">
+                        {hasVars ? (
+                          <div>
+                            <div className="font-bold text-emerald-400">
+                              {minPrice === maxPrice ? `₹${minPrice.toLocaleString()}` : `₹${minPrice.toLocaleString()} - ₹${maxPrice.toLocaleString()}`}
+                            </div>
+                            <span className="text-[9px] text-sky-400 font-bold">⚡ {p.variants.length} Size Prices</span>
+                          </div>
+                        ) : (
+                          <div>
+                            <div className="font-bold text-white">₹{p.basePrice?.toLocaleString()}</div>
+                            <span className="text-[10px] text-slate-400">
+                              ₹{((p.basePrice || 0) * (p.boxQuantity || 1)).toLocaleString()} / box
+                            </span>
+                          </div>
+                        )}
+                      </td>
+
+                      {/* Stock Level */}
+                      <td className="py-3.5 px-3 text-center">
+                        <span
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold ${
+                            totalStock > 50
+                              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                              : totalStock > 0
+                              ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                              : 'bg-rose-500/10 text-rose-400 border border-rose-500/20'
+                          }`}
                         >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
+                          {totalStock} Pcs
+                        </span>
+                        {hasVars && <span className="text-[9px] text-slate-500 block mt-0.5">Total across sizes</span>}
+                      </td>
+
+                      {/* Out of Stock Toggle */}
+                      <td className="py-3.5 px-4 text-center">
                         <button
-                          onClick={() => handleDeleteProduct(p._id)}
-                          className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
-                          title="Delete"
+                          onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
+                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
+                            p.isOutOfStock
+                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
+                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                          }`}
                         >
-                          <Trash2 className="w-3.5 h-3.5" />
+                          {p.isOutOfStock ? (
+                            <>
+                              <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />
+                              <span>OUT OF STOCK</span>
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
+                              <span>IN STOCK</span>
+                            </>
+                          )}
                         </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+
+                      {/* Actions */}
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => openEditModal(p)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-sky-950 text-slate-400 hover:text-sky-400 transition-colors"
+                            title="Edit Price, Photo & Specs"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteProduct(p._id)}
+                            className="p-1.5 rounded-lg bg-slate-800 hover:bg-rose-950 text-slate-400 hover:text-rose-400 transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -597,12 +726,11 @@ export const InventoryPage = () => {
       </div>
 
       {/* ========================================================================= */}
-      {/* MANAGE CATEGORIES MODAL (ADD & REMOVE CATEGORIES) */}
+      {/* MANAGE CATEGORIES MODAL */}
       {/* ========================================================================= */}
       {isCategoryModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            {/* Modal Header */}
             <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
               <div className="flex items-center gap-2.5">
                 <div className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
@@ -623,7 +751,6 @@ export const InventoryPage = () => {
               </button>
             </div>
 
-            {/* Add New Category Box */}
             <form onSubmit={handleAddCategory} className="bg-slate-950 border border-slate-800 rounded-2xl p-4 mb-5 space-y-3">
               <h4 className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
                 <FolderPlus className="w-4 h-4 text-sky-400" />
@@ -654,7 +781,6 @@ export const InventoryPage = () => {
               )}
             </form>
 
-            {/* Existing Categories List */}
             <div>
               <div className="flex items-center justify-between mb-3">
                 <h4 className="text-xs font-bold text-slate-300">
@@ -694,7 +820,6 @@ export const InventoryPage = () => {
               </div>
             </div>
 
-            {/* Modal Footer */}
             <div className="mt-6 pt-4 border-t border-slate-800 flex justify-end">
               <button
                 type="button"
@@ -709,22 +834,33 @@ export const InventoryPage = () => {
       )}
 
       {/* ========================================================================= */}
-      {/* ADD / EDIT PRODUCT MODAL */}
+      {/* ADD / EDIT PRODUCT MODAL (WITH SIZE VARIANTS) */}
       {/* ========================================================================= */}
       {isAddModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-base font-bold text-white mb-4">
-              {editProduct ? 'Edit Product Details & Photo' : 'Add New Plumbing / Bathware Product'}
-            </h3>
+          <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-2xl w-full p-6 shadow-2xl max-h-[92vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+              <h3 className="text-base font-bold text-white">
+                {editProduct ? 'Edit Product Details & Variants' : 'Add New Plumbing / Bathware Product'}
+              </h3>
+              <button
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  setEditProduct(null);
+                }}
+                className="p-1 rounded-lg bg-slate-800 text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Product Description / Name *:</label>
+                <label className="block text-slate-300 font-semibold mb-1">Product Description / Master Name *:</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. CPVC Pipe 1 inch SDR 11 (3m)"
+                  placeholder="e.g. Astral CPVC Heavy Plumbing Pipe SDR 11"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none focus:border-sky-500"
@@ -739,7 +875,6 @@ export const InventoryPage = () => {
                     <span>Product Photo:</span>
                   </label>
 
-                  {/* Mode Switcher */}
                   <div className="flex items-center gap-1 bg-slate-900 p-0.5 rounded-lg border border-slate-800">
                     <button
                       type="button"
@@ -812,14 +947,14 @@ export const InventoryPage = () => {
                     ) : (
                       <div
                         onClick={() => fileInputRef.current?.click()}
-                        className="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-5 text-center cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-all group"
+                        className="border-2 border-dashed border-slate-700 hover:border-sky-500 rounded-xl p-4 text-center cursor-pointer bg-slate-900/60 hover:bg-slate-900 transition-all group"
                       >
-                        <div className="w-10 h-10 mx-auto mb-2 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
-                          <Upload className="w-5 h-5" />
+                        <div className="w-8 h-8 mx-auto mb-1.5 rounded-xl bg-sky-500/10 text-sky-400 flex items-center justify-center group-hover:scale-110 transition-transform">
+                          <Upload className="w-4 h-4" />
                         </div>
                         <p className="text-xs font-bold text-white">Click or Drag to Upload Photo</p>
                         <p className="text-[10px] text-slate-400 mt-0.5">
-                          Supports phone camera photos, JPG, PNG, WEBP (Auto-optimized)
+                          Supports phone camera photos, JPG, PNG, WEBP
                         </p>
                         {uploadingPhoto && (
                           <span className="inline-block mt-2 text-sky-400 text-xs font-bold animate-pulse">
@@ -904,42 +1039,197 @@ export const InventoryPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Base Price (₹) *:</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="480"
-                    value={formData.basePrice}
-                    onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none text-emerald-400 font-bold"
-                  />
+              {/* ========================================================================= */}
+              {/* SIZE / SPECIFICATION VARIANTS SECTION (FLIPKART STYLE) */}
+              {/* ========================================================================= */}
+              <div className="bg-slate-950 border border-sky-900/40 rounded-2xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Layers className="w-4 h-4 text-sky-400" />
+                    <div>
+                      <span className="text-xs font-bold text-white block">
+                        Size & Specification Variants (Flipkart Style)
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Enable if this product comes in multiple sizes (1/2", 3/4", 1") or capacities with different wholesale prices
+                      </span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!formData.hasVariants) {
+                        handleAddVariantRow();
+                      } else {
+                        setFormData((prev) => ({ ...prev, hasVariants: false }));
+                      }
+                    }}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                      formData.hasVariants
+                        ? 'bg-sky-600 text-white shadow-lg shadow-sky-900/30'
+                        : 'bg-slate-800 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <span>{formData.hasVariants ? '✓ Variants Enabled' : '+ Enable Variants'}</span>
+                  </button>
                 </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Box Pack Qty *:</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="12"
-                    value={formData.boxQuantity}
-                    onChange={(e) => setFormData({ ...formData, boxQuantity: parseInt(e.target.value, 10) || 1 })}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-bold"
-                  />
-                </div>
+                {formData.hasVariants && (
+                  <div className="space-y-3 pt-2 border-t border-slate-800 animate-fade-in">
+                    {/* Presets Row */}
+                    <div className="flex flex-wrap items-center gap-1.5 bg-slate-900/80 p-2 rounded-xl border border-slate-800">
+                      <span className="text-[10px] text-slate-400 font-bold mr-1 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-amber-400" /> Quick Presets:
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPreset('PLUMBING')}
+                        className="px-2 py-1 rounded-lg bg-sky-950 border border-sky-800 text-sky-300 hover:bg-sky-900 text-[10px] font-bold"
+                      >
+                        🚿 Plumbing Sizes (1/2", 3/4", 1", 1.25", 1.5", 2")
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPreset('VOLUME')}
+                        className="px-2 py-1 rounded-lg bg-emerald-950 border border-emerald-800 text-emerald-300 hover:bg-emerald-900 text-[10px] font-bold"
+                      >
+                        🧪 Volumes (100ml, 250ml, 500ml, 1L)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPreset('STANDARD')}
+                        className="px-2 py-1 rounded-lg bg-purple-950 border border-purple-800 text-purple-300 hover:bg-purple-900 text-[10px] font-bold"
+                      >
+                        📐 S, M, L, XL
+                      </button>
+                    </div>
 
-                <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Stock (Pcs):</label>
-                  <input
-                    type="number"
-                    placeholder="100"
-                    value={formData.stockQuantity}
-                    onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })}
-                    className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
-                  />
-                </div>
+                    {/* Variants Table / Rows */}
+                    <div className="space-y-2">
+                      {formData.variants.map((v, vIdx) => (
+                        <div
+                          key={vIdx}
+                          className="flex items-center gap-2 bg-slate-900 p-2.5 rounded-xl border border-slate-800"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                              Size / Dimension *
+                            </label>
+                            <input
+                              type="text"
+                              required
+                              placeholder='e.g. 1/2" (15mm)'
+                              value={v.size}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'size', e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none focus:border-sky-500"
+                            />
+                          </div>
+
+                          <div className="w-24">
+                            <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                              Price (₹) *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="180"
+                              value={v.basePrice}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'basePrice', e.target.value)}
+                              className="w-full bg-slate-950 border border-slate-700 text-emerald-400 rounded-lg px-2.5 py-1.5 text-xs font-bold focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="w-20">
+                            <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                              Box Qty *
+                            </label>
+                            <input
+                              type="number"
+                              required
+                              placeholder="25"
+                              value={v.boxQuantity}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'boxQuantity', parseInt(e.target.value, 10) || 1)}
+                              className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs font-bold text-center focus:outline-none"
+                            />
+                          </div>
+
+                          <div className="w-20">
+                            <label className="text-[10px] text-slate-400 font-semibold block mb-0.5">
+                              Stock (Pcs)
+                            </label>
+                            <input
+                              type="number"
+                              placeholder="100"
+                              value={v.stockQuantity}
+                              onChange={(e) => handleUpdateVariantField(vIdx, 'stockQuantity', parseInt(e.target.value, 10) || 0)}
+                              className="w-full bg-slate-950 border border-slate-700 text-white rounded-lg px-2 py-1.5 text-xs text-center focus:outline-none"
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveVariantRow(vIdx)}
+                            className="p-1.5 rounded-lg bg-slate-950 hover:bg-rose-950 text-slate-400 hover:text-rose-400 border border-slate-800 transition-colors self-end mb-0.5"
+                            title="Remove Variant"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddVariantRow}
+                      className="px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 hover:border-sky-500 text-sky-400 text-xs font-bold flex items-center gap-1.5 transition-all"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Add Another Size Variant</span>
+                    </button>
+                  </div>
+                )}
               </div>
+
+              {/* Standard Price & Packaging (Shown only when variants are not enabled) */}
+              {!formData.hasVariants && (
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Base Price (₹) *:</label>
+                    <input
+                      type="number"
+                      required={!formData.hasVariants}
+                      placeholder="480"
+                      value={formData.basePrice}
+                      onChange={(e) => setFormData({ ...formData, basePrice: e.target.value })}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none text-emerald-400 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Box Pack Qty *:</label>
+                    <input
+                      type="number"
+                      required={!formData.hasVariants}
+                      placeholder="12"
+                      value={formData.boxQuantity}
+                      onChange={(e) => setFormData({ ...formData, boxQuantity: parseInt(e.target.value, 10) || 1 })}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-slate-300 font-semibold mb-1">Stock (Pcs):</label>
+                    <input
+                      type="number"
+                      placeholder="100"
+                      value={formData.stockQuantity}
+                      onChange={(e) => setFormData({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })}
+                      className="w-full bg-slate-800 border border-slate-700 text-white rounded-xl p-2.5 focus:outline-none"
+                    />
+                  </div>
+                </div>
+              )}
 
               <div>
                 <label className="block text-slate-300 font-semibold mb-1">Specs / Application Details:</label>

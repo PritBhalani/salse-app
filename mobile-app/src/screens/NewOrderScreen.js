@@ -21,6 +21,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [submitting, setSubmitting] = useState(false);
   const [billType, setBillType] = useState('NON_GST');
   const [cart, setCart] = useState({});
+  const [selectedVariants, setSelectedVariants] = useState({});
   const [dispatchNotes, setDispatchNotes] = useState('');
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
@@ -49,16 +50,34 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
     fetchProducts();
   }, []);
 
-  const handleUpdateCart = (productId, delta, boxQty = 1) => {
+  const handleUpdateCart = (p, variant, delta, boxMultiplier = 1) => {
+    const varName = variant ? variant.size : '';
+    const itemKey = varName ? `${p._id}___${varName}` : p._id;
+    const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
+    const itemBoxQty = variant ? variant.boxQuantity : p.boxQuantity || 1;
+    const itemSku = variant ? variant.sku : p.sku || '';
+
     setCart((prev) => {
-      const current = prev[productId] || 0;
-      const next = Math.max(0, current + delta * boxQty);
+      const current = prev[itemKey]?.quantity || 0;
+      const next = Math.max(0, current + delta * boxMultiplier);
       if (next === 0) {
         const copy = { ...prev };
-        delete copy[productId];
+        delete copy[itemKey];
         return copy;
       }
-      return { ...prev, [productId]: next };
+      return {
+        ...prev,
+        [itemKey]: {
+          productId: p._id,
+          productName: p.name,
+          variantName: varName,
+          sku: itemSku,
+          price: itemPrice,
+          boxQuantity: itemBoxQty,
+          gstPercentage: p.gstPercentage || 18,
+          quantity: next,
+        },
+      };
     });
   };
 
@@ -68,21 +87,19 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   // Calculate Cart Totals
   let subtotal = 0;
   let gstTotal = 0;
+  let totalPcsCount = 0;
 
-  Object.entries(cart).forEach(([prodId, qty]) => {
-    const p = products.find((prod) => prod._id === prodId);
-    if (p) {
-      const itemSub = p.basePrice * qty;
-      subtotal += itemSub;
-      if (billType === 'GST') {
-        gstTotal += Math.round((itemSub * (p.gstPercentage || 18)) / 100);
-      }
+  Object.values(cart).forEach((item) => {
+    const itemSub = (item.price || 0) * (item.quantity || 0);
+    subtotal += itemSub;
+    totalPcsCount += item.quantity || 0;
+    if (billType === 'GST') {
+      gstTotal += Math.round((itemSub * (item.gstPercentage || 18)) / 100);
     }
   });
 
   const totalAmount = subtotal + gstTotal;
   const totalItemCount = Object.keys(cart).length;
-  const totalPcsCount = Object.values(cart).reduce((sum, q) => sum + q, 0);
 
   const handleSubmitOrder = async () => {
     if (totalItemCount === 0) {
@@ -90,13 +107,14 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
       return;
     }
 
-    const items = Object.entries(cart).map(([productId, quantity]) => {
-      const p = products.find((prod) => prod._id === productId);
+    const items = Object.values(cart).map((item) => {
       return {
-        productId,
-        quantity,
-        boxCount: Math.ceil(quantity / (p.boxQuantity || 1)),
-        customPrice: p.basePrice,
+        productId: item.productId,
+        variantName: item.variantName || '',
+        sku: item.sku || '',
+        quantity: item.quantity,
+        boxCount: Math.ceil(item.quantity / (item.boxQuantity || 1)),
+        customPrice: item.price,
       };
     });
 
@@ -378,6 +396,70 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
 };
 
 const styles = StyleSheet.create({
+  variantContainer: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2937',
+  },
+  variantLabel: {
+    fontSize: 10,
+    color: '#38bdf8',
+    fontWeight: 'bold',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  variantScroll: {
+    flexDirection: 'row',
+  },
+  variantChip: {
+    backgroundColor: '#0f172a',
+    borderWidth: 1,
+    borderColor: '#334155',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginRight: 8,
+    alignItems: 'center',
+    position: 'relative',
+  },
+  variantChipActive: {
+    backgroundColor: '#0284c7',
+    borderColor: '#38bdf8',
+  },
+  variantChipText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#cbd5e1',
+  },
+  variantChipTextActive: {
+    color: '#ffffff',
+  },
+  variantChipPrice: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#34d399',
+    marginTop: 2,
+  },
+  variantChipPriceActive: {
+    color: '#e0f2fe',
+  },
+  variantBadge: {
+    position: 'absolute',
+    top: -5,
+    right: -5,
+    backgroundColor: '#f59e0b',
+    borderRadius: 10,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+  },
+  variantBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#000000',
+  },
+
   container: {
     flex: 1,
     backgroundColor: '#090d16',
