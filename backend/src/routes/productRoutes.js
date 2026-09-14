@@ -5,6 +5,7 @@ import {
   createProduct,
   updateProduct,
   toggleStockStatus,
+  addStockToProduct,
   deleteProduct,
 } from '../controllers/productController.js';
 import { protect, authorize } from '../middleware/auth.js';
@@ -17,6 +18,8 @@ router
   .post(protect, authorize('ADMIN', 'WAREHOUSE'), createProduct);
 
 router.patch('/:id/toggle-stock', protect, authorize('ADMIN', 'WAREHOUSE'), toggleStockStatus);
+router.post('/:id/add-stock', protect, authorize('ADMIN', 'WAREHOUSE'), addStockToProduct);
+router.patch('/:id/add-stock', protect, authorize('ADMIN', 'WAREHOUSE'), addStockToProduct);
 
 router
   .route('/:id')

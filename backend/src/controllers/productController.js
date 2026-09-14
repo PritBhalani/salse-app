@@ -241,6 +241,88 @@ export const toggleStockStatus = async (req, res) => {
   }
 };
 
+// @desc    Add / Restock quantity when new inventory arrives at warehouse
+// @route   POST /api/products/:id/add-stock
+export const addStockToProduct = async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found' });
+    }
+
+    const { addedQuantity, addedBoxes, variantAdditions, autoInStock = true } = req.body;
+
+    if (product.hasVariants && Array.isArray(product.variants) && product.variants.length > 0) {
+      // If variant additions provided
+      if (Array.isArray(variantAdditions) && variantAdditions.length > 0) {
+        variantAdditions.forEach((addition) => {
+          let v = null;
+          if (addition.variantId) {
+            v = product.variants.id ? product.variants.id(addition.variantId) : null;
+          }
+          if (!v && addition._id) {
+            v = product.variants.find((item) => item._id && item._id.toString() === addition._id.toString());
+          }
+          if (!v && addition.size) {
+            v = product.variants.find((item) => item.size === addition.size);
+          }
+
+          if (v) {
+            const qtyToAdd =
+              (parseInt(addition.addedQuantity, 10) || 0) +
+              (parseInt(addition.addedBoxes, 10) || 0) * (v.boxQuantity || 1);
+            if (qtyToAdd !== 0) {
+              v.stockQuantity = Math.max(0, (v.stockQuantity || 0) + qtyToAdd);
+              if (v.stockQuantity > 0 && autoInStock) {
+                v.isOutOfStock = false;
+              }
+            }
+          }
+        });
+      } else if (addedQuantity || addedBoxes) {
+        const qtyToAdd =
+          (parseInt(addedQuantity, 10) || 0) +
+          (parseInt(addedBoxes, 10) || 0) * (product.boxQuantity || 1);
+        if (qtyToAdd !== 0 && product.variants.length > 0) {
+          product.variants[0].stockQuantity = Math.max(0, (product.variants[0].stockQuantity || 0) + qtyToAdd);
+          if (product.variants[0].stockQuantity > 0 && autoInStock) {
+            product.variants[0].isOutOfStock = false;
+          }
+        }
+      }
+
+      // Recompute total stock
+      product.stockQuantity = product.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0);
+      if (product.stockQuantity > 0 && autoInStock) {
+        product.isOutOfStock = false;
+      }
+    } else {
+      // Standard product without variants
+      const boxQty = product.boxQuantity || 1;
+      const qtyToAdd =
+        (parseInt(addedQuantity, 10) || 0) +
+        (parseInt(addedBoxes, 10) || 0) * boxQty;
+
+      if (qtyToAdd !== 0) {
+        product.stockQuantity = Math.max(0, (product.stockQuantity || 0) + qtyToAdd);
+        if (product.stockQuantity > 0 && autoInStock) {
+          product.isOutOfStock = false;
+        }
+      }
+    }
+
+    await product.save();
+
+    res.json({
+      success: true,
+      product,
+      message: `Stock updated successfully. Live warehouse stock: ${product.stockQuantity} Pcs`,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // @desc    Delete product
 // @route   DELETE /api/products/:id
 export const deleteProduct = async (req, res) => {

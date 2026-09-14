@@ -12,6 +12,7 @@ import {
   Filter,
   DollarSign,
   Package,
+  PackagePlus,
   Image as ImageIcon,
   Upload,
   Camera,
@@ -40,6 +41,13 @@ export const InventoryPage = () => {
 
   // Photo Zoom Lightbox state
   const [zoomPhoto, setZoomPhoto] = useState(null);
+
+  // Quick Stock Arrival / Restock Modal State
+  const [stockModalProduct, setStockModalProduct] = useState(null);
+  const [stockAdditions, setStockAdditions] = useState({});
+  const [autoMarkInStock, setAutoMarkInStock] = useState(true);
+  const [savingStock, setSavingStock] = useState(false);
+  const [stockError, setStockError] = useState('');
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -128,6 +136,128 @@ export const InventoryPage = () => {
       console.error('Error toggling stock status:', err);
       toast.error('Failed to update stock status', 'Update Error');
       fetchProducts();
+    }
+  };
+
+  const openAddStockModal = (product) => {
+    setStockModalProduct(product);
+    setStockError('');
+    setAutoMarkInStock(true);
+
+    if (product.hasVariants && product.variants?.length > 0) {
+      const initial = {};
+      product.variants.forEach((v) => {
+        const key = v._id || v.size;
+        initial[key] = { boxes: '', pcs: '' };
+      });
+      setStockAdditions(initial);
+    } else {
+      setStockAdditions({ standard: { boxes: '', pcs: '' } });
+    }
+  };
+
+  const handleStockInputChange = (key, field, value) => {
+    const clean = value.replace(/[^0-9]/g, '');
+    setStockAdditions((prev) => ({
+      ...prev,
+      [key]: {
+        ...prev[key],
+        [field]: clean,
+      },
+    }));
+  };
+
+  const handleApplyStockPreset = (key, boxQty, presetType, amount) => {
+    if (presetType === 'BOXES') {
+      setStockAdditions((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          boxes: String((parseInt(prev[key]?.boxes, 10) || 0) + amount),
+        },
+      }));
+    } else if (presetType === 'PCS') {
+      setStockAdditions((prev) => ({
+        ...prev,
+        [key]: {
+          ...prev[key],
+          pcs: String((parseInt(prev[key]?.pcs, 10) || 0) + amount),
+        },
+      }));
+    }
+  };
+
+  const handleSaveStockArrival = async (e) => {
+    if (e) e.preventDefault();
+    if (!stockModalProduct) return;
+
+    setSavingStock(true);
+    setStockError('');
+
+    try {
+      let payload = { autoInStock: autoMarkInStock };
+      let totalAddedPcs = 0;
+
+      if (stockModalProduct.hasVariants && stockModalProduct.variants?.length > 0) {
+        const variantAdditions = stockModalProduct.variants.map((v) => {
+          const key = v._id || v.size;
+          const entry = stockAdditions[key] || { boxes: '', pcs: '' };
+          const bCount = parseInt(entry.boxes, 10) || 0;
+          const pCount = parseInt(entry.pcs, 10) || 0;
+          const totalVAdded = pCount + bCount * (v.boxQuantity || 1);
+          totalAddedPcs += totalVAdded;
+
+          return {
+            variantId: v._id,
+            size: v.size,
+            addedBoxes: bCount,
+            addedQuantity: pCount,
+          };
+        });
+
+        if (totalAddedPcs <= 0) {
+          setStockError('Please enter at least 1 box or piece to add.');
+          setSavingStock(false);
+          return;
+        }
+
+        payload.variantAdditions = variantAdditions;
+      } else {
+        const entry = stockAdditions.standard || { boxes: '', pcs: '' };
+        const bCount = parseInt(entry.boxes, 10) || 0;
+        const pCount = parseInt(entry.pcs, 10) || 0;
+        const boxQty = stockModalProduct.boxQuantity || 1;
+        totalAddedPcs = pCount + bCount * boxQty;
+
+        if (totalAddedPcs <= 0) {
+          setStockError('Please enter at least 1 box or piece to add.');
+          setSavingStock(false);
+          return;
+        }
+
+        payload.addedBoxes = bCount;
+        payload.addedQuantity = pCount;
+      }
+
+      const res = await productsAPI.addStock(stockModalProduct._id, payload);
+
+      if (res.data.success) {
+        const updatedProduct = res.data.product;
+        setProducts((prev) =>
+          prev.map((p) => (p._id === updatedProduct._id ? updatedProduct : p))
+        );
+        toast.success(
+          `Added +${totalAddedPcs} pcs to ${stockModalProduct.name}! New stock is ${updatedProduct.stockQuantity} pcs.`,
+          'Stock Arrived 📦'
+        );
+        setStockModalProduct(null);
+      }
+    } catch (err) {
+      console.error('Error adding stock:', err);
+      setStockError(err.response?.data?.message || err.message || 'Failed to update stock');
+      toast.error('Failed to update stock level', 'Restock Error');
+    } finally {
+      setSavingStock(false);
     }
   };
 
@@ -648,7 +778,7 @@ export const InventoryPage = () => {
                 <th className="py-3 px-3 text-center">Packaging (UOM)</th>
                 <th className="py-3 px-4 text-right">Wholesale Price</th>
                 <th className="py-3 px-3 text-center">Stock Level</th>
-                <th className="py-3 px-4 text-center">Out-of-Stock Toggle</th>
+                <th className="py-3 px-4 text-center">Live Status & Restock</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -728,12 +858,16 @@ export const InventoryPage = () => {
                               <Layers className="w-3 h-3 text-sky-400" />
                               {p.variants.length} Sizes:
                             </span>
-                            {p.variants.map((v) => (
+                            {p.variants.map((v, vIdx) => (
                               <span
-                                key={v.size}
-                                className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-[10px] font-semibold text-slate-300"
+                                key={v.size || vIdx}
+                                className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${
+                                  v.isOutOfStock || (v.stockQuantity || 0) <= 0
+                                    ? 'bg-rose-950/60 text-rose-300 border-rose-800/80 line-through'
+                                    : 'bg-slate-800/90 text-slate-300 border-slate-700'
+                                }`}
                               >
-                                {v.size} (₹{v.basePrice})
+                                {v.size}
                               </span>
                             ))}
                           </div>
@@ -742,23 +876,16 @@ export const InventoryPage = () => {
 
                       {/* Brand & Category */}
                       <td className="py-3.5 px-3">
-                        <span className="px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-400 text-[10px] font-bold border border-sky-500/20 mr-1.5">
-                          {p.brand || 'Unbranded'}
-                        </span>
-                        <span className="text-slate-400 text-[11px] block mt-0.5">{p.category}</span>
+                        <span className="font-bold text-white block text-xs">{p.brand}</span>
+                        <span className="text-[10px] text-sky-400/90 font-medium">{p.category}</span>
                       </td>
 
-                      {/* Packaging */}
+                      {/* Packaging Unit & Box Info */}
                       <td className="py-3.5 px-3 text-center">
-                        {hasVars ? (
-                          <span className="font-semibold text-slate-300">
-                            Multi-Pack ({p.variants.map((v) => v.boxQuantity).join('/')} {p.uom || 'Pcs'})
-                          </span>
-                        ) : (
-                          <span className="font-semibold text-slate-300">
-                            {p.boxQuantity || 1} {p.uom || 'Pcs'}/box
-                          </span>
-                        )}
+                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-bold border border-slate-700 block mx-auto max-w-[100px]">
+                          📦 {p.boxQuantity || 1} {p.uom || 'Pcs'}/box
+                        </span>
+                        <span className="text-[9px] text-slate-400 block mt-0.5">UOM: {p.uom || 'Pcs'}</span>
                       </td>
 
                       {/* Wholesale Price */}
@@ -796,28 +923,40 @@ export const InventoryPage = () => {
                         {hasVars && <span className="text-[9px] text-slate-500 block mt-0.5">Total across sizes</span>}
                       </td>
 
-                      {/* Out of Stock Toggle */}
+                      {/* Live Status & Quick Restock */}
                       <td className="py-3.5 px-4 text-center">
-                        <button
-                          onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
-                            p.isOutOfStock
-                              ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
-                              : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                          }`}
-                        >
-                          {p.isOutOfStock ? (
-                            <>
-                              <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />
-                              <span>OUT OF STOCK</span>
-                            </>
-                          ) : (
-                            <>
-                              <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
-                              <span>IN STOCK</span>
-                            </>
-                          )}
-                        </button>
+                        <div className="flex items-center justify-center gap-1.5 flex-wrap">
+                          <button
+                            onClick={() => handleToggleStock(p._id, p.isOutOfStock)}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-[10px] font-bold transition-all ${
+                              p.isOutOfStock
+                                ? 'bg-rose-500/15 text-rose-400 border border-rose-500/30 hover:bg-rose-500/25'
+                                : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
+                            }`}
+                            title={p.isOutOfStock ? 'Click to mark as In Stock' : 'Click to mark as Out of Stock'}
+                          >
+                            {p.isOutOfStock ? (
+                              <>
+                                <ToggleLeft className="w-3.5 h-3.5 text-rose-400" />
+                                <span>OUT OF STOCK</span>
+                              </>
+                            ) : (
+                              <>
+                                <ToggleRight className="w-3.5 h-3.5 text-emerald-400" />
+                                <span>IN STOCK</span>
+                              </>
+                            )}
+                          </button>
+
+                          <button
+                            onClick={() => openAddStockModal(p)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[10px] font-bold bg-sky-500/15 text-sky-400 border border-sky-500/30 hover:bg-sky-500/25 hover:border-sky-400 transition-all shadow-sm active:scale-95"
+                            title="New stock arrival: Add boxes or pieces directly to warehouse inventory"
+                          >
+                            <PackagePlus className="w-3.5 h-3.5 text-sky-400" />
+                            <span>+ ADD STOCK</span>
+                          </button>
+                        </div>
                       </td>
 
                       {/* Actions */}
@@ -1411,6 +1550,311 @@ export const InventoryPage = () => {
           </div>
         </div>
       )}
+
+      {/* ========================================================================= */}
+      {/* QUICK STOCK ARRIVAL / WAREHOUSE RESTOCK MODAL */}
+      {/* ========================================================================= */}
+      {stockModalProduct && (() => {
+        const hasVars = stockModalProduct.hasVariants && stockModalProduct.variants?.length > 0;
+        const currentTotalStock = hasVars
+          ? stockModalProduct.variants.reduce((sum, v) => sum + (v.stockQuantity || 0), 0)
+          : stockModalProduct.stockQuantity || 0;
+
+        let computedTotalAdding = 0;
+        if (hasVars) {
+          stockModalProduct.variants.forEach((v) => {
+            const key = v._id || v.size;
+            const entry = stockAdditions[key] || { boxes: '', pcs: '' };
+            const bCount = parseInt(entry.boxes, 10) || 0;
+            const pCount = parseInt(entry.pcs, 10) || 0;
+            computedTotalAdding += pCount + bCount * (v.boxQuantity || 1);
+          });
+        } else {
+          const entry = stockAdditions.standard || { boxes: '', pcs: '' };
+          const bCount = parseInt(entry.boxes, 10) || 0;
+          const pCount = parseInt(entry.pcs, 10) || 0;
+          computedTotalAdding += pCount + bCount * (stockModalProduct.boxQuantity || 1);
+        }
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+            <div className="bg-slate-900 border border-slate-700 rounded-3xl max-w-xl w-full p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Modal Header */}
+              <div className="flex items-center justify-between pb-4 border-b border-slate-800 mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                    <PackagePlus className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      <span>New Stock Arrival</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-md bg-emerald-500/20 text-emerald-400 font-bold uppercase border border-emerald-500/30">
+                        Morbi Central Warehouse
+                      </span>
+                    </h3>
+                    <p className="text-xs text-slate-400 mt-0.5">
+                      {stockModalProduct.name} • {stockModalProduct.brand} ({stockModalProduct.category})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setStockModalProduct(null)}
+                  className="p-2 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                  title="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Live Stock Comparison Card */}
+              <div className="grid grid-cols-3 gap-3 p-3.5 bg-slate-950/80 border border-slate-800 rounded-2xl mb-5 text-center">
+                <div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block">Current Stock</span>
+                  <span className="text-sm font-bold text-slate-300">{currentTotalStock} Pcs</span>
+                </div>
+                <div className="border-x border-slate-800">
+                  <span className="text-[10px] font-bold text-sky-400 uppercase block">Adding Now</span>
+                  <span className="text-sm font-bold text-sky-400">+{computedTotalAdding} Pcs</span>
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold text-emerald-400 uppercase block">New Live Stock</span>
+                  <span className="text-sm font-bold text-emerald-400">
+                    {currentTotalStock + computedTotalAdding} Pcs
+                  </span>
+                </div>
+              </div>
+
+              <form onSubmit={handleSaveStockArrival} className="space-y-4">
+                {/* If Product has Size Variants */}
+                {hasVars ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+                        <Layers className="w-4 h-4 text-sky-400" />
+                        <span>Variant-Wise Stock Arrival:</span>
+                      </label>
+                      <span className="text-[10px] text-slate-500">Add by Master Boxes or Loose Pieces</span>
+                    </div>
+
+                    <div className="space-y-2.5 max-h-[42vh] overflow-y-auto pr-1">
+                      {stockModalProduct.variants.map((v) => {
+                        const key = v._id || v.size;
+                        const entry = stockAdditions[key] || { boxes: '', pcs: '' };
+                        const bCount = parseInt(entry.boxes, 10) || 0;
+                        const pCount = parseInt(entry.pcs, 10) || 0;
+                        const vBoxQty = v.boxQuantity || 1;
+                        const vAdded = pCount + bCount * vBoxQty;
+                        const vCurrent = v.stockQuantity || 0;
+                        const vNewTotal = vCurrent + vAdded;
+
+                        return (
+                          <div
+                            key={key}
+                            className="p-3 bg-slate-950/60 border border-slate-800/80 rounded-2xl hover:border-slate-700 transition-all space-y-2"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="px-2 py-0.5 rounded-lg bg-sky-950 border border-sky-800 text-sky-400 font-bold text-xs">
+                                  {v.size}
+                                </span>
+                                <span className="text-[10px] text-slate-400 font-mono">
+                                  📦 {vBoxQty} pcs/box
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <span className="text-[11px] text-slate-400">
+                                  Current: <strong className="text-white">{vCurrent} pcs</strong>
+                                </span>
+                                {vAdded > 0 && (
+                                  <span className="text-[11px] text-emerald-400 ml-2 font-bold">
+                                    &rarr; New: {vNewTotal} pcs
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2.5">
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                                  + Add Boxes ({vBoxQty} pcs/bx)
+                                </label>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    value={entry.boxes}
+                                    onChange={(e) => handleStockInputChange(key, 'boxes', e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-2.5 py-1.5 text-xs text-center font-bold focus:outline-none focus:border-sky-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyStockPreset(key, vBoxQty, 'BOXES', 1)}
+                                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                                    title="Add +1 box"
+                                  >
+                                    +1
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyStockPreset(key, vBoxQty, 'BOXES', 5)}
+                                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                                    title="Add +5 boxes"
+                                  >
+                                    +5
+                                  </button>
+                                </div>
+                              </div>
+
+                              <div>
+                                <label className="text-[10px] font-bold text-slate-400 block mb-1">
+                                  + Add Loose Pieces (Pcs)
+                                </label>
+                                <div className="flex gap-1.5">
+                                  <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="0"
+                                    value={entry.pcs}
+                                    onChange={(e) => handleStockInputChange(key, 'pcs', e.target.value)}
+                                    className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-2.5 py-1.5 text-xs text-center font-bold focus:outline-none focus:border-sky-500"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyStockPreset(key, vBoxQty, 'PCS', 10)}
+                                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                                    title="Add +10 pcs"
+                                  >
+                                    +10
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyStockPreset(key, vBoxQty, 'PCS', 50)}
+                                    className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                                    title="Add +50 pcs"
+                                  >
+                                    +50
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ) : (
+                  /* Standard Product (No Variants) */
+                  <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-slate-300 font-bold">
+                        📦 Standard Packaging: {stockModalProduct.boxQuantity || 1} Pcs per Master Box
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        UOM: <strong className="text-white">{stockModalProduct.uom || 'Pcs'}</strong>
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                          + Add Master Boxes:
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="e.g. 5"
+                          value={stockAdditions.standard?.boxes || ''}
+                          onChange={(e) => handleStockInputChange('standard', 'boxes', e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2.5 text-sm text-center font-bold focus:outline-none focus:border-sky-500"
+                        />
+                        <div className="flex gap-1 mt-1.5">
+                          {[1, 2, 5, 10, 20].map((b) => (
+                            <button
+                              key={b}
+                              type="button"
+                              onClick={() => handleApplyStockPreset('standard', stockModalProduct.boxQuantity || 1, 'BOXES', b)}
+                              className="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                            >
+                              +{b}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-300 block mb-1.5">
+                          + Add Loose Pieces (Pcs):
+                        </label>
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          placeholder="e.g. 50"
+                          value={stockAdditions.standard?.pcs || ''}
+                          onChange={(e) => handleStockInputChange('standard', 'pcs', e.target.value)}
+                          className="w-full bg-slate-900 border border-slate-700 text-white rounded-xl px-3 py-2.5 text-sm text-center font-bold focus:outline-none focus:border-sky-500"
+                        />
+                        <div className="flex gap-1 mt-1.5">
+                          {[10, 25, 50, 100, 200].map((pCount) => (
+                            <button
+                              key={pCount}
+                              type="button"
+                              onClick={() => handleApplyStockPreset('standard', stockModalProduct.boxQuantity || 1, 'PCS', pCount)}
+                              className="flex-1 py-1 bg-slate-800 hover:bg-slate-700 text-sky-400 rounded-lg text-[10px] font-bold"
+                            >
+                              +{pCount}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Auto mark IN STOCK checkbox */}
+                <div className="p-3 bg-slate-950/80 border border-slate-800 rounded-2xl flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <input
+                      type="checkbox"
+                      id="autoMarkInStock"
+                      checked={autoMarkInStock}
+                      onChange={(e) => setAutoMarkInStock(e.target.checked)}
+                      className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500 bg-slate-900 border-slate-700 cursor-pointer"
+                    />
+                    <label htmlFor="autoMarkInStock" className="text-xs font-semibold text-slate-200 cursor-pointer">
+                      Automatically set product status to <span className="text-emerald-400 font-bold">IN STOCK</span> on mobile catalog
+                    </label>
+                  </div>
+                </div>
+
+                {stockError && (
+                  <p className="text-rose-400 text-xs font-semibold p-2.5 bg-rose-500/10 border border-rose-500/20 rounded-xl">
+                    ⚠️ {stockError}
+                  </p>
+                )}
+
+                <div className="pt-3 border-t border-slate-800 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setStockModalProduct(null)}
+                    className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingStock}
+                    className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-sky-600 to-indigo-600 hover:from-sky-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-sky-950/50 flex items-center gap-1.5 disabled:opacity-50 transition-all"
+                  >
+                    <PackagePlus className="w-4 h-4" />
+                    <span>{savingStock ? 'Updating Warehouse...' : 'Update Live Stock & Restock 🚀'}</span>
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Full-Screen Photo Zoom Lightbox Modal */}
       {zoomPhoto && (
