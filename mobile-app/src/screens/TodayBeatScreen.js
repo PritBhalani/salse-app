@@ -35,6 +35,7 @@ const GridProductCard = React.memo(
     onSelectVariant,
     qtyInCart,
     onUpdateCart,
+    onSetDirectQuantity,
     onZoomPhoto,
   }) => {
     const hasVars = Boolean(product.hasVariants && product.variants?.length > 0);
@@ -153,14 +154,32 @@ const GridProductCard = React.memo(
                 style={styles.gridStepperBtn}
                 onPress={() => onUpdateCart(product, activeVar, -1, 1)}
                 activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Text style={styles.gridStepperBtnText}>-</Text>
               </TouchableOpacity>
-              <Text style={styles.gridStepperQty}>{qtyInCart} pcs</Text>
+              <View style={styles.gridStepperInputContainer}>
+                <TextInput
+                  style={styles.gridStepperInput}
+                  keyboardType="number-pad"
+                  value={qtyInCart > 0 ? String(qtyInCart) : ''}
+                  placeholder="0"
+                  placeholderTextColor="#64748b"
+                  onChangeText={(text) => {
+                    const clean = text.replace(/[^0-9]/g, '');
+                    const val = clean === '' ? 0 : parseInt(clean, 10);
+                    onSetDirectQuantity(product, activeVar, Math.min(99999, val));
+                  }}
+                  selectTextOnFocus
+                  maxLength={5}
+                />
+                <Text style={styles.gridStepperUnitText}>pcs</Text>
+              </View>
               <TouchableOpacity
                 style={styles.gridStepperBtn}
                 onPress={() => onUpdateCart(product, activeVar, 1, 1)}
                 activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
               >
                 <Text style={styles.gridStepperBtnText}>+</Text>
               </TouchableOpacity>
@@ -526,6 +545,37 @@ export const TodayBeatScreen = ({
       const current = prev[itemKey]?.quantity || 0;
       const next = Math.max(0, current + delta * boxMultiplier);
       if (next === 0) {
+        if (!prev[itemKey]) return prev;
+        const copy = { ...prev };
+        delete copy[itemKey];
+        return copy;
+      }
+      return {
+        ...prev,
+        [itemKey]: {
+          productId: p._id,
+          productName: p.name,
+          variantName: varName,
+          sku: itemSku,
+          price: itemPrice,
+          boxQuantity: itemBoxQty,
+          quantity: next,
+        },
+      };
+    });
+  }, []);
+
+  const handleSetDirectQuantity = useCallback((p, variant, exactQty) => {
+    const varName = variant ? variant.size : '';
+    const itemKey = varName ? `${p._id}___${varName}` : p._id;
+    const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
+    const itemBoxQty = variant ? variant.boxQuantity : p.boxQuantity || 1;
+    const itemSku = variant ? variant.sku : p.sku || '';
+
+    setCart((prev) => {
+      const next = Math.max(0, exactQty);
+      if (next === 0) {
+        if (!prev[itemKey]) return prev;
         const copy = { ...prev };
         delete copy[itemKey];
         return copy;
@@ -626,11 +676,12 @@ export const TodayBeatScreen = ({
           onSelectVariant={handleSelectVariant}
           qtyInCart={qtyInCart}
           onUpdateCart={handleUpdateCart}
+          onSetDirectQuantity={handleSetDirectQuantity}
           onZoomPhoto={setZoomPhoto}
         />
       );
     },
-    [selectedVariants, cart, handleSelectVariant, handleUpdateCart]
+    [selectedVariants, cart, handleSelectVariant, handleUpdateCart, handleSetDirectQuantity]
   );
 
   return (
@@ -1956,20 +2007,43 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#1e293b',
+    paddingHorizontal: 2,
+    height: 32,
   },
   gridStepperBtn: {
     paddingHorizontal: 8,
     paddingVertical: 4,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   gridStepperBtnText: {
     color: '#38bdf8',
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: 'bold',
+    lineHeight: 18,
   },
-  gridStepperQty: {
-    fontSize: 10,
-    fontWeight: 'bold',
+  gridStepperInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    paddingHorizontal: 2,
+  },
+  gridStepperInput: {
     color: '#ffffff',
+    fontSize: 11,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    minWidth: 26,
+    paddingVertical: 0,
+    paddingHorizontal: 2,
+  },
+  gridStepperUnitText: {
+    color: '#64748b',
+    fontSize: 9,
+    fontWeight: '600',
+    marginLeft: 1,
   },
   phoneOrderHeader: {
     backgroundColor: '#0f172a',
