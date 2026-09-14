@@ -1,8 +1,8 @@
+import 'dotenv/config';
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { connectDB } from './config/db.js';
 
 // Route imports
@@ -18,8 +18,6 @@ import uploadRoutes from './routes/uploadRoutes.js';
 import imageRoutes from './routes/imageRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import { Media } from './models/Media.js';
-
-dotenv.config();
 
 const app = express();
 const server = http.createServer(app);

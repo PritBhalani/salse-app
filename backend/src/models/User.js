@@ -23,7 +23,26 @@ userSchema.pre('save', async function (next) {
 });
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
-  return await bcrypt.compare(enteredPassword, this.password);
+  if (!this.password || !enteredPassword) return false;
+  if (this.password.startsWith('$2a$') || this.password.startsWith('$2b$') || this.password.startsWith('$2y$')) {
+    try {
+      return await bcrypt.compare(enteredPassword, this.password);
+    } catch (e) {
+      return false;
+    }
+  }
+  // Plain text fallback (e.g. if edited in MongoDB Atlas UI or script directly)
+  if (this.password === enteredPassword) {
+    try {
+      const salt = await bcrypt.genSalt(10);
+      this.password = await bcrypt.hash(enteredPassword, salt);
+      await this.save();
+    } catch (err) {
+      console.warn('Auto-hash password error:', err.message);
+    }
+    return true;
+  }
+  return false;
 };
 
 export const User = process.env.MONGODB_URI

@@ -9,29 +9,47 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Auth user & get token
+// @desc    Auth user & get token (supports Phone, Email, or Username)
 // @route   POST /api/auth/login
 export const loginUser = async (req, res) => {
   try {
-    const { phone, password, deviceId } = req.body;
+    const rawIdentifier = (req.body.phone || req.body.email || req.body.username || req.body.identifier || '').toString().trim();
+    const password = (req.body.password || '').toString();
+    const deviceId = req.body.deviceId;
 
-    if (!phone || !password) {
-      return res.status(400).json({ success: false, message: 'Please provide phone and password' });
+    if (!rawIdentifier || !password) {
+      return res.status(400).json({ success: false, message: 'Please provide phone number or email, and password' });
     }
 
-    const user = await User.findOne({ phone }).populate('shopId');
+    const digitsOnly = rawIdentifier.replace(/[^0-9]/g, '');
+    const last10Digits = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+    const queryOr = [
+      { phone: rawIdentifier },
+      { email: rawIdentifier.toLowerCase() },
+      { name: new RegExp(`^${rawIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
+    ];
+
+    if (digitsOnly) {
+      queryOr.push({ phone: digitsOnly });
+    }
+    if (last10Digits && last10Digits !== digitsOnly) {
+      queryOr.push({ phone: last10Digits });
+    }
+
+    const user = await User.findOne({ $or: queryOr }).populate('shopId');
 
     if (!user) {
-      return res.status(401).json({ success: false, message: 'Invalid phone or password' });
+      return res.status(401).json({ success: false, message: 'Invalid phone number/email or password' });
     }
 
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: 'Invalid phone or password' });
+      return res.status(401).json({ success: false, message: 'Invalid phone number/email or password' });
     }
 
     if (!user.isActive) {
-      return res.status(403).json({ success: false, message: 'Account is deactivated' });
+      return res.status(403).json({ success: false, message: 'Account is deactivated. Please contact admin.' });
     }
 
     // Handle Salesman Device Binding (auto-binds/updates on valid login)
@@ -58,6 +76,7 @@ export const loginUser = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error('Login error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
