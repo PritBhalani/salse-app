@@ -103,13 +103,34 @@ app.get('/uploads/:filename', async (req, res, next) => {
   try {
     const media = await Media.findOne({ filename: req.params.filename });
     if (media && media.data) {
-      const buffer = Buffer.isBuffer(media.data) ? media.data : Buffer.from(media.data, 'base64');
-      res.set({
-        'Content-Type': media.contentType || 'image/jpeg',
-        'Content-Length': buffer.length,
-        'Cache-Control': 'public, max-age=31536000, immutable',
-      });
-      return res.end(buffer);
+      let buffer = null;
+      if (Buffer.isBuffer(media.data)) {
+        if (
+          (media.data[0] === 0xff && media.data[1] === 0xd8) ||
+          (media.data[0] === 0x89 && media.data[1] === 0x50) ||
+          (media.data[0] === 0x47 && media.data[1] === 0x49) ||
+          (media.data[0] === 0x52 && media.data[1] === 0x49)
+        ) {
+          buffer = media.data;
+        } else {
+          const cleanStr = media.data.toString('utf8').replace(/^data:image\/[a-z]+;base64,/, '');
+          buffer = Buffer.from(cleanStr, 'base64');
+        }
+      } else if (typeof media.data === 'string') {
+        const cleanStr = media.data.replace(/^data:image\/[a-z]+;base64,/, '');
+        buffer = Buffer.from(cleanStr, 'base64');
+      } else {
+        buffer = Buffer.from(media.data);
+      }
+
+      if (buffer && buffer.length > 0) {
+        res.set({
+          'Content-Type': media.contentType || 'image/jpeg',
+          'Content-Length': buffer.length,
+          'Cache-Control': 'public, max-age=31536000, immutable',
+        });
+        return res.end(buffer);
+      }
     }
   } catch (dbErr) {
     console.warn(`Could not fetch MongoDB media for ${req.params.filename}:`, dbErr.message);
