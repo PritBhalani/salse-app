@@ -16,6 +16,14 @@ import {
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 import { ImageZoomModal } from '../components/ImageZoomModal';
+import {
+  saveLocalCatalog,
+  getLocalCatalog,
+  saveLocalShops,
+  getLocalShops,
+  getPendingOutboxCount,
+  syncOutboxToServer,
+} from '../utils/offlineSync';
 
 // =========================================================================
 // MEMOIZED HIGH-PERFORMANCE 2-COLUMN PRODUCT CATALOG CARD
@@ -338,6 +346,9 @@ export const TodayBeatScreen = ({
   const [cart, setCart] = useState({});
   const [selectedVariants, setSelectedVariants] = useState({});
 
+  const [outboxCount, setOutboxCount] = useState(0);
+  const [syncingOutbox, setSyncingOutbox] = useState(false);
+
   const currentSalesmanCoords = {
     latitude: 22.8125,
     longitude: 70.8355,
@@ -361,27 +372,39 @@ export const TodayBeatScreen = ({
       console.warn('Could not fetch routes:', e.message);
     }
 
-    // 2. Fetch Shops
+    // 2. Fetch Shops (with offline cache fallback)
     try {
       const shopRes = await mobileAPI.get(
         `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
       );
       if (shopRes.data?.success) {
         setShops(shopRes.data.shops || []);
+        await saveLocalShops(shopRes.data.shops || [], allRoutes);
       }
     } catch (e) {
-      console.warn('Could not fetch shops:', e.message);
-      setFetchError(e.message || 'Network error connecting to cloud backend');
+      console.warn('Network offline, loading cached shops:', e.message);
+      const cached = await getLocalShops();
+      if (cached.shops?.length > 0) {
+        setShops(cached.shops);
+        if (cached.routes?.length > 0) setAllRoutes(cached.routes);
+      } else {
+        setFetchError(e.message || 'Offline mode: No cached shops found');
+      }
     }
 
-    // 3. Fetch Products Catalog
+    // 3. Fetch Products Catalog (with offline cache fallback)
     try {
       const prodRes = await mobileAPI.get('/products');
       if (prodRes.data?.success) {
         setProducts(prodRes.data.products || []);
+        await saveLocalCatalog(prodRes.data.products || []);
       }
     } catch (e) {
-      console.warn('Could not fetch products:', e.message);
+      console.warn('Network offline, loading cached catalog:', e.message);
+      const cached = await getLocalCatalog();
+      if (cached?.length > 0) {
+        setProducts(cached);
+      }
     }
 
     // 4. Fetch Payments
@@ -394,7 +417,30 @@ export const TodayBeatScreen = ({
       console.warn('Could not fetch payments:', e.message);
     }
 
+    // Check pending outbox records
+    const pending = await getPendingOutboxCount();
+    setOutboxCount(pending);
+
     setLoading(false);
+  };
+
+  const handleSyncOutbox = async () => {
+    setSyncingOutbox(true);
+    const res = await syncOutboxToServer(mobileAPI);
+    setSyncingOutbox(false);
+    const pending = await getPendingOutboxCount();
+    setOutboxCount(pending);
+    if (res.syncedOrders > 0 || res.syncedPayments > 0 || res.syncedVisits > 0) {
+      Alert.alert(
+        'Offline Outbox Synced! 🚀',
+        `Successfully synced ${res.syncedOrders} orders, ${res.syncedPayments} payments, and ${res.syncedVisits} visits to Morbi Central Dispatch!`
+      );
+      await fetchAllData();
+    } else if (res.errors.length > 0) {
+      Alert.alert('Sync Waiting', 'Unable to reach server right now. Outbox will auto-sync when internet reconnects.');
+    } else {
+      Alert.alert('All Caught Up', 'All offline records are already synchronized.');
+    }
   };
 
   useEffect(() => {
@@ -638,6 +684,22 @@ export const TodayBeatScreen = ({
           </View>
         </View>
       </View>
+
+      {/* Offline Outbox Sync Banner */}
+      {outboxCount > 0 && (
+        <TouchableOpacity
+          style={styles.outboxSyncBanner}
+          onPress={handleSyncOutbox}
+          disabled={syncingOutbox}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.outboxSyncText}>
+            {syncingOutbox
+              ? '🔄 Syncing records with Morbi Central Warehouse...'
+              : `💾 ${outboxCount} Offline Records Queued • Tap to Sync 🚀`}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       {/* ========================================================================= */}
       {/* TAB 1: TODAY BEAT ROUTE & SHOPS */}
@@ -1293,6 +1355,20 @@ const styles = StyleSheet.create({
   },
   logoutText: {
     color: '#f87171',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  outboxSyncBanner: {
+    backgroundColor: '#b45309',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f59e0b',
+  },
+  outboxSyncText: {
+    color: '#ffffff',
     fontSize: 11,
     fontWeight: 'bold',
   },

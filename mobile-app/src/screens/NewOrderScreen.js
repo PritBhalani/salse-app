@@ -16,6 +16,11 @@ import {
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 import { ImageZoomModal } from '../components/ImageZoomModal';
+import {
+  queueOfflineOrder,
+  saveLocalCatalog,
+  getLocalCatalog,
+} from '../utils/offlineSync';
 
 // =========================================================================
 // MEMOIZED HIGH-PERFORMANCE 2-COLUMN ORDER PRODUCT CARD
@@ -177,9 +182,14 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
       const res = await mobileAPI.get('/products');
       if (res.data.success) {
         setProducts(res.data.products || []);
+        await saveLocalCatalog(res.data.products || []);
       }
     } catch (err) {
-      console.warn('Error loading catalog:', err.message);
+      console.warn('Network offline, loading cached catalog:', err.message);
+      const cached = await getLocalCatalog();
+      if (cached?.length > 0) {
+        setProducts(cached);
+      }
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -304,7 +314,42 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         );
       }
     } catch (err) {
-      Alert.alert('Order Punching Failed', err.response?.data?.message || 'Server error');
+      // Network offline or error - save to local offline outbox queue
+      const queued = await queueOfflineOrder({
+        shopId: shop._id,
+        shopName: shop.shopName,
+        billType,
+        channel: orderChannel,
+        items,
+        dispatchNotes,
+        totalAmount,
+      });
+
+      if (queued) {
+        const orderNum = queued.localId;
+        Alert.alert(
+          'Order Saved in Offline Outbox! 💾',
+          `No network detected. Order ${orderNum} for ₹${totalAmount.toLocaleString()} has been safely saved on this device and queued to auto-sync when internet connects.`,
+          [
+            {
+              text: 'Share WhatsApp Bill 📲',
+              onPress: () => {
+                const msg = `*SHIVAM MARKETING - OFFLINE ORDER CONFIRMATION*\n------------------------------\n🏪 *Shop:* ${shop.shopName}\n📄 *Order No:* ${orderNum} (Offline Queued)\n📑 *Bill Type:* ${billType === 'GST' ? 'GST Invoice (+18%)' : 'Without GST (Rough Cash)'}\n📦 *Items:* ${totalItemCount} SKU (${totalPcsCount} pcs)\n💰 *Total Amount:* ₹${totalAmount.toLocaleString()}\n🚚 *Status:* SAVED LOCALLY (Auto-syncs on network)\n------------------------------\nThank you for your wholesale order!`;
+                const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
+                const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
+                Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
+                onOrderSuccess();
+              },
+            },
+            {
+              text: 'OK',
+              onPress: () => onOrderSuccess(),
+            },
+          ]
+        );
+      } else {
+        Alert.alert('Order Punching Failed', err.response?.data?.message || 'Server error');
+      }
     } finally {
       setSubmitting(false);
     }
