@@ -1,5 +1,7 @@
-import React, { useState } from 'react';
-import { SafeAreaView, StatusBar, StyleSheet, View, Platform } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { SafeAreaView, StatusBar, StyleSheet, View, Platform, ActivityIndicator } from 'react-native';
+import { setAuthToken } from './src/config/api';
+import { getUserSession, clearUserSession } from './src/utils/offlineSync';
 
 // Mobile Screens
 import { LoginScreen } from './src/screens/LoginScreen';
@@ -14,6 +16,30 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
   const [currentScreen, setCurrentScreen] = useState('TODAY_BEAT');
   const [selectedShop, setSelectedShop] = useState(null);
+  const [initializingSession, setInitializingSession] = useState(true);
+
+  // Restore persistent login session on startup (works with or without internet)
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const session = await getUserSession();
+        if (session.user) {
+          if (session.token) setAuthToken(session.token);
+          setCurrentUser(session.user);
+          if (session.user.role === 'SHOP_OWNER') {
+            setCurrentScreen('SHOP_OWNER_HOME');
+          } else {
+            setCurrentScreen('TODAY_BEAT');
+          }
+        }
+      } catch (err) {
+        console.warn('Session restore error:', err.message);
+      } finally {
+        setInitializingSession(false);
+      }
+    };
+    restoreSession();
+  }, []);
 
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
@@ -24,7 +50,8 @@ export default function App() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await clearUserSession();
     setCurrentUser(null);
     setCurrentScreen('LOGIN');
     setSelectedShop(null);
@@ -34,6 +61,15 @@ export default function App() {
     if (shop) setSelectedShop(shop);
     setCurrentScreen(screen);
   };
+
+  if (initializingSession) {
+    return (
+      <SafeAreaView style={[styles.safeArea, { alignItems: 'center', justifyContent: 'center' }]}>
+        <StatusBar barStyle="light-content" backgroundColor="#090d16" />
+        <ActivityIndicator size="large" color="#0284c7" />
+      </SafeAreaView>
+    );
+  }
 
   if (!currentUser) {
     return (

@@ -14,6 +14,46 @@ const KEYS = {
 };
 
 // =========================================================================
+// 0. USER SESSION PERSISTENCE (OFFLINE AUTO-LOGIN)
+// =========================================================================
+
+export const saveUserSession = async (user, token) => {
+  try {
+    if (user) {
+      await AsyncStorage.setItem(KEYS.USER_SESSION, JSON.stringify(user));
+    }
+    if (token) {
+      await AsyncStorage.setItem(KEYS.AUTH_TOKEN, token);
+    }
+  } catch (err) {
+    console.warn('Error saving user session:', err.message);
+  }
+};
+
+export const getUserSession = async () => {
+  try {
+    const rawUser = await AsyncStorage.getItem(KEYS.USER_SESSION);
+    const token = await AsyncStorage.getItem(KEYS.AUTH_TOKEN);
+    return {
+      user: rawUser ? JSON.parse(rawUser) : null,
+      token: token || null,
+    };
+  } catch (err) {
+    console.warn('Error reading user session:', err.message);
+    return { user: null, token: null };
+  }
+};
+
+export const clearUserSession = async () => {
+  try {
+    await AsyncStorage.removeItem(KEYS.USER_SESSION);
+    await AsyncStorage.removeItem(KEYS.AUTH_TOKEN);
+  } catch (err) {
+    console.warn('Error clearing user session:', err.message);
+  }
+};
+
+// =========================================================================
 // 1. PERSISTENT CACHE FOR CATALOG & SHOPS
 // =========================================================================
 

@@ -13,6 +13,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { mobileAPI, setAuthToken, setDeviceId } from '../config/api';
+import { saveUserSession, getUserSession } from '../utils/offlineSync';
 
 export const LoginScreen = ({ onLoginSuccess }) => {
   const [phone, setPhone] = useState('9898033333'); // Default Ramesh Salesman
@@ -52,11 +53,25 @@ export const LoginScreen = ({ onLoginSuccess }) => {
         } else {
           setDeviceId('DEVICE_ANDROID_SM_G998B');
         }
+        await saveUserSession(res.data.user, res.data.token);
         onLoginSuccess(res.data.user);
       }
     } catch (err) {
-      const msg = err.response?.data?.message || 'Login failed. Please verify credentials.';
-      Alert.alert('Authentication Failed', msg);
+      // Offline fallback check: If phone matches cached user on device
+      const session = await getUserSession();
+      if (session.user && session.user.phone === phone) {
+        if (session.token) setAuthToken(session.token);
+        Alert.alert(
+          'Offline Mode Login ⚡',
+          `No network detected. Logged in via saved credentials for ${session.user.name}. You can punch orders and visits offline.`
+        );
+        onLoginSuccess(session.user);
+      } else {
+        const msg = !err.response
+          ? 'Network unavailable. First-time login on a new device requires an active internet connection.'
+          : err.response?.data?.message || 'Login failed. Please verify credentials.';
+        Alert.alert('Authentication Failed', msg);
+      }
     } finally {
       setLoading(false);
     }
