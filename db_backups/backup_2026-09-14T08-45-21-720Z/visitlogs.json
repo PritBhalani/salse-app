@@ -1,0 +1,59 @@
+[
+  {
+    "_id": "6aa5b1b176e85a05443f5b99",
+    "salesman": "6aa57ec376a18b01d0018146",
+    "shop": "6aa57ec376a18b01d0018148",
+    "location": {
+      "latitude": 22.8125,
+      "longitude": 70.8355
+    },
+    "distanceMeters": 24,
+    "isGeofenceVerified": true,
+    "isMockLocationDetected": false,
+    "photoProofUrl": "",
+    "purpose": "ORDER_AND_COLLECTION",
+    "notes": "In-person beat check-in",
+    "checkInTime": "2026-09-12T20:10:25.857Z",
+    "createdAt": "2026-09-12T20:10:25.858Z",
+    "updatedAt": "2026-09-12T20:10:25.858Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa5b1c076e85a05443f5bad",
+    "salesman": "6aa57ec376a18b01d0018146",
+    "shop": "6aa5b09b76e85a05443f5b60",
+    "location": {
+      "latitude": 22.8125,
+      "longitude": 70.8355
+    },
+    "distanceMeters": 76,
+    "isGeofenceVerified": true,
+    "isMockLocationDetected": false,
+    "photoProofUrl": "",
+    "purpose": "ORDER_AND_COLLECTION",
+    "notes": "In-person beat check-in",
+    "checkInTime": "2026-09-12T20:10:40.943Z",
+    "createdAt": "2026-09-12T20:10:40.944Z",
+    "updatedAt": "2026-09-12T20:10:40.944Z",
+    "__v": 0
+  },
+  {
+    "_id": "6aa5b1ce76e85a05443f5bc1",
+    "salesman": "6aa57ec376a18b01d0018146",
+    "shop": "6aa57ec376a18b01d0018149",
+    "location": {
+      "latitude": 22.8125,
+      "longitude": 70.8355
+    },
+    "distanceMeters": 917,
+    "isGeofenceVerified": false,
+    "isMockLocationDetected": false,
+    "photoProofUrl": "",
+    "purpose": "ORDER_AND_COLLECTION",
+    "notes": "In-person beat check-in",
+    "checkInTime": "2026-09-12T20:10:54.847Z",
+    "createdAt": "2026-09-12T20:10:54.848Z",
+    "updatedAt": "2026-09-12T20:10:54.848Z",
+    "__v": 0
+  }
+]
