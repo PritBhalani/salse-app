@@ -9,11 +9,46 @@ const generateToken = (id) => {
   });
 };
 
-// @desc    Auth user & get token (supports Phone, Email, or Username)
+// @desc    Switch operating role (Admin <-> Warehouse)
+// @route   POST /api/auth/switch-role
+export const switchRole = async (req, res) => {
+  try {
+    const { role } = req.body;
+    if (role !== 'ADMIN' && role !== 'WAREHOUSE') {
+      return res.status(400).json({ success: false, message: 'Invalid role for web portal' });
+    }
+
+    const targetUser = await User.findOne({ role, isActive: true }).sort({ createdAt: 1 });
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: `No active ${role} account found` });
+    }
+
+    const token = generateToken(targetUser._id);
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: targetUser._id,
+        name: targetUser.name,
+        phone: targetUser.phone,
+        email: targetUser.email,
+        role: targetUser.role,
+        shopId: targetUser.shopId,
+        deviceId: targetUser.deviceId,
+        cashInHand: targetUser.cashInHand,
+        activeCities: targetUser.activeCities,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Auth user & get token (supports Phone, Email, Username, or Role)
 // @route   POST /api/auth/login
 export const loginUser = async (req, res) => {
   try {
-    const rawIdentifier = (req.body.phone || req.body.email || req.body.username || req.body.identifier || '').toString().trim();
+    const rawIdentifier = (req.body.phone || req.body.email || req.body.username || req.body.identifier || req.body.role || '').toString().trim();
     const password = (req.body.password || '').toString();
     const deviceId = req.body.deviceId;
 
@@ -29,6 +64,10 @@ export const loginUser = async (req, res) => {
       { email: rawIdentifier.toLowerCase() },
       { name: new RegExp(`^${rawIdentifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'i') },
     ];
+
+    if (rawIdentifier.toUpperCase() === 'ADMIN' || rawIdentifier.toUpperCase() === 'WAREHOUSE') {
+      queryOr.push({ role: rawIdentifier.toUpperCase() });
+    }
 
     if (digitsOnly) {
       queryOr.push({ phone: digitsOnly });

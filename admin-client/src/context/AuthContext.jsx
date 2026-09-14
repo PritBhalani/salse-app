@@ -59,9 +59,23 @@ export const AuthProvider = ({ children }) => {
   };
 
   const loginAs = async (role) => {
-    const phone = role === 'ADMIN' ? '9898011111' : '9898022222';
-    const password = role === 'ADMIN' ? 'admin123' : 'warehouse123';
-    return await login(phone, password);
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await authAPI.switchRole(role);
+      if (res.data.success) {
+        const u = res.data.user;
+        setToken(res.data.token);
+        setUser(u);
+        localStorage.setItem('salase_token', res.data.token);
+        setLoading(false);
+        return true;
+      }
+    } catch (err) {
+      console.warn('Direct switchRole failed, trying role fallback:', err);
+    }
+    // Fallback: login by role name
+    return await login(role, role === 'ADMIN' ? 'admin123' : 'warehouse123');
   };
 
   const logout = () => {

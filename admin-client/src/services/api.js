@@ -14,6 +14,7 @@ api.interceptors.request.use((config) => {
 
 export const authAPI = {
   login: (phone, password) => api.post('/auth/login', { phone, password }),
+  switchRole: (role) => api.post('/auth/switch-role', { role }),
   getMe: () => api.get('/auth/me'),
   getUsers: (role) => api.get(`/auth/users${role ? `?role=${role}` : ''}`),
   createUser: (data) => api.post('/auth/users', data),

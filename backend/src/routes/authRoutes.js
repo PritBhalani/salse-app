@@ -1,6 +1,7 @@
 import express from 'express';
 import {
   loginUser,
+  switchRole,
   createUser,
   getMe,
   getUsers,
@@ -13,6 +14,7 @@ import { protect, authorize } from '../middleware/auth.js';
 const router = express.Router();
 
 router.post('/login', loginUser);
+router.post('/switch-role', switchRole);
 router.get('/me', protect, getMe);
 router.get('/users', protect, authorize('ADMIN', 'WAREHOUSE'), getUsers);
 router.post('/users', protect, authorize('ADMIN'), createUser);
