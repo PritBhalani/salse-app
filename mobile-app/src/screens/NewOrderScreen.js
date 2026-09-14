@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
+  FlatList,
   TouchableOpacity,
   TextInput,
   Image,
@@ -11,9 +12,151 @@ import {
   RefreshControl,
   Alert,
   Linking,
+  Platform,
 } from 'react-native';
 import { mobileAPI } from '../config/api';
 import { ImageZoomModal } from '../components/ImageZoomModal';
+
+// =========================================================================
+// MEMOIZED HIGH-PERFORMANCE 2-COLUMN ORDER PRODUCT CARD
+// =========================================================================
+const OrderProductCard = React.memo(
+  ({
+    product,
+    selectedVarIdx,
+    onSelectVariant,
+    qtyInCart,
+    onUpdateCart,
+    onZoomPhoto,
+  }) => {
+    const hasVars = Boolean(product.hasVariants && product.variants?.length > 0);
+    const currentVarIdx = selectedVarIdx ?? 0;
+    const activeVar = hasVars ? product.variants[currentVarIdx] || product.variants[0] : null;
+
+    const activePrice = activeVar ? activeVar.basePrice : product.basePrice || 0;
+    const activeBoxQty = activeVar ? activeVar.boxQuantity : product.boxQuantity || 1;
+    const isOutOfStock = activeVar ? activeVar.isOutOfStock : product.isOutOfStock;
+
+    return (
+      <View style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}>
+        <View>
+          {/* Square Photo Container with Tap to Zoom & Brand Tag */}
+          <TouchableOpacity
+            style={styles.gridImageContainer}
+            activeOpacity={product.imageUrl ? 0.75 : 1}
+            onPress={() => {
+              if (product.imageUrl) {
+                onZoomPhoto({
+                  url: product.imageUrl,
+                  name: product.name,
+                  brand: product.brand,
+                  price: activePrice,
+                });
+              }
+            }}
+          >
+            {product.imageUrl ? (
+              <Image source={{ uri: product.imageUrl }} style={styles.gridImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Text style={styles.placeholderEmoji}>🚿</Text>
+              </View>
+            )}
+            {product.brand ? (
+              <View style={styles.gridBrandBadge}>
+                <Text style={styles.gridBrandBadgeText} numberOfLines={1}>
+                  {product.brand}
+                </Text>
+              </View>
+            ) : null}
+          </TouchableOpacity>
+
+          {/* Title & Category */}
+          <Text style={styles.gridProdName} numberOfLines={2}>
+            {product.name}
+          </Text>
+          <Text style={styles.gridProdCategory} numberOfLines={1}>
+            {product.category || 'Hardware'}
+          </Text>
+
+          {/* Size Variant Chips */}
+          {hasVars && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.gridVariantScroll}
+              contentContainerStyle={{ paddingRight: 4 }}
+            >
+              {product.variants.map((v, vIdx) => {
+                const isSelected = currentVarIdx === vIdx;
+                return (
+                  <TouchableOpacity
+                    key={v.size || vIdx}
+                    style={[styles.gridVarChip, isSelected && styles.gridVarChipActive]}
+                    onPress={() => onSelectVariant(product._id, vIdx)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.gridVarChipText, isSelected && styles.gridVarChipTextActive]}>
+                      {v.size}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {/* Master Box Info & Price */}
+          <View style={styles.gridBoxTag}>
+            <Text style={styles.gridBoxTagText} numberOfLines={1}>
+              📦 Box: {activeBoxQty} pcs • ₹{((activePrice || 0) * activeBoxQty).toLocaleString()}
+            </Text>
+          </View>
+          <View style={styles.gridPriceRow}>
+            <Text style={styles.gridPrice}>₹{activePrice?.toLocaleString()}</Text>
+            <Text style={styles.gridPriceUnit}> / {product.uom || 'pc'}</Text>
+          </View>
+        </View>
+
+        {/* Stepper / Controls */}
+        {isOutOfStock ? (
+          <View style={styles.gridOutOfStockBanner}>
+            <Text style={styles.gridOutOfStockText}>Out of Stock</Text>
+          </View>
+        ) : (
+          <View style={styles.gridActionContainer}>
+            <TouchableOpacity
+              style={styles.gridBoxBtn}
+              onPress={() => onUpdateCart(product, activeVar, 1, activeBoxQty)}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.gridBoxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
+            </TouchableOpacity>
+
+            <View style={styles.gridStepper}>
+              <TouchableOpacity
+                style={styles.gridStepperBtn}
+                onPress={() => onUpdateCart(product, activeVar, -1, 1)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.gridStepperBtnText}>-</Text>
+              </TouchableOpacity>
+              <Text style={styles.gridStepperQty}>
+                {qtyInCart} pcs
+              </Text>
+              <TouchableOpacity
+                style={styles.gridStepperBtn}
+                onPress={() => onUpdateCart(product, activeVar, 1, 1)}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.gridStepperBtnText}>+</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+      </View>
+    );
+  }
+);
 
 export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
   const [products, setProducts] = useState([]);
@@ -53,7 +196,11 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
     fetchProducts();
   }, []);
 
-  const handleUpdateCart = (p, variant, delta, boxMultiplier = 1) => {
+  const handleSelectVariant = useCallback((prodId, vIdx) => {
+    setSelectedVariants((prev) => ({ ...prev, [prodId]: vIdx }));
+  }, []);
+
+  const handleUpdateCart = useCallback((p, variant, delta, boxMultiplier = 1) => {
     const varName = variant ? variant.size : '';
     const itemKey = varName ? `${p._id}___${varName}` : p._id;
     const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
@@ -82,10 +229,12 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         },
       };
     });
-  };
+  }, []);
 
   // Extract categories dynamically
-  const categories = ['ALL', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
+  const categories = useMemo(() => {
+    return ['ALL', ...Array.from(new Set(products.map((p) => p.category).filter(Boolean)))];
+  }, [products]);
 
   // Calculate Cart Totals
   let subtotal = 0;
@@ -161,20 +310,46 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
     }
   };
 
-  const filteredProducts = products.filter((p) => {
-    const matchesSearch =
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.brand?.toLowerCase().includes(search.toLowerCase()) ||
-      p.category?.toLowerCase().includes(search.toLowerCase());
-    const matchesCategory = selectedCategory === 'ALL' || p.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  const filteredProducts = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return products.filter((p) => {
+      const matchesSearch =
+        !q ||
+        p.name?.toLowerCase().includes(q) ||
+        p.brand?.toLowerCase().includes(q) ||
+        p.category?.toLowerCase().includes(q);
+      const matchesCategory = selectedCategory === 'ALL' || p.category === selectedCategory;
+      return matchesSearch && matchesCategory;
+    });
+  }, [products, search, selectedCategory]);
+
+  const renderCatalogItem = useCallback(
+    ({ item }) => {
+      const hasVars = Boolean(item.hasVariants && item.variants?.length > 0);
+      const currentVarIdx = selectedVariants[item._id] ?? 0;
+      const activeVar = hasVars ? item.variants[currentVarIdx] || item.variants[0] : null;
+      const itemKey = activeVar ? `${item._id}___${activeVar.size}` : item._id;
+      const qtyInCart = cart[itemKey]?.quantity || 0;
+
+      return (
+        <OrderProductCard
+          product={item}
+          selectedVarIdx={currentVarIdx}
+          onSelectVariant={handleSelectVariant}
+          qtyInCart={qtyInCart}
+          onUpdateCart={handleUpdateCart}
+          onZoomPhoto={setZoomPhoto}
+        />
+      );
+    },
+    [selectedVariants, cart, handleSelectVariant, handleUpdateCart]
+  );
 
   return (
     <View style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={onBack}>
+        <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
           <Text style={styles.backBtnText}>&larr; Back</Text>
         </TouchableOpacity>
         <View style={{ flex: 1, marginHorizontal: 10 }}>
@@ -187,8 +362,19 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
         </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
+      {/* Virtualized 2-Column Catalog FlatList */}
+      <FlatList
+        data={filteredProducts}
+        renderItem={renderCatalogItem}
+        keyExtractor={(item) => item._id}
+        numColumns={2}
+        columnWrapperStyle={styles.catalogColumnWrapper}
+        contentContainerStyle={[styles.catalogListContent, { paddingBottom: 110 }]}
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -197,252 +383,129 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
             tintColor="#38bdf8"
           />
         }
-      >
-        {/* Order Channel Switcher (Simulator Style) */}
-        <View style={styles.channelContainer}>
-          <Text style={styles.sectionLabel}>Order Channel:</Text>
-          <View style={styles.channelRow}>
-            <TouchableOpacity
-              style={[styles.channelBtn, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnActiveBeat]}
-              onPress={() => setOrderChannel('IN_PERSON_BEAT')}
-            >
-              <Text style={[styles.channelBtnText, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnTextActive]}>
-                📍 Beat Visit
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.channelBtn, orderChannel === 'PHONE_ORDER' && styles.channelBtnActivePhone]}
-              onPress={() => setOrderChannel('PHONE_ORDER')}
-            >
-              <Text style={[styles.channelBtnText, orderChannel === 'PHONE_ORDER' && styles.channelBtnTextActive]}>
-                📞 Phone (No Visit)
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Bill Type Selector (Simulator Style) */}
-        <View style={styles.billTypeContainer}>
-          <Text style={styles.sectionLabel}>Select Billing Mode:</Text>
-          <View style={styles.pillRow}>
-            <TouchableOpacity
-              style={[styles.pillBtn, billType === 'NON_GST' && styles.pillBtnActiveNonGst]}
-              onPress={() => setBillType('NON_GST')}
-            >
-              <Text style={[styles.pillBtnText, billType === 'NON_GST' && styles.pillBtnTextActive]}>
-                💵 Rough / Cash (No GST)
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.pillBtn, billType === 'GST' && styles.pillBtnActiveGst]}
-              onPress={() => setBillType('GST')}
-            >
-              <Text style={[styles.pillBtnText, billType === 'GST' && styles.pillBtnTextActive]}>
-                🏛️ GST Tax Bill (+18%)
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Search Catalog */}
-        <View style={styles.searchBarWrapper}>
-          <View style={styles.searchIconBadge}>
-            <Text style={styles.searchIconGlyph}>🔍</Text>
-          </View>
-          <TextInput
-            style={styles.searchInputField}
-            placeholder="Search CPVC pipes, Jaquar taps, Cera fittings..."
-            placeholderTextColor="#64748b"
-            value={search}
-            onChangeText={setSearch}
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          {search?.length > 0 && (
-            <TouchableOpacity
-              style={styles.searchClearBtn}
-              onPress={() => setSearch('')}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-            >
-              <Text style={styles.searchClearGlyph}>✕</Text>
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Category Pills Bar (Blinkit style) */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
-          {categories.map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.categoryChip,
-                selectedCategory === cat && styles.categoryChipActive,
-              ]}
-              onPress={() => setSelectedCategory(cat)}
-            >
-              <Text
-                style={[
-                  styles.categoryChipText,
-                  selectedCategory === cat && styles.categoryChipTextActive,
-                ]}
-              >
-                {cat === 'ALL' ? '🌟 All Items' : cat}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-
-        {/* 2-Column Product Catalog Grid (Flipkart / Blinkit Style) */}
-        {loading ? (
-          <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
-        ) : filteredProducts.length === 0 ? (
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyEmoji}>📦</Text>
-            <Text style={styles.emptyText}>No matching wholesale products found.</Text>
-          </View>
-        ) : (
-          <View style={styles.catalogGrid}>
-            {filteredProducts.map((p) => {
-              const hasVars = Boolean(p.hasVariants && p.variants?.length > 0);
-              const currentVarIdx = selectedVariants[p._id] ?? 0;
-              const activeVar = hasVars ? p.variants[currentVarIdx] || p.variants[0] : null;
-
-              const activePrice = activeVar ? activeVar.basePrice : p.basePrice || 0;
-              const activeBoxQty = activeVar ? activeVar.boxQuantity : p.boxQuantity || 1;
-              const isOutOfStock = activeVar ? activeVar.isOutOfStock : p.isOutOfStock;
-
-              const itemKey = activeVar ? `${p._id}___${activeVar.size}` : p._id;
-              const qtyInCart = cart[itemKey]?.quantity || 0;
-
-              return (
-                <View
-                  key={p._id}
-                  style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}
+        ListHeaderComponent={
+          <View style={{ marginBottom: 10 }}>
+            {/* Order Channel Switcher (Simulator Style) */}
+            <View style={styles.channelContainer}>
+              <Text style={styles.sectionLabel}>Order Channel:</Text>
+              <View style={styles.channelRow}>
+                <TouchableOpacity
+                  style={[styles.channelBtn, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnActiveBeat]}
+                  onPress={() => setOrderChannel('IN_PERSON_BEAT')}
                 >
-                  <View>
-                    {/* Square Photo Container with Tap to Zoom & Brand Tag */}
-                    <TouchableOpacity
-                      style={styles.gridImageContainer}
-                      activeOpacity={p.imageUrl ? 0.75 : 1}
-                      onPress={() => {
-                        if (p.imageUrl) {
-                          setZoomPhoto({
-                            url: p.imageUrl,
-                            name: p.name,
-                            brand: p.brand,
-                            price: activePrice,
-                          });
-                        }
-                      }}
-                    >
-                      {p.imageUrl ? (
-                        <Image source={{ uri: p.imageUrl }} style={styles.gridImage} resizeMode="cover" />
-                      ) : (
-                        <View style={styles.imagePlaceholder}>
-                          <Text style={styles.placeholderEmoji}>🚿</Text>
-                        </View>
-                      )}
-                      {p.brand ? (
-                        <View style={styles.gridBrandBadge}>
-                          <Text style={styles.gridBrandBadgeText}>{p.brand}</Text>
-                        </View>
-                      ) : null}
-                    </TouchableOpacity>
+                  <Text style={[styles.channelBtnText, orderChannel === 'IN_PERSON_BEAT' && styles.channelBtnTextActive]}>
+                    📍 Beat Visit
+                  </Text>
+                </TouchableOpacity>
 
-                    {/* Title & Category */}
-                    <Text style={styles.gridProdName} numberOfLines={2}>
-                      {p.name}
-                    </Text>
-                    <Text style={styles.gridProdCategory} numberOfLines={1}>
-                      {p.category || 'Hardware'}
-                    </Text>
+                <TouchableOpacity
+                  style={[styles.channelBtn, orderChannel === 'PHONE_ORDER' && styles.channelBtnActivePhone]}
+                  onPress={() => setOrderChannel('PHONE_ORDER')}
+                >
+                  <Text style={[styles.channelBtnText, orderChannel === 'PHONE_ORDER' && styles.channelBtnTextActive]}>
+                    📞 Phone (No Visit)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-                    {/* Size Variant Chips */}
-                    {hasVars && (
-                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.gridVariantScroll}>
-                        {p.variants.map((v, vIdx) => {
-                          const isSelected = currentVarIdx === vIdx;
-                          return (
-                            <TouchableOpacity
-                              key={v.size || vIdx}
-                              style={[styles.gridVarChip, isSelected && styles.gridVarChipActive]}
-                              onPress={() => setSelectedVariants((prev) => ({ ...prev, [p._id]: vIdx }))}
-                            >
-                              <Text style={[styles.gridVarChipText, isSelected && styles.gridVarChipTextActive]}>
-                                {v.size}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                      </ScrollView>
-                    )}
+            {/* Bill Type Selector (Simulator Style) */}
+            <View style={styles.billTypeContainer}>
+              <Text style={styles.sectionLabel}>Select Billing Mode:</Text>
+              <View style={styles.pillRow}>
+                <TouchableOpacity
+                  style={[styles.pillBtn, billType === 'NON_GST' && styles.pillBtnActiveNonGst]}
+                  onPress={() => setBillType('NON_GST')}
+                >
+                  <Text style={[styles.pillBtnText, billType === 'NON_GST' && styles.pillBtnTextActive]}>
+                    💵 Rough / Cash (No GST)
+                  </Text>
+                </TouchableOpacity>
 
-                    {/* Master Box Info & Price */}
-                    <View style={styles.gridBoxTag}>
-                      <Text style={styles.gridBoxTagText}>
-                        📦 Box: {activeBoxQty} pcs • ₹{((activePrice || 0) * activeBoxQty).toLocaleString()}
-                      </Text>
-                    </View>
-                    <View style={styles.gridPriceRow}>
-                      <Text style={styles.gridPrice}>₹{activePrice?.toLocaleString()}</Text>
-                      <Text style={styles.gridPriceUnit}> / {p.uom || 'pc'}</Text>
-                    </View>
-                  </View>
+                <TouchableOpacity
+                  style={[styles.pillBtn, billType === 'GST' && styles.pillBtnActiveGst]}
+                  onPress={() => setBillType('GST')}
+                >
+                  <Text style={[styles.pillBtnText, billType === 'GST' && styles.pillBtnTextActive]}>
+                    🏛️ GST Tax Bill (+18%)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
 
-                  {/* Stepper / Controls */}
-                  {isOutOfStock ? (
-                    <View style={styles.gridOutOfStockBanner}>
-                      <Text style={styles.gridOutOfStockText}>Out of Stock</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.gridActionContainer}>
-                      <TouchableOpacity
-                        style={styles.gridBoxBtn}
-                        onPress={() => handleUpdateCart(p, activeVar, 1, activeBoxQty)}
-                      >
-                        <Text style={styles.gridBoxBtnText}>+1 Box ({activeBoxQty} pcs)</Text>
-                      </TouchableOpacity>
+            {/* Search Catalog */}
+            <View style={styles.searchBarWrapper}>
+              <View style={styles.searchIconBadge}>
+                <Text style={styles.searchIconGlyph}>🔍</Text>
+              </View>
+              <TextInput
+                style={styles.searchInputField}
+                placeholder="Search CPVC pipes, Jaquar taps, Cera fittings..."
+                placeholderTextColor="#64748b"
+                value={search}
+                onChangeText={setSearch}
+                returnKeyType="search"
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              {search?.length > 0 && (
+                <TouchableOpacity
+                  style={styles.searchClearBtn}
+                  onPress={() => setSearch('')}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <Text style={styles.searchClearGlyph}>✕</Text>
+                </TouchableOpacity>
+              )}
+            </View>
 
-                      <View style={styles.gridStepper}>
-                        <TouchableOpacity
-                          style={styles.gridStepperBtn}
-                          onPress={() => handleUpdateCart(p, activeVar, -1, 1)}
-                        >
-                          <Text style={styles.gridStepperBtnText}>-</Text>
-                        </TouchableOpacity>
-                        <Text style={styles.gridStepperQty}>
-                          {qtyInCart} pcs
-                        </Text>
-                        <TouchableOpacity
-                          style={styles.gridStepperBtn}
-                          onPress={() => handleUpdateCart(p, activeVar, 1, 1)}
-                        >
-                          <Text style={styles.gridStepperBtnText}>+</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
-                </View>
-              );
-            })}
+            {/* Category Pills Bar (Blinkit style) */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryScroll}>
+              {categories.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.categoryChip,
+                    selectedCategory === cat && styles.categoryChipActive,
+                  ]}
+                  onPress={() => setSelectedCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.categoryChipText,
+                      selectedCategory === cat && styles.categoryChipTextActive,
+                    ]}
+                  >
+                    {cat === 'ALL' ? '🌟 All Items' : cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
-        )}
-
-        {/* Dispatch Instruction */}
-        <View style={styles.notesContainer}>
-          <Text style={styles.sectionLabel}>Dispatch / Packaging Instructions:</Text>
-          <TextInput
-            style={styles.notesInput}
-            placeholder="e.g. Pack in wooden crate; deliver by 2 PM via Patel Transport..."
-            placeholderTextColor="#64748b"
-            value={dispatchNotes}
-            onChangeText={setDispatchNotes}
-          />
-        </View>
-      </ScrollView>
+        }
+        ListFooterComponent={
+          <View style={styles.notesContainer}>
+            <Text style={styles.sectionLabel}>Dispatch / Packaging Instructions:</Text>
+            <TextInput
+              style={styles.notesInput}
+              placeholder="e.g. Pack in wooden crate; deliver by 2 PM via Patel Transport..."
+              placeholderTextColor="#64748b"
+              value={dispatchNotes}
+              onChangeText={setDispatchNotes}
+            />
+          </View>
+        }
+        ListEmptyComponent={
+          loading ? (
+            <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 40 }} />
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyEmoji}>📦</Text>
+              <Text style={styles.emptyText}>No matching wholesale products found.</Text>
+            </View>
+          )
+        }
+      />
 
       {/* Bottom Cart Drawer Bar */}
       <View style={styles.footer}>
@@ -457,6 +520,7 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
           style={[styles.submitBtn, submitting && styles.submitBtnDisabled]}
           onPress={handleSubmitOrder}
           disabled={submitting}
+          activeOpacity={0.8}
         >
           {submitting ? (
             <ActivityIndicator color="#ffffff" size="small" />
@@ -476,70 +540,6 @@ export const NewOrderScreen = ({ shop, onBack, onOrderSuccess }) => {
 };
 
 const styles = StyleSheet.create({
-  variantContainer: {
-    marginTop: 10,
-    paddingTop: 8,
-    borderTopWidth: 1,
-    borderTopColor: '#1f2937',
-  },
-  variantLabel: {
-    fontSize: 10,
-    color: '#38bdf8',
-    fontWeight: 'bold',
-    marginBottom: 6,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  variantScroll: {
-    flexDirection: 'row',
-  },
-  variantChip: {
-    backgroundColor: '#0f172a',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    marginRight: 8,
-    alignItems: 'center',
-    position: 'relative',
-  },
-  variantChipActive: {
-    backgroundColor: '#0284c7',
-    borderColor: '#38bdf8',
-  },
-  variantChipText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#cbd5e1',
-  },
-  variantChipTextActive: {
-    color: '#ffffff',
-  },
-  variantChipPrice: {
-    fontSize: 10,
-    fontWeight: '600',
-    color: '#34d399',
-    marginTop: 2,
-  },
-  variantChipPriceActive: {
-    color: '#e0f2fe',
-  },
-  variantBadge: {
-    position: 'absolute',
-    top: -5,
-    right: -5,
-    backgroundColor: '#f59e0b',
-    borderRadius: 10,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-  },
-  variantBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-
   container: {
     flex: 1,
     backgroundColor: '#090d16',
@@ -548,19 +548,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 12,
-    backgroundColor: '#111827',
+    paddingTop: 6,
+    paddingBottom: 10,
+    minHeight: 56,
+    backgroundColor: '#090d16',
     borderBottomWidth: 1,
-    borderBottomColor: '#1f2937',
+    borderBottomColor: '#1e293b',
   },
   backBtn: {
     paddingVertical: 6,
     paddingHorizontal: 10,
-    backgroundColor: '#1f2937',
+    backgroundColor: '#1e293b',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#374151',
+    borderColor: '#334155',
   },
   backBtnText: {
     color: '#94a3b8',
@@ -573,67 +574,73 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   headerSubtitle: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#38bdf8',
+    marginTop: 1,
   },
-  scrollContent: {
-    padding: 16,
-    paddingBottom: 120,
+  catalogListContent: {
+    padding: 12,
+    paddingBottom: 110,
+  },
+  catalogColumnWrapper: {
+    justifyContent: 'space-between',
   },
   channelContainer: {
-    marginBottom: 14,
+    marginBottom: 10,
+  },
+  sectionLabel: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#94a3b8',
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    letterSpacing: 0.5,
   },
   channelRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   channelBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 9,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   channelBtnActiveBeat: {
     backgroundColor: '#0c4a6e',
     borderColor: '#0284c7',
   },
   channelBtnActivePhone: {
-    backgroundColor: '#3b0764',
-    borderColor: '#a855f7',
+    backgroundColor: '#4c1d95',
+    borderColor: '#8b5cf6',
   },
   channelBtnText: {
     color: '#94a3b8',
     fontSize: 12,
-    fontWeight: 'bold',
+    fontWeight: '600',
   },
   channelBtnTextActive: {
     color: '#ffffff',
+    fontWeight: 'bold',
   },
   billTypeContainer: {
-    marginBottom: 14,
-  },
-  sectionLabel: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#94a3b8',
-    marginBottom: 8,
-    textTransform: 'uppercase',
+    marginBottom: 10,
   },
   pillRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
   },
   pillBtn: {
     flex: 1,
-    paddingVertical: 10,
+    paddingVertical: 9,
     alignItems: 'center',
     borderRadius: 10,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   pillBtnActiveNonGst: {
     backgroundColor: '#78350f',
@@ -645,11 +652,12 @@ const styles = StyleSheet.create({
   },
   pillBtnText: {
     color: '#94a3b8',
-    fontSize: 12,
-    fontWeight: 'bold',
+    fontSize: 11,
+    fontWeight: '600',
   },
   pillBtnTextActive: {
     color: '#ffffff',
+    fontWeight: 'bold',
   },
   searchBarWrapper: {
     flexDirection: 'row',
@@ -659,8 +667,8 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: '#1e293b',
     paddingHorizontal: 12,
-    height: 46,
-    marginBottom: 12,
+    height: 44,
+    marginBottom: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -697,36 +705,25 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
-  searchBar: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    color: '#f8fafc',
-    fontSize: 13,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: '#334155',
-  },
   categoryScroll: {
     flexDirection: 'row',
-    marginBottom: 14,
+    marginBottom: 4,
   },
   categoryChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 20,
-    backgroundColor: '#1e293b',
+    borderRadius: 16,
+    backgroundColor: '#0f172a',
     borderWidth: 1,
-    borderColor: '#334155',
-    marginRight: 8,
+    borderColor: '#1e293b',
+    marginRight: 6,
   },
   categoryChipActive: {
     backgroundColor: '#0284c7',
     borderColor: '#38bdf8',
   },
   categoryChipText: {
-    fontSize: 12,
+    fontSize: 11,
     color: '#94a3b8',
     fontWeight: '600',
   },
@@ -734,28 +731,11 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontWeight: 'bold',
   },
-  emptyContainer: {
-    alignItems: 'center',
-    paddingVertical: 40,
-  },
-  emptyEmoji: {
-    fontSize: 36,
-    marginBottom: 8,
-  },
-  emptyText: {
-    color: '#64748b',
-    fontSize: 13,
-  },
-  catalogGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-  },
   gridCard: {
     width: '48.5%',
     backgroundColor: '#0f172a',
     borderRadius: 16,
-    padding: 8,
+    padding: 10,
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#1e293b',
@@ -769,8 +749,8 @@ const styles = StyleSheet.create({
     aspectRatio: 1,
     borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: '#020617',
-    marginBottom: 6,
+    backgroundColor: '#1e293b',
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: '#1e293b',
     position: 'relative',
@@ -781,32 +761,41 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
+  imagePlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  placeholderEmoji: {
+    fontSize: 28,
+  },
   gridBrandBadge: {
     position: 'absolute',
-    top: 4,
-    right: 4,
-    backgroundColor: 'rgba(12, 74, 110, 0.85)',
-    paddingHorizontal: 5,
+    top: 6,
+    left: 6,
+    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 4,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.4)',
+    borderColor: 'rgba(255, 255, 255, 0.1)',
   },
   gridBrandBadgeText: {
-    color: '#38bdf8',
     fontSize: 9,
     fontWeight: 'bold',
+    color: '#38bdf8',
   },
   gridProdName: {
     fontSize: 12,
     fontWeight: 'bold',
     color: '#ffffff',
-    marginBottom: 2,
+    minHeight: 32,
     lineHeight: 16,
   },
   gridProdCategory: {
     fontSize: 10,
-    color: '#94a3b8',
+    color: '#64748b',
+    marginTop: 1,
     marginBottom: 4,
   },
   gridVariantScroll: {
@@ -814,10 +803,10 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   gridVarChip: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    backgroundColor: '#1e293b',
     borderRadius: 6,
-    backgroundColor: '#020617',
     borderWidth: 1,
     borderColor: '#334155',
     marginRight: 4,
@@ -835,141 +824,129 @@ const styles = StyleSheet.create({
     color: '#ffffff',
   },
   gridBoxTag: {
-    backgroundColor: '#020617',
-    paddingHorizontal: 5,
+    backgroundColor: 'rgba(14, 165, 233, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(14, 165, 233, 0.2)',
+    paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#1e293b',
     marginBottom: 4,
   },
   gridBoxTagText: {
-    color: '#94a3b8',
     fontSize: 9,
+    color: '#38bdf8',
     fontWeight: '600',
   },
   gridPriceRow: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginBottom: 6,
+    marginBottom: 8,
   },
   gridPrice: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#34d399',
   },
   gridPriceUnit: {
     fontSize: 9,
-    color: '#94a3b8',
+    color: '#64748b',
   },
   gridOutOfStockBanner: {
-    backgroundColor: '#450a0a',
-    borderRadius: 8,
-    paddingVertical: 4,
-    alignItems: 'center',
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
     borderWidth: 1,
-    borderColor: '#991b1b',
+    borderColor: 'rgba(239, 68, 68, 0.3)',
+    borderRadius: 8,
+    paddingVertical: 6,
+    alignItems: 'center',
   },
   gridOutOfStockText: {
     color: '#f87171',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   gridActionContainer: {
     gap: 4,
   },
   gridBoxBtn: {
-    width: '100%',
-    backgroundColor: 'rgba(2, 132, 199, 0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(56, 189, 248, 0.3)',
+    backgroundColor: '#1e293b',
     borderRadius: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   gridBoxBtnText: {
     color: '#38bdf8',
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   gridStepper: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#020617',
+    backgroundColor: '#090d16',
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#1e293b',
-    padding: 2,
   },
   gridStepperBtn: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: '#0284c7',
-    alignItems: 'center',
-    justifyContent: 'center',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   gridStepperBtnText: {
-    color: '#ffffff',
+    color: '#38bdf8',
     fontSize: 13,
     fontWeight: 'bold',
   },
   gridStepperQty: {
-    color: '#ffffff',
     fontSize: 10,
     fontWeight: 'bold',
-  },
-  imagePlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#020617',
-  },
-  placeholderEmoji: {
-    fontSize: 24,
+    color: '#ffffff',
   },
   notesContainer: {
-    marginTop: 16,
+    marginTop: 10,
+    marginBottom: 10,
   },
   notesInput: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#0f172a',
     borderRadius: 12,
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     color: '#f8fafc',
     fontSize: 13,
     borderWidth: 1,
-    borderColor: '#334155',
+    borderColor: '#1e293b',
   },
   footer: {
     position: 'absolute',
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: '#111827',
+    backgroundColor: '#0f172a',
     borderTopWidth: 1,
-    borderTopColor: '#1f2937',
+    borderTopColor: '#1e293b',
     paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingVertical: 10,
+    paddingBottom: Platform.OS === 'ios' ? 24 : 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    zIndex: 99,
   },
   footerLabel: {
     fontSize: 11,
     color: '#94a3b8',
   },
   footerTotal: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#34d399',
   },
   submitBtn: {
-    backgroundColor: '#0284c7',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
+    backgroundColor: '#059669',
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
   },
   submitBtnDisabled: {
     opacity: 0.6,
@@ -978,5 +955,18 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 13,
     fontWeight: 'bold',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  emptyEmoji: {
+    fontSize: 36,
+    marginBottom: 8,
+  },
+  emptyText: {
+    color: '#94a3b8',
+    fontSize: 13,
+    textAlign: 'center',
   },
 });

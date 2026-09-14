@@ -1,4 +1,11 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+const todayBeatCode = `import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -223,7 +230,7 @@ const ShopCard = React.memo(
                 isInsideGeofence ? styles.textInside : styles.textOutside,
               ]}
             >
-              {distance > 1000 ? `${(distance / 1000).toFixed(1)} km away` : `${distance}m away`}
+              {distance > 1000 ? \`\${(distance / 1000).toFixed(1)} km away\` : \`\${distance}m away\`}
             </Text>
             <Text style={styles.proximityStatusText}>
               ({isInsideGeofence ? 'At Shop' : 'Off-Site'})
@@ -364,7 +371,7 @@ export const TodayBeatScreen = ({
     // 2. Fetch Shops
     try {
       const shopRes = await mobileAPI.get(
-        `/shops?salesmanLat=${currentSalesmanCoords.latitude}&salesmanLng=${currentSalesmanCoords.longitude}`
+        \`/shops?salesmanLat=\${currentSalesmanCoords.latitude}&salesmanLng=\${currentSalesmanCoords.longitude}\`
       );
       if (shopRes.data?.success) {
         setShops(shopRes.data.shops || []);
@@ -471,7 +478,7 @@ export const TodayBeatScreen = ({
 
   const handleUpdateCart = useCallback((p, variant, delta, boxMultiplier = 1) => {
     const varName = variant ? variant.size : '';
-    const itemKey = varName ? `${p._id}___${varName}` : p._id;
+    const itemKey = varName ? \`\${p._id}___\${varName}\` : p._id;
     const itemPrice = variant ? variant.basePrice : p.basePrice || 0;
     const itemBoxQty = variant ? variant.boxQuantity : p.boxQuantity || 1;
     const itemSku = variant ? variant.sku : p.sku || '';
@@ -511,7 +518,7 @@ export const TodayBeatScreen = ({
     const lat = shop.location?.latitude;
     const lng = shop.location?.longitude;
     if (lat && lng) {
-      const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+      const url = \`https://www.google.com/maps/dir/?api=1&destination=\${lat},\${lng}\`;
       Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open map navigation'));
     } else {
       Alert.alert('Notice', 'No GPS coordinates pinned for this shop.');
@@ -520,14 +527,14 @@ export const TodayBeatScreen = ({
 
   const handleCall = useCallback((phone) => {
     if (!phone) return;
-    Linking.openURL(`tel:${phone}`).catch(() => Alert.alert('Error', 'Cannot make call'));
+    Linking.openURL(\`tel:\${phone}\`).catch(() => Alert.alert('Error', 'Cannot make call'));
   }, []);
 
   const handleWhatsApp = useCallback((shop) => {
     const cleanPhone = shop.phone?.replace(/[^0-9]/g, '');
     const recipient = cleanPhone?.length === 10 ? '91' + cleanPhone : cleanPhone;
-    const msg = `*SHIVAM MARKETING - WHOLESALE ORDER INQUIRY*\nNamaste ${shop.ownerName || ''} ji,\nThis is ${user?.name || 'your Sales Executive'} from Shivam Marketing.\nChecking in for today's wholesale order requirements for ${shop.shopName}.`;
-    Linking.openURL(`https://wa.me/${recipient}?text=${encodeURIComponent(msg)}`);
+    const msg = \`*SHIVAM MARKETING - WHOLESALE ORDER INQUIRY*\\nNamaste \${shop.ownerName || ''} ji,\\nThis is \${user?.name || 'your Sales Executive'} from Shivam Marketing.\\nChecking in for today's wholesale order requirements for \${shop.shopName}.\`;
+    Linking.openURL(\`https://wa.me/\${recipient}?text=\${encodeURIComponent(msg)}\`);
   }, [user]);
 
   const handleCheckIn = useCallback(async (shop) => {
@@ -547,12 +554,12 @@ export const TodayBeatScreen = ({
         if (v.isGeofenceVerified) {
           Alert.alert(
             'Visit Verified! ✅',
-            `You are ${v.distanceMeters}m from ${shop.shopName}.\nGeofence check passed. You can now punch orders and collect payment.`
+            \`You are \${v.distanceMeters}m from \${shop.shopName}.\\nGeofence check passed. You can now punch orders and collect payment.\`
           );
         } else {
           Alert.alert(
             'Outside Geofence Warning ⚠️',
-            `You are ${v.distanceMeters}m away from the shop (Allowed: ${v.thresholdMeters}m).\nThis visit will be flagged for Admin review.`
+            \`You are \${v.distanceMeters}m away from the shop (Allowed: \${v.thresholdMeters}m).\\nThis visit will be flagged for Admin review.\`
           );
         }
         await fetchAllData();
@@ -570,7 +577,7 @@ export const TodayBeatScreen = ({
       const hasVars = Boolean(item.hasVariants && item.variants?.length > 0);
       const currentVarIdx = selectedVariants[item._id] ?? 0;
       const activeVar = hasVars ? item.variants[currentVarIdx] || item.variants[0] : null;
-      const itemKey = activeVar ? `${item._id}___${activeVar.size}` : item._id;
+      const itemKey = activeVar ? \`\${item._id}___\${activeVar.size}\` : item._id;
       const qtyInCart = cart[itemKey]?.quantity || 0;
 
       return (
@@ -757,7 +764,7 @@ export const TodayBeatScreen = ({
             <View style={styles.emptyContainer}>
               <Text style={styles.emptyEmoji}>🏪</Text>
               <Text style={styles.emptyText}>
-                {fetchError ? `${fetchError}\nSwipe down to retry.` : 'No retail shops found.'}
+                {fetchError ? \`\${fetchError}\\nSwipe down to retry.\` : 'No retail shops found.'}
               </Text>
               <TouchableOpacity style={styles.retryBtn} onPress={onRefresh}>
                 <Text style={styles.retryBtnText}>🔄 Tap to Reload Shops</Text>
@@ -1010,7 +1017,7 @@ export const TodayBeatScreen = ({
                 <View style={styles.receiptHeader}>
                   <Text style={styles.receiptNum}>{p.receiptNumber || 'RCP-2026-0001'}</Text>
                   <Text style={styles.receiptMode}>
-                    {p.mode} {p.chequeNumber ? `(#${p.chequeNumber})` : ''}
+                    {p.mode} {p.chequeNumber ? \`(#\${p.chequeNumber})\` : ''}
                   </Text>
                 </View>
                 <Text style={styles.receiptMeta}>
@@ -2246,3 +2253,8 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+\`;
+
+const targetFile = path.join(__dirname, '../../../mobile-app/src/screens/TodayBeatScreen.js');
+fs.writeFileSync(targetFile, todayBeatCode, 'utf-8');
+console.log('✅ Updated TodayBeatScreen.js successfully!');

@@ -38,7 +38,7 @@ export default function App() {
   if (!currentUser) {
     return (
       <SafeAreaView style={styles.safeArea}>
-        <StatusBar barStyle="light-content" backgroundColor="#0f172a" />
+        <StatusBar barStyle="light-content" backgroundColor="#090d16" />
         <LoginScreen onLoginSuccess={handleLoginSuccess} />
       </SafeAreaView>
     );
@@ -46,7 +46,7 @@ export default function App() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#111827" />
+      <StatusBar barStyle="light-content" backgroundColor="#090d16" />
 
       {currentUser.role === 'SHOP_OWNER' ? (
         <ShopOwnerHomeScreen user={currentUser} onLogout={handleLogout} />
@@ -109,5 +109,6 @@ const styles = StyleSheet.create({
   },
   screenContainer: {
     flex: 1,
+    backgroundColor: '#090d16',
   },
 });
