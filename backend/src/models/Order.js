@@ -39,6 +39,13 @@ const orderSchema = new mongoose.Schema({
   deliveredAt: { type: Date },
 }, { timestamps: true });
 
+// High-speed order lookup and live tracking indexes
+orderSchema.index({ shop: 1, createdAt: -1 });
+orderSchema.index({ salesman: 1, createdAt: -1 });
+orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ billType: 1, createdAt: -1 });
+orderSchema.index({ createdAt: -1 });
+
 export const Order = process.env.MONGODB_URI
   ? (mongoose.models.Order || mongoose.model('Order', orderSchema))
   : createModelAdapter('orders');

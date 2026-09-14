@@ -3,6 +3,10 @@ import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
 import cors from 'cors';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import mongoSanitize from 'express-mongo-sanitize';
 import { connectDB } from './config/db.js';
 
 // Route imports
@@ -22,6 +26,9 @@ import { Media } from './models/Media.js';
 const app = express();
 const server = http.createServer(app);
 
+// Trust first proxy for cloud platforms (Render, AWS, DigitalOcean)
+app.set('trust proxy', 1);
+
 // Socket.io for Real-Time Warehouse Alerts
 const io = new SocketIOServer(server, {
   cors: {
@@ -32,10 +39,45 @@ const io = new SocketIOServer(server, {
 
 app.set('io', io);
 
+// Enterprise Security Headers
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  })
+);
+
+// High-throughput GZIP compression for 2,000+ catalog scaling
+app.use(compression());
+
+// NoSQL Query Injection Sanitization
+app.use(mongoSanitize());
+
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Enterprise Rate Limiting for Security
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 30, // 30 login attempts per 15 min per IP
+  message: { success: false, message: 'Too many login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 2000, // 2000 requests per 15 min per IP for active field teams
+  message: { success: false, message: 'Too many requests from this device. Please try again shortly.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use('/api/auth/login', authLimiter);
+app.use('/api/', apiLimiter);
 
 import path from 'path';
 import fs from 'fs';

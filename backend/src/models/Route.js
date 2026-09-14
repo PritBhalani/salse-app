@@ -14,6 +14,10 @@ const routeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// High-speed route lookup indexes
+routeSchema.index({ isActive: 1 });
+routeSchema.index({ assignedSalesman: 1 });
+
 export const Route = process.env.MONGODB_URI
   ? (mongoose.models.Route || mongoose.model('Route', routeSchema))
   : createModelAdapter('routes');

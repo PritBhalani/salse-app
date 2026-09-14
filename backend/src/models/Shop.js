@@ -24,6 +24,17 @@ const shopSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// High-speed territory, salesman assignment and phone lookup indexes
+shopSchema.index({ routeId: 1, isActive: 1 });
+shopSchema.index({ phone: 1 });
+shopSchema.index({ city: 1, isActive: 1 });
+shopSchema.index(
+  { shopName: 'text', ownerName: 'text', city: 'text' },
+  { weights: { shopName: 10, ownerName: 5, city: 3 }, name: 'ShopTextIndex' }
+);
+shopSchema.index({ 'location.latitude': 1, 'location.longitude': 1 });
+shopSchema.index({ createdAt: -1 });
+
 export const Shop = process.env.MONGODB_URI
   ? (mongoose.models.Shop || mongoose.model('Shop', shopSchema))
   : createModelAdapter('shops');

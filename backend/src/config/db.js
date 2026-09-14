@@ -9,7 +9,10 @@ export const connectDB = async () => {
   if (process.env.MONGODB_URI) {
     try {
       const conn = await mongoose.connect(process.env.MONGODB_URI, {
-        serverSelectionTimeoutMS: 3000,
+        maxPoolSize: 50,
+        minPoolSize: 10,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
       });
       console.log(`🌿 Connected to live MongoDB: ${conn.connection.host}`);
       return { mode: 'MONGO', connection: conn };

@@ -31,6 +31,17 @@ const productSchema = new mongoose.Schema({
   variants: [variantSchema],
 }, { timestamps: true });
 
+// High-performance search and filter indexes for 2,000+ catalog scaling
+productSchema.index(
+  { name: 'text', brand: 'text', category: 'text', sku: 'text' },
+  { weights: { name: 10, brand: 5, category: 3, sku: 2 }, name: 'ProductTextIndex' }
+);
+productSchema.index({ category: 1, brand: 1 });
+productSchema.index({ basePrice: 1 });
+productSchema.index({ isOutOfStock: 1 });
+productSchema.index({ sku: 1 });
+productSchema.index({ createdAt: -1 });
+
 export const Product = process.env.MONGODB_URI
   ? (mongoose.models.Product || mongoose.model('Product', productSchema))
   : createModelAdapter('products');

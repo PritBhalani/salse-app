@@ -22,6 +22,11 @@ const visitLogSchema = new mongoose.Schema({
   checkOutTime: { type: Date },
 }, { timestamps: true });
 
+// High-speed salesman beat activity and visit history indexes
+visitLogSchema.index({ salesman: 1, checkInTime: -1 });
+visitLogSchema.index({ shop: 1, checkInTime: -1 });
+visitLogSchema.index({ checkInTime: -1 });
+
 export const VisitLog = process.env.MONGODB_URI
   ? (mongoose.models.VisitLog || mongoose.model('VisitLog', visitLogSchema))
   : createModelAdapter('visitlogs');

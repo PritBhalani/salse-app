@@ -18,14 +18,14 @@ const formatProductDoc = (req, p) => {
   return doc;
 };
 
-// @desc    Get all products with category, brand and search filters
+// @desc    Get all products with category, brand and search filters (supports lean & pagination)
 // @route   GET /api/products
 export const getProducts = async (req, res) => {
   try {
-    const { category, brand, search, inStockOnly } = req.query;
+    const { category, brand, search, inStockOnly, page, limit } = req.query;
     const filter = {};
 
-    if (category) {
+    if (category && category !== 'ALL') {
       filter.category = category;
     }
     if (brand) {
@@ -34,15 +34,30 @@ export const getProducts = async (req, res) => {
     if (inStockOnly === 'true') {
       filter.isOutOfStock = false;
     }
-    if (search) {
+    if (search && search.trim()) {
+      const safeSearch = search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       filter.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { sku: { $regex: search, $options: 'i' } },
-        { brand: { $regex: search, $options: 'i' } },
+        { name: { $regex: safeSearch, $options: 'i' } },
+        { sku: { $regex: safeSearch, $options: 'i' } },
+        { brand: { $regex: safeSearch, $options: 'i' } },
+        { category: { $regex: safeSearch, $options: 'i' } },
       ];
     }
 
-    const products = await Product.find(filter).sort({ category: 1, name: 1 });
+    let query = Product.find(filter).sort({ category: 1, name: 1 });
+
+    if (typeof query.lean === 'function') {
+      query = query.lean();
+    }
+
+    if (page && limit) {
+      const p = Math.max(1, parseInt(page, 10) || 1);
+      const l = Math.max(1, parseInt(limit, 10) || 50);
+      const skip = (p - 1) * l;
+      query = query.skip(skip).limit(l);
+    }
+
+    const products = await query;
     const formatted = products.map((p) => formatProductDoc(req, p));
     res.json({ success: true, count: formatted.length, products: formatted });
   } catch (error) {

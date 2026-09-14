@@ -15,6 +15,11 @@ const userSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });
 
+// High-speed user authentication and role routing indexes
+userSchema.index({ role: 1, isActive: 1 });
+userSchema.index({ email: 1 });
+userSchema.index({ shopId: 1 });
+
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) return next();
   const salt = await bcrypt.genSalt(10);

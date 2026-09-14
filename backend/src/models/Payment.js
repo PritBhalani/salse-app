@@ -26,6 +26,12 @@ const paymentSchema = new mongoose.Schema({
   collectedAt: { type: Date, default: Date.now },
 }, { timestamps: true });
 
+// High-speed ledger and cash settlement indexes
+paymentSchema.index({ shop: 1, collectedAt: -1 });
+paymentSchema.index({ salesman: 1, collectedAt: -1 });
+paymentSchema.index({ isSettledWithWarehouse: 1, salesman: 1 });
+paymentSchema.index({ collectedAt: -1 });
+
 export const Payment = process.env.MONGODB_URI
   ? (mongoose.models.Payment || mongoose.model('Payment', paymentSchema))
   : createModelAdapter('payments');

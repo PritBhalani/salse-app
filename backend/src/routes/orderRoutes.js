@@ -12,7 +12,7 @@ const router = express.Router();
 router
   .route('/')
   .get(protect, getOrders)
-  .post(protect, authorize('ADMIN', 'SALESMAN'), createOrder);
+  .post(protect, authorize('ADMIN', 'SALESMAN', 'SHOP_OWNER'), createOrder);
 
 router
   .route('/:id')
