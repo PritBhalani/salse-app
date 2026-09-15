@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -45,6 +45,8 @@ const GridProductCard = React.memo(
     const activePrice = activeVar ? activeVar.basePrice : product.basePrice || 0;
     const activeBoxQty = activeVar ? activeVar.boxQuantity : product.boxQuantity || 1;
     const isOutOfStock = activeVar ? activeVar.isOutOfStock : product.isOutOfStock;
+
+    const inputRef = useRef(null);
 
     return (
       <View style={[styles.gridCard, isOutOfStock && styles.gridCardDisabled]}>
@@ -158,8 +160,13 @@ const GridProductCard = React.memo(
               >
                 <Text style={styles.gridStepperBtnText}>-</Text>
               </TouchableOpacity>
-              <View style={styles.gridStepperInputContainer}>
+              <TouchableOpacity
+                style={styles.gridStepperInputContainer}
+                onPress={() => inputRef.current && inputRef.current.focus()}
+                activeOpacity={0.7}
+              >
                 <TextInput
+                  ref={inputRef}
                   style={styles.gridStepperInput}
                   keyboardType="number-pad"
                   value={qtyInCart > 0 ? String(qtyInCart) : ''}
@@ -174,7 +181,7 @@ const GridProductCard = React.memo(
                   maxLength={5}
                 />
                 <Text style={styles.gridStepperUnitText}>pcs</Text>
-              </View>
+              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.gridStepperBtn}
                 onPress={() => onUpdateCart(product, activeVar, 1, 1)}
