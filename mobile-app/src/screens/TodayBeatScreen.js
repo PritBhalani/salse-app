@@ -214,6 +214,7 @@ const GridProductCard = React.memo(
 const ShopCard = React.memo(
   ({
     shop,
+    isAssignedToMe,
     onCheckIn,
     checkInLoading,
     onSelectShop,
@@ -227,12 +228,19 @@ const ShopCard = React.memo(
 
     return (
       <View style={styles.shopCard}>
-        {/* Header with Shop Name and City Pill */}
+        {/* Header with Shop Name, Assignment Badge and City Pill */}
         <View style={styles.shopCardHeader}>
           <View style={{ flex: 1, paddingRight: 8 }}>
-            <Text style={styles.shopName} numberOfLines={1}>
-              {shop.shopName}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+              <Text style={styles.shopName} numberOfLines={1}>
+                {shop.shopName}
+              </Text>
+              {isAssignedToMe && (
+                <View style={styles.myShopBadge}>
+                  <Text style={styles.myShopBadgeText}>⭐ My Shop</Text>
+                </View>
+              )}
+            </View>
             <Text style={styles.ownerText} numberOfLines={1}>
               {shop.ownerName || 'Proprietor'} • {shop.city || 'Morbi'}
             </Text>
@@ -366,6 +374,7 @@ export const TodayBeatScreen = ({
   const [phoneSearchQuery, setPhoneSearchQuery] = useState('');
   const [catalogSearch, setCatalogSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [shopScopeFilter, setShopScopeFilter] = useState('ALL'); // 'ALL' or 'MY_SHOPS'
   const [fetchError, setFetchError] = useState(null);
   const [zoomPhoto, setZoomPhoto] = useState(null);
 
@@ -492,24 +501,50 @@ export const TodayBeatScreen = ({
     return allRoutes.find((r) => r._id === selectedRouteId) || routeData;
   }, [allRoutes, selectedRouteId, routeData]);
 
+  const isShopAssignedToMe = useCallback(
+    (s) => {
+      if (!s || !user?._id) return false;
+      const uid = user._id.toString();
+      if (s.assignedSalesmen && Array.isArray(s.assignedSalesmen)) {
+        if (s.assignedSalesmen.some((sm) => (sm?._id || sm)?.toString() === uid)) {
+          return true;
+        }
+      }
+      if (s.onboardedBy && (s.onboardedBy?._id || s.onboardedBy)?.toString() === uid) {
+        return true;
+      }
+      return false;
+    },
+    [user?._id]
+  );
+
+  const myAssignedShopsCount = useMemo(() => {
+    return shops.filter((s) => isShopAssignedToMe(s)).length;
+  }, [shops, isShopAssignedToMe]);
+
   const filteredShops = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    const base =
-      activeRoute && selectedRouteId !== 'ALL' && !q
-        ? shops.filter((s) =>
-            activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase())
-          )
-        : shops;
+    let base = shops;
+
+    if (activeRoute && selectedRouteId !== 'ALL' && !q) {
+      base = base.filter((s) =>
+        activeRoute.cities?.some((c) => c.toLowerCase() === s.city?.toLowerCase())
+      );
+    }
+
+    if (shopScopeFilter === 'MY_SHOPS') {
+      base = base.filter((s) => isShopAssignedToMe(s));
+    }
 
     if (!q) return base;
-    return shops.filter(
+    return base.filter(
       (s) =>
         s.shopName?.toLowerCase().includes(q) ||
         s.ownerName?.toLowerCase().includes(q) ||
         s.phone?.includes(q) ||
         s.city?.toLowerCase().includes(q)
     );
-  }, [shops, activeRoute, selectedRouteId, searchQuery]);
+  }, [shops, activeRoute, selectedRouteId, searchQuery, shopScopeFilter, isShopAssignedToMe]);
 
   const filteredProducts = useMemo(() => {
     const q = catalogSearch.trim().toLowerCase();
@@ -866,6 +901,29 @@ export const TodayBeatScreen = ({
             </View>
           </View>
 
+          {/* Quick Scope Filter: My Assigned Shops vs All Beat Shops */}
+          <View style={styles.shopScopeToggleRow}>
+            <TouchableOpacity
+              style={[styles.shopScopePill, shopScopeFilter === 'MY_SHOPS' && styles.shopScopePillActive]}
+              onPress={() => setShopScopeFilter('MY_SHOPS')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.shopScopeText, shopScopeFilter === 'MY_SHOPS' && styles.shopScopeTextActive]}>
+                ⭐ My Assigned Shops ({myAssignedShopsCount})
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.shopScopePill, shopScopeFilter === 'ALL' && styles.shopScopePillActive]}
+              onPress={() => setShopScopeFilter('ALL')}
+              activeOpacity={0.7}
+            >
+              <Text style={[styles.shopScopeText, shopScopeFilter === 'ALL' && styles.shopScopeTextActive]}>
+                🌐 All Beat Shops ({shops.length})
+              </Text>
+            </TouchableOpacity>
+          </View>
+
           {loading && !refreshing ? (
             <View style={{ alignItems: 'center', paddingVertical: 40 }}>
               <ActivityIndicator color="#0284c7" size="large" />
@@ -888,6 +946,7 @@ export const TodayBeatScreen = ({
               <ShopCard
                 key={s._id}
                 shop={s}
+                isAssignedToMe={isShopAssignedToMe(s)}
                 onCheckIn={handleCheckIn}
                 checkInLoading={checkInLoading}
                 onSelectShop={onSelectShop}
@@ -1675,6 +1734,48 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '600',
     color: '#cbd5e1',
+  },
+  myShopBadge: {
+    backgroundColor: 'rgba(139, 92, 246, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(167, 139, 250, 0.4)',
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: 6,
+  },
+  myShopBadgeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#c4b5fd',
+  },
+  shopScopeToggleRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 10,
+  },
+  shopScopePill: {
+    flex: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    backgroundColor: '#0f172a',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shopScopePillActive: {
+    backgroundColor: 'rgba(139, 92, 246, 0.25)',
+    borderColor: '#8b5cf6',
+  },
+  shopScopeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#94a3b8',
+  },
+  shopScopeTextActive: {
+    fontWeight: 'bold',
+    color: '#c4b5fd',
   },
   proximityRow: {
     flexDirection: 'row',

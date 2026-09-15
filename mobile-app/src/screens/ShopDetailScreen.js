@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -62,6 +62,60 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
   const orders = shopData?.orders || [];
   const payments = shopData?.payments || [];
   const totalDue = (currentShop.gstBalance || 0) + (currentShop.nonGstBalance || 0);
+  const [expandedOrders, setExpandedOrders] = useState({});
+
+  // Compute FIFO payment coverage per book (GST and Rough) to determine which bills are PAID vs DUE
+  const ordersWithSettlement = useMemo(() => {
+    if (!orders || orders.length === 0) return [];
+
+    let gstPayRemaining = payments
+      .filter((p) => p.billType === 'GST')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    let nonGstPayRemaining = payments
+      .filter((p) => p.billType === 'NON_GST')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+
+    // Oldest orders first to apply payments FIFO
+    const sorted = [...orders].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+    const settledMap = {};
+    for (const ord of sorted) {
+      const isGst = ord.billType === 'GST';
+      const pool = isGst ? gstPayRemaining : nonGstPayRemaining;
+      let paidAmount = 0;
+      let dueAmount = ord.totalAmount || 0;
+      let paymentStatus = 'DUE';
+
+      if (pool >= (ord.totalAmount || 0)) {
+        paidAmount = ord.totalAmount || 0;
+        dueAmount = 0;
+        paymentStatus = 'PAID';
+        if (isGst) gstPayRemaining -= paidAmount;
+        else nonGstPayRemaining -= paidAmount;
+      } else if (pool > 0) {
+        paidAmount = pool;
+        dueAmount = (ord.totalAmount || 0) - pool;
+        paymentStatus = 'PARTIAL';
+        if (isGst) gstPayRemaining = 0;
+        else nonGstPayRemaining = 0;
+      } else {
+        paidAmount = 0;
+        dueAmount = ord.totalAmount || 0;
+        paymentStatus = 'DUE';
+      }
+
+      settledMap[ord._id] = {
+        paidAmount,
+        dueAmount,
+        paymentStatus,
+      };
+    }
+
+    return orders.map((o) => ({
+      ...o,
+      ...(settledMap[o._id] || { paidAmount: 0, dueAmount: o.totalAmount, paymentStatus: 'DUE' }),
+    }));
+  }, [orders, payments]);
 
   const handleOpenEdit = () => {
     setEditForm({
@@ -282,28 +336,121 @@ export const ShopDetailScreen = ({ shop, onBack, onPunchOrder, onCollectPayment 
         {loading ? (
           <ActivityIndicator color="#0284c7" size="large" style={{ marginTop: 20 }} />
         ) : activeTab === 'ORDERS' ? (
-          orders.length === 0 ? (
+          ordersWithSettlement.length === 0 ? (
             <Text style={styles.emptyText}>No orders punched for this shop yet.</Text>
           ) : (
-            orders.map((o) => (
-              <View key={o._id} style={styles.itemCard}>
-                <View style={styles.itemHeader}>
-                  <Text style={styles.itemTitle}>{o.orderNumber}</Text>
-                  <View style={styles.statusBadge}>
-                    <Text style={styles.statusBadgeText}>{o.status}</Text>
+            ordersWithSettlement.map((o) => {
+              const isExpanded = Boolean(expandedOrders[o._id]);
+              return (
+                <View key={o._id} style={styles.itemCard}>
+                  {/* Order Header Row */}
+                  <View style={styles.itemHeader}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={styles.itemTitle}>{o.orderNumber}</Text>
+                      <View style={[styles.billTypeBadge, o.billType === 'GST' ? styles.billTypeGst : styles.billTypeRough]}>
+                        <Text style={[styles.billTypeText, o.billType === 'GST' ? styles.billTypeTextGst : styles.billTypeTextRough]}>
+                          {o.billType}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={styles.statusBadge}>
+                      <Text style={styles.statusBadgeText}>{o.status}</Text>
+                    </View>
                   </View>
+
+                  {/* Payment Dues Badge & Date Row */}
+                  <View style={styles.payStatusRow}>
+                    <Text style={styles.itemMeta}>
+                      Placed: {new Date(o.createdAt).toLocaleDateString('en-IN')}
+                    </Text>
+                    <View style={[
+                      styles.payStatusBadge,
+                      o.paymentStatus === 'PAID' ? styles.payBadgePaid :
+                      o.paymentStatus === 'PARTIAL' ? styles.payBadgePartial : styles.payBadgeDue
+                    ]}>
+                      <Text style={[
+                        styles.payStatusBadgeText,
+                        o.paymentStatus === 'PAID' ? styles.payTextPaid :
+                        o.paymentStatus === 'PARTIAL' ? styles.payTextPartial : styles.payTextDue
+                      ]}>
+                        {o.paymentStatus === 'PAID' ? '✓ PAID' :
+                         o.paymentStatus === 'PARTIAL' ? `⚠️ ₹${o.dueAmount.toLocaleString()} Due` :
+                         `⏳ ₹${o.dueAmount.toLocaleString()} Unpaid`}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Footer with Expandable Products Trigger */}
+                  <TouchableOpacity
+                    style={styles.itemFooter}
+                    onPress={() => setExpandedOrders(prev => ({ ...prev, [o._id]: !prev[o._id] }))}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flex: 1 }}>
+                      <Text style={styles.itemCount}>
+                        📦 {o.items?.length || 0} Products ({o.items?.reduce((s, i) => s + (i.boxCount || 1), 0)} Boxes)
+                      </Text>
+                      <Text style={styles.expandToggleText}>
+                        {isExpanded ? ' ▲ Hide' : ' ▼ View'}
+                      </Text>
+                    </View>
+                    <Text style={styles.itemAmount}>₹{o.totalAmount?.toLocaleString()}</Text>
+                  </TouchableOpacity>
+
+                  {/* Collapsible Product Items List */}
+                  {isExpanded && (
+                    <View style={styles.expandedProductsContainer}>
+                      <View style={styles.expandedHeaderRow}>
+                        <Text style={styles.expandedHeaderTitle}>PRODUCTS IN THIS BILL:</Text>
+                      </View>
+                      <View style={styles.expandedItemsList}>
+                        {(o.items || []).map((item, idx) => (
+                          <View key={idx} style={styles.expandedItemRow}>
+                            <View style={{ flex: 1, paddingRight: 8 }}>
+                              <Text style={styles.expandedItemName} numberOfLines={1}>
+                                {item.name}
+                              </Text>
+                              <Text style={styles.expandedItemSub}>
+                                {item.variantName ? `Size: ${item.variantName} • ` : ''}
+                                {item.sku ? `SKU: ${item.sku}` : ''}
+                              </Text>
+                            </View>
+                            <View style={{ alignItems: 'flex-end' }}>
+                              <Text style={styles.expandedItemQty}>
+                                {item.quantity} pcs × ₹{item.price}
+                              </Text>
+                              <Text style={styles.expandedItemSubtotal}>
+                                ₹{(item.subtotal || item.quantity * item.price).toLocaleString()}
+                              </Text>
+                            </View>
+                          </View>
+                        ))}
+                      </View>
+
+                      {/* Bill Dues Summary Box */}
+                      <View style={styles.billSummaryBreakdown}>
+                        <View style={styles.billSummaryRow}>
+                          <Text style={styles.billSummaryLabel}>Bill Total:</Text>
+                          <Text style={styles.billSummaryValue}>₹{o.totalAmount?.toLocaleString()}</Text>
+                        </View>
+                        <View style={styles.billSummaryRow}>
+                          <Text style={styles.billSummaryLabel}>Payment Cleared:</Text>
+                          <Text style={[styles.billSummaryValue, { color: '#34d399' }]}>
+                            ₹{(o.paidAmount || 0).toLocaleString()}
+                          </Text>
+                        </View>
+                        <View style={styles.billSummaryRow}>
+                          <Text style={styles.billSummaryLabel}>Balance Due on Bill:</Text>
+                          <Text style={[styles.billSummaryValue, { color: o.dueAmount > 0 ? '#f43f5e' : '#34d399', fontWeight: 'bold' }]}>
+                            ₹{(o.dueAmount || 0).toLocaleString()}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
                 </View>
-                <Text style={styles.itemMeta}>
-                  Placed: {new Date(o.createdAt).toLocaleDateString('en-IN')} | Bill: {o.billType}
-                </Text>
-                <View style={styles.itemFooter}>
-                  <Text style={styles.itemCount}>
-                    {o.items?.length || 0} Products ({o.items?.reduce((s, i) => s + (i.boxCount || 1), 0)} Boxes)
-                  </Text>
-                  <Text style={styles.itemAmount}>₹{o.totalAmount?.toLocaleString()}</Text>
-                </View>
-              </View>
-            ))
+              );
+            })
           )
         ) : (
           payments.length === 0 ? (
@@ -706,10 +853,147 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: 'bold',
   },
+  billTypeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  billTypeGst: {
+    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  billTypeRough: {
+    backgroundColor: 'rgba(245, 158, 11, 0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  },
+  billTypeText: {
+    fontSize: 9,
+    fontWeight: 'bold',
+  },
+  billTypeTextGst: {
+    color: '#34d399',
+  },
+  billTypeTextRough: {
+    color: '#fbbf24',
+  },
+  payStatusRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  payStatusBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 6,
+  },
+  payBadgePaid: {
+    backgroundColor: 'rgba(16, 185, 129, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(52, 211, 153, 0.4)',
+  },
+  payBadgePartial: {
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 191, 36, 0.4)',
+  },
+  payBadgeDue: {
+    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+    borderWidth: 1,
+    borderColor: 'rgba(251, 113, 133, 0.4)',
+  },
+  payStatusBadgeText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  payTextPaid: {
+    color: '#34d399',
+  },
+  payTextPartial: {
+    color: '#fbbf24',
+  },
+  payTextDue: {
+    color: '#fb7185',
+  },
+  expandToggleText: {
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#38bdf8',
+  },
+  expandedProductsContainer: {
+    backgroundColor: '#020617',
+    borderRadius: 10,
+    marginTop: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+  },
+  expandedHeaderRow: {
+    marginBottom: 6,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e293b',
+    paddingBottom: 4,
+  },
+  expandedHeaderTitle: {
+    fontSize: 9,
+    fontWeight: 'bold',
+    color: '#64748b',
+    letterSpacing: 0.5,
+  },
+  expandedItemsList: {
+    gap: 6,
+    marginBottom: 8,
+  },
+  expandedItemRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 2,
+  },
+  expandedItemName: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#f1f5f9',
+  },
+  expandedItemSub: {
+    fontSize: 9,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  expandedItemQty: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  expandedItemSubtotal: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#ffffff',
+  },
+  billSummaryBreakdown: {
+    borderTopWidth: 1,
+    borderTopColor: '#1e293b',
+    paddingTop: 6,
+    gap: 3,
+  },
+  billSummaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  billSummaryLabel: {
+    fontSize: 10,
+    color: '#94a3b8',
+  },
+  billSummaryValue: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#f8fafc',
+  },
   itemMeta: {
     fontSize: 11,
     color: '#94a3b8',
-    marginBottom: 8,
   },
   itemFooter: {
     flexDirection: 'row',
