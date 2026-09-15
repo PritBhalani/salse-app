@@ -5,6 +5,7 @@ import {
   createShop,
   updateShop,
   deleteShop,
+  updateSalesmanAssignment,
 } from '../controllers/shopController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -20,5 +21,7 @@ router
   .get(protect, getShopById)
   .put(protect, authorize('ADMIN', 'WAREHOUSE', 'SALESMAN'), updateShop)
   .delete(protect, authorize('ADMIN', 'WAREHOUSE'), deleteShop);
+
+router.patch('/:id/salesman-assignment', protect, authorize('ADMIN', 'WAREHOUSE'), updateSalesmanAssignment);
 
 export default router;

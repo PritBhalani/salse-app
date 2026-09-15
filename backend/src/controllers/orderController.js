@@ -1,6 +1,7 @@
 import { Order } from '../models/Order.js';
 import { Shop } from '../models/Shop.js';
 import { Product } from '../models/Product.js';
+import { Payment } from '../models/Payment.js';
 
 // Helper to generate order numbers like ORD-2026-0001
 const generateOrderNumber = async () => {
@@ -230,6 +231,86 @@ export const updateOrderStatus = async (req, res) => {
     }
 
     res.json({ success: true, order });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Get full salesman portfolio: assigned shops + per-shop orders & payments + totals
+// @route   GET /api/orders/salesman-portfolio/:salesmanId
+export const getSalesmanPortfolio = async (req, res) => {
+  try {
+    const { salesmanId } = req.params;
+
+    // Get all shops permanently assigned to this salesman
+    const assignedShops = await Shop.find({
+      assignedSalesmen: salesmanId,
+      isActive: true,
+    })
+      .populate('routeId', 'name')
+      .sort({ shopName: 1 });
+
+    // Get all orders placed by this salesman (with full product items for ledger)
+    const allOrders = await Order.find({ salesman: salesmanId })
+      .populate('shop', 'shopName ownerName city phone')
+      .populate('items.product', 'name sku')
+      .sort({ createdAt: -1 });
+
+    // Get all payments collected by this salesman
+    const allPayments = await Payment.find({ salesman: salesmanId })
+      .populate('shop', 'shopName ownerName city phone')
+      .sort({ collectedAt: -1 });
+
+    // Build per-shop summary map
+    const shopSummaryMap = {};
+
+    for (const shop of assignedShops) {
+      const sid = shop._id.toString();
+      const shopOrders = allOrders.filter((o) => o.shop?._id?.toString() === sid);
+      const shopPayments = allPayments.filter((p) => p.shop?._id?.toString() === sid);
+
+      const totalBilled = shopOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+      const totalCollected = shopPayments.reduce((sum, p) => sum + p.amount, 0);
+      const balanceDue = (shop.gstBalance || 0) + (shop.nonGstBalance || 0);
+      const lastOrderDate = shopOrders.length > 0 ? shopOrders[0].createdAt : null;
+
+      shopSummaryMap[sid] = {
+        shop,
+        orders: shopOrders,
+        payments: shopPayments,
+        totalBilled,
+        totalCollected,
+        balanceDue,
+        lastOrderDate,
+        orderCount: shopOrders.length,
+        paymentCount: shopPayments.length,
+      };
+    }
+
+    // Portfolio-level totals
+    const totalBilledAll = allOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const totalCollectedAll = allPayments.reduce((sum, p) => sum + p.amount, 0);
+    const totalDueAll = assignedShops.reduce((sum, s) => sum + (s.gstBalance || 0) + (s.nonGstBalance || 0), 0);
+    const pendingOrdersCount = allOrders.filter((o) => o.status === 'PENDING').length;
+    const unsettledPayments = allPayments.filter((p) => !p.isSettledWithWarehouse).reduce((sum, p) => sum + p.amount, 0);
+
+    res.json({
+      success: true,
+      salesmanId,
+      summary: {
+        totalShops: assignedShops.length,
+        totalOrders: allOrders.length,
+        totalPayments: allPayments.length,
+        totalBilledAll,
+        totalCollectedAll,
+        totalDueAll,
+        pendingOrdersCount,
+        unsettledPayments,
+      },
+      shopPortfolio: Object.values(shopSummaryMap),
+      allOrders,
+      allPayments,
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

@@ -4,10 +4,14 @@ import {
   getOrders,
   getOrderById,
   updateOrderStatus,
+  getSalesmanPortfolio,
 } from '../controllers/orderController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
+
+// Must be before /:id to avoid conflict
+router.get('/salesman-portfolio/:salesmanId', protect, authorize('ADMIN', 'WAREHOUSE'), getSalesmanPortfolio);
 
 router
   .route('/')

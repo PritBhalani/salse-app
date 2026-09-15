@@ -29,6 +29,8 @@ export const shopsAPI = {
   create: (data) => api.post('/shops', data),
   update: (id, data) => api.put(`/shops/${id}`, data),
   delete: (id) => api.delete(`/shops/${id}`),
+  assignSalesman: (shopId, salesmanId, action) =>
+    api.patch(`/shops/${shopId}/salesman-assignment`, { salesmanId, action }),
 };
 
 export const routesAPI = {
@@ -60,6 +62,7 @@ export const ordersAPI = {
   getById: (id) => api.get(`/orders/${id}`),
   create: (data) => api.post('/orders', data),
   updateStatus: (id, status, dispatchNotes) => api.patch(`/orders/${id}/status`, { status, dispatchNotes }),
+  getSalesmanPortfolio: (salesmanId) => api.get(`/orders/salesman-portfolio/${salesmanId}`),
 };
 
 export const paymentsAPI = {

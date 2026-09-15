@@ -11,6 +11,7 @@ import {
   Smartphone,
   LogOut,
   Radio,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
@@ -66,6 +67,13 @@ export const MobileDrawer = ({ isOpen, onClose, activeTab, onTabChange }) => {
       icon: Users,
       badge: 'Security',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      id: 'salesman-ledger',
+      label: 'Salesman Portfolios & Bills',
+      icon: BookOpen,
+      badge: 'Ledgers',
+      badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
     },
     {
       id: 'simulator',

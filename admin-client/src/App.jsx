@@ -15,6 +15,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { RoutePlannerPage } from './pages/RoutePlannerPage';
 import { ShopsLedgerPage } from './pages/ShopsLedgerPage';
 import { SalesmanTrackingPage } from './pages/SalesmanTrackingPage';
+import { SalesmanPortfolioPage } from './pages/SalesmanPortfolioPage';
 import { MobileSimulatorPage } from './pages/MobileSimulatorPage';
 
 import {
@@ -84,6 +85,7 @@ const MainLayout = () => {
               <RoutePlannerPage onNavigateToCallSheet={handleNavigateToCallSheet} />
             )}
             {activeTab === 'shops' && <ShopsLedgerPage />}
+            {activeTab === 'salesman-ledger' && <SalesmanPortfolioPage />}
             {activeTab === 'tracking' && <SalesmanTrackingPage />}
             {activeTab === 'simulator' && <MobileSimulatorPage />}
           </div>

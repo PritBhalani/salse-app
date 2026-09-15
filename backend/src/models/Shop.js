@@ -20,6 +20,7 @@ const shopSchema = new mongoose.Schema({
   qrCode: { type: String },
   photoUrl: { type: String },
   onboardedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  assignedSalesmen: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   lastVisitedAt: { type: Date },
   isActive: { type: Boolean, default: true },
 }, { timestamps: true });

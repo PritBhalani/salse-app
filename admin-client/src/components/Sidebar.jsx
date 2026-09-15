@@ -9,6 +9,7 @@ import {
   Users,
   Smartphone,
   ShieldCheck,
+  BookOpen,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
@@ -63,6 +64,14 @@ export const Sidebar = ({ activeTab, onTabChange }) => {
       roles: ['ADMIN', 'WAREHOUSE'],
       badge: 'Security',
       badgeColor: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
+    },
+    {
+      id: 'salesman-ledger',
+      label: 'Salesman Portfolios & Bills',
+      icon: BookOpen,
+      roles: ['ADMIN', 'WAREHOUSE'],
+      badge: 'Ledgers',
+      badgeColor: 'bg-violet-500/20 text-violet-300 border-violet-500/30',
     },
     {
       id: 'simulator',

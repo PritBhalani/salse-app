@@ -60,19 +60,23 @@ export const getShops = async (req, res) => {
 // @route   GET /api/shops/:id
 export const getShopById = async (req, res) => {
   try {
-    const shop = await Shop.findById(req.params.id).populate('routeId').populate('onboardedBy', 'name phone');
+    const shop = await Shop.findById(req.params.id)
+      .populate('routeId')
+      .populate('onboardedBy', 'name phone')
+      .populate('assignedSalesmen', 'name phone');
     if (!shop) {
       return res.status(404).json({ success: false, message: 'Shop not found' });
     }
 
-    // Fetch order history (split into GST and Non-GST)
+    // Fetch order history with full product items for ledger
     const orders = await Order.find({ shop: shop._id })
-      .populate('salesman', 'name')
+      .populate('salesman', 'name phone')
+      .populate('items.product', 'name sku')
       .sort({ createdAt: -1 });
 
     // Fetch payment collections
     const payments = await Payment.find({ shop: shop._id })
-      .populate('salesman', 'name')
+      .populate('salesman', 'name phone')
       .sort({ collectedAt: -1 });
 
     // GST stats
@@ -205,6 +209,52 @@ export const deleteShop = async (req, res) => {
       success: true,
       message: `Shop "${shop.shopName}" deleted successfully`,
       shopName: shop.shopName,
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// @desc    Assign or remove a salesman from a shop (multi-salesman support)
+// @route   PATCH /api/shops/:id/salesman-assignment
+// Body: { salesmanId, action: 'add' | 'remove' }
+export const updateSalesmanAssignment = async (req, res) => {
+  try {
+    const { salesmanId, action } = req.body;
+    if (!salesmanId || !['add', 'remove'].includes(action)) {
+      return res.status(400).json({ success: false, message: 'salesmanId and action (add/remove) are required' });
+    }
+
+    const shop = await Shop.findById(req.params.id);
+    if (!shop) {
+      return res.status(404).json({ success: false, message: 'Shop not found' });
+    }
+
+    const salesman = await User.findById(salesmanId);
+    if (!salesman || salesman.role !== 'SALESMAN') {
+      return res.status(404).json({ success: false, message: 'Salesman not found' });
+    }
+
+    const alreadyAssigned = shop.assignedSalesmen.some((id) => id.toString() === salesmanId);
+
+    if (action === 'add' && !alreadyAssigned) {
+      shop.assignedSalesmen.push(salesmanId);
+    } else if (action === 'remove') {
+      shop.assignedSalesmen = shop.assignedSalesmen.filter((id) => id.toString() !== salesmanId);
+    }
+
+    await shop.save();
+
+    const updatedShop = await Shop.findById(shop._id)
+      .populate('routeId')
+      .populate('assignedSalesmen', 'name phone');
+
+    res.json({
+      success: true,
+      message: action === 'add'
+        ? `${salesman.name} assigned to ${shop.shopName}`
+        : `${salesman.name} removed from ${shop.shopName}`,
+      shop: updatedShop,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

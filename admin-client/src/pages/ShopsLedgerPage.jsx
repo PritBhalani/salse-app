@@ -16,18 +16,24 @@ import {
   Edit2,
   Trash2,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  Package,
+  Users,
 } from 'lucide-react';
-import { shopsAPI, routesAPI } from '../services/api';
+import { shopsAPI, routesAPI, authAPI } from '../services/api';
 import { useToast } from '../context/ToastContext';
 
 export const ShopsLedgerPage = () => {
   const { toast } = useToast();
   const [shops, setShops] = useState([]);
   const [routes, setRoutes] = useState([]);
+  const [salesmen, setSalesmen] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedShop, setSelectedShop] = useState(null);
   const [shopDetailData, setShopDetailData] = useState(null);
+  const [expandedOrderIds, setExpandedOrderIds] = useState({});
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [createdCredentials, setCreatedCredentials] = useState(null);
   const [editShopData, setEditShopData] = useState(null);
@@ -114,12 +120,14 @@ export const ShopsLedgerPage = () => {
   const fetchShops = async () => {
     setLoading(true);
     try {
-      const [sRes, rRes] = await Promise.all([
+      const [sRes, rRes, uRes] = await Promise.all([
         shopsAPI.getAll(),
         routesAPI.getAll(),
+        authAPI.getUsers('SALESMAN'),
       ]);
       if (sRes.data.success) setShops(sRes.data.shops || []);
       if (rRes.data.success) setRoutes(rRes.data.routes || []);
+      if (uRes.data.success) setSalesmen(uRes.data.users || []);
     } catch (err) {
       console.error('Error fetching shops:', err);
     } finally {
@@ -253,7 +261,7 @@ export const ShopsLedgerPage = () => {
                 </div>
 
                 {/* Assigned Beat Badge */}
-                <div className="mb-3">
+                <div className="mb-2">
                   {(() => {
                     const assignedRoute = shop.routeId
                       ? (typeof shop.routeId === 'object' ? shop.routeId : routes.find(r => r._id === shop.routeId))
@@ -267,6 +275,25 @@ export const ShopsLedgerPage = () => {
                       </div>
                     );
                   })()}
+                </div>
+
+                {/* Assigned Salesmen Badges */}
+                <div className="mb-3 flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-semibold text-slate-500 flex items-center gap-1">
+                    <Users className="w-3 h-3 text-violet-400" /> Salesmen:
+                  </span>
+                  {shop.assignedSalesmen && shop.assignedSalesmen.length > 0 ? (
+                    shop.assignedSalesmen.map((sm) => {
+                      const smName = typeof sm === 'object' ? sm.name : salesmen.find(s => s._id === sm)?.name || 'Salesman';
+                      return (
+                        <span key={sm._id || sm} className="px-1.5 py-0.5 rounded bg-violet-500/20 text-violet-300 border border-violet-500/30 text-[10px] font-semibold">
+                          {smName}
+                        </span>
+                      );
+                    })
+                  ) : (
+                    <span className="text-[10px] text-slate-500 italic">Unassigned</span>
+                  )}
                 </div>
 
                 <div className="space-y-1 text-xs text-slate-400 mb-4">
@@ -435,36 +462,83 @@ export const ShopsLedgerPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-800 text-slate-300">
-                      {(shopDetailData?.orders || []).map((o) => (
-                        <tr key={o._id}>
-                          <td className="py-2 px-3 font-mono font-semibold text-white">{o.orderNumber}</td>
-                          <td className="py-2 px-3 text-slate-400">
-                            {new Date(o.createdAt).toLocaleDateString('en-IN')}
-                          </td>
-                          <td className="py-2 px-3">
-                            <div className="flex items-center gap-1">
-                              <span
-                                className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                                  o.billType === 'GST'
-                                    ? 'bg-emerald-500/20 text-emerald-300'
-                                    : 'bg-amber-500/20 text-amber-300'
-                                }`}
-                              >
-                                {o.billType}
-                              </span>
-                              {o.isWithoutVisit || o.orderChannel === 'PHONE_ORDER' ? (
-                                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
-                                  📞 Phone
-                                </span>
-                              ) : null}
-                            </div>
-                          </td>
-                          <td className="py-2 px-3 text-[11px]">{o.status}</td>
-                          <td className="py-2 px-3 text-right font-bold text-white">
-                            ₹{o.totalAmount.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
+                      {(shopDetailData?.orders || []).map((o) => {
+                        const isExpanded = Boolean(expandedOrderIds[o._id]);
+                        return (
+                          <React.Fragment key={o._id}>
+                            <tr
+                              onClick={() => setExpandedOrderIds(prev => ({ ...prev, [o._id]: !prev[o._id] }))}
+                              className="hover:bg-slate-800/40 cursor-pointer transition-colors"
+                            >
+                              <td className="py-2 px-3 font-mono font-semibold text-white">
+                                <div className="flex items-center gap-1.5">
+                                  {isExpanded ? <ChevronUp className="w-3.5 h-3.5 text-sky-400" /> : <ChevronDown className="w-3.5 h-3.5 text-slate-400" />}
+                                  <span>{o.orderNumber}</span>
+                                </div>
+                              </td>
+                              <td className="py-2 px-3 text-slate-400">
+                                {new Date(o.createdAt).toLocaleDateString('en-IN')}
+                              </td>
+                              <td className="py-2 px-3">
+                                <div className="flex items-center gap-1">
+                                  <span
+                                    className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                                      o.billType === 'GST'
+                                        ? 'bg-emerald-500/20 text-emerald-300'
+                                        : 'bg-amber-500/20 text-amber-300'
+                                    }`}
+                                  >
+                                    {o.billType}
+                                  </span>
+                                  {o.isWithoutVisit || o.orderChannel === 'PHONE_ORDER' ? (
+                                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300">
+                                      📞 Phone
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </td>
+                              <td className="py-2 px-3 text-[11px]">{o.status}</td>
+                              <td className="py-2 px-3 text-right font-bold text-white">
+                                ₹{o.totalAmount.toLocaleString()}
+                              </td>
+                            </tr>
+                            {isExpanded && (
+                              <tr className="bg-slate-900/90">
+                                <td colSpan={5} className="p-3">
+                                  <div className="bg-slate-950 border border-slate-800/80 rounded-lg p-2.5 space-y-1.5">
+                                    <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1 mb-1">
+                                      <Package className="w-3 h-3 text-sky-400" />
+                                      Products in Bill ({o.items?.length || 0} items)
+                                    </div>
+                                    <div className="divide-y divide-slate-800/60">
+                                      {(o.items || []).map((item, idx) => (
+                                        <div key={idx} className="py-1 flex items-center justify-between text-[11px]">
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-slate-200 font-medium">{item.name}</span>
+                                            {item.variantName && <span className="text-slate-400">({item.variantName})</span>}
+                                            {item.sku && <span className="text-slate-500 font-mono text-[9px]">#{item.sku}</span>}
+                                          </div>
+                                          <div className="flex items-center gap-3 text-right shrink-0">
+                                            <span className="text-slate-400">{item.quantity} pcs × ₹{item.price}</span>
+                                            <span className="text-white font-bold">₹{item.subtotal?.toLocaleString()}</span>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                    {o.gstTotal > 0 && (
+                                      <div className="pt-1.5 border-t border-slate-800 text-[10px] text-slate-400 flex justify-end gap-3 font-semibold">
+                                        <span>Subtotal: ₹{o.subtotal?.toLocaleString()}</span>
+                                        <span>GST: ₹{o.gstTotal?.toLocaleString()}</span>
+                                        <span className="text-white font-bold">Total: ₹{o.totalAmount?.toLocaleString()}</span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
